@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F Study Hub</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #1a1d27; --panel2: #232736; --text: #e8eaf0;
+    --dim: #9aa0b4; --accent: #d97748; --green: #4fa877; --red: #c95b5b;
+    --border: #2e3345; --blue: #5b8fc9; --yellow: #d9b64f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif;
+         min-height: 100vh; line-height: 1.5; }
+  code { background: var(--panel2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: .9em; }
+  strong { color: var(--text); }
+  a { color: var(--accent); }
+  h1, h2, h3 { margin: 0 0 8px; font-weight: 600; }
+  h2 { font-size: 1.25rem; color: var(--text); }
+  h3 { font-size: 1rem; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; margin-top: 24px; }
+  p { margin: 6px 0; }
+  .sub { color: var(--dim); font-size: .82rem; }
+
+  header { text-align: center; padding: 22px 16px 14px; border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 1.25rem; letter-spacing: .04em; }
+  header h1 span { color: var(--accent); }
+  header .meta-line { margin-top: 4px; }
+
+  nav.tabs { display: flex; justify-content: center; gap: 6px; margin-top: 16px; flex-wrap: wrap; }
+  .tab-btn { background: var(--panel); color: var(--dim); border: 1px solid var(--border); border-radius: 999px;
+             padding: 8px 20px; font-size: .85rem; cursor: pointer; transition: all .15s; }
+  .tab-btn:hover { border-color: var(--accent); color: var(--text); }
+  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .btn { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+         padding: 9px 16px; font-size: .85rem; cursor: pointer; transition: all .15s; }
+  .btn:hover:not(:disabled) { border-color: var(--dim); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.1); }
+  .btn.small { padding: 6px 12px; font-size: .78rem; }
+  .btn.active { border-color: var(--yellow); color: var(--yellow); }
+
+  .filter-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+  .chip-check { display: flex; align-items: center; gap: 6px; background: var(--panel); border: 1px solid var(--border);
+                border-radius: 999px; padding: 6px 12px; font-size: .8rem; cursor: pointer; color: var(--dim); }
+  .chip-check input { accent-color: var(--accent); }
+  .chip-check small { opacity: .7; }
+  .toggle-row { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--dim); margin: 8px 0; cursor: pointer; }
+  .toggle-row input { accent-color: var(--accent); }
+
+  /* question card shared by quiz + exam */
+  .q-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 22px; margin-top: 14px; }
+  .q-tag { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+  .q-stem { font-size: 1.02rem; line-height: 1.6; margin-bottom: 18px; }
+  .q-options { display: flex; flex-direction: column; gap: 8px; }
+  .opt-row { display: flex; align-items: flex-start; gap: 10px; background: var(--panel2); border: 1px solid var(--border);
+             border-radius: 10px; padding: 10px 12px; font-size: .92rem; cursor: pointer; }
+  .opt-row input { margin-top: 3px; accent-color: var(--accent); flex-shrink: 0; }
+  .opt-letter { font-weight: 700; color: var(--dim); flex-shrink: 0; }
+  .opt-text { flex: 1; }
+  .opt-row.correct { border-color: var(--green); background: rgba(79,168,119,.12); }
+  .opt-row.incorrect { border-color: var(--red); background: rgba(201,91,91,.12); }
+  .opt-row.neutral { opacity: .75; }
+  .opt-rationale { width: 100%; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); font-size: .84rem; color: var(--dim); }
+  .mark { font-weight: 700; margin-right: 4px; }
+  .mark.ok { color: var(--green); }
+  .mark.bad { color: var(--red); }
+  .q-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .feedback { margin-top: 12px; font-weight: 600; }
+  .feedback.ok { color: var(--green); }
+  .feedback.bad { color: var(--red); }
+
+  /* exam */
+  .exam-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .exam-timer { font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; background: var(--panel2);
+                border: 1px solid var(--border); border-radius: 8px; padding: 6px 14px; }
+  .exam-timer.low { color: var(--red); border-color: var(--red); }
+  .exam-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 6px; margin: 14px 0; }
+  .palette-btn { background: var(--panel); border: 1px solid var(--border); color: var(--dim); border-radius: 6px;
+                 padding: 6px 0; font-size: .75rem; cursor: pointer; }
+  .palette-btn.answered { background: var(--panel2); color: var(--text); border-color: var(--green); }
+  .palette-btn.flagged { border-color: var(--yellow); color: var(--yellow); }
+  .palette-btn.current { outline: 2px solid var(--accent); }
+  .exam-nav { display: flex; justify-content: space-between; margin-top: 14px; }
+  .resume-box { background: var(--panel2); border: 1px solid var(--yellow); border-radius: 10px; padding: 14px; margin: 14px 0; }
+  .score-hero { text-align: center; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 26px; margin: 16px 0; }
+  .score-hero .scaled { font-size: 3rem; font-weight: 800; }
+  .score-hero.pass .scaled { color: var(--green); }
+  .score-hero.fail .scaled { color: var(--red); }
+  .score-hero .scaled-sub { color: var(--dim); font-size: .8rem; }
+  .score-hero .raw { margin-top: 10px; font-size: 1.1rem; }
+  .score-hero .estimate-note { color: var(--dim); font-size: .74rem; margin-top: 10px; }
+  .warn { color: var(--yellow); font-weight: 600; }
+
+  table.domain-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .86rem; }
+  table.domain-table th, table.domain-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table.domain-table th { color: var(--dim); font-weight: 600; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; }
+  .bar-cell { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+  .bar-track { flex: 1; height: 8px; background: var(--panel2); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; }
+  .bar-fill.weight { background: var(--blue); }
+  .bar-fill.acc.high { background: var(--green); }
+  .bar-fill.acc.mid { background: var(--yellow); }
+  .bar-fill.acc.low { background: var(--red); }
+
+  .review-list { display: flex; flex-direction: column; gap: 12px; margin: 12px 0 20px; }
+  .review-item { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .review-item.ok { border-left-color: var(--green); }
+  .review-item.bad { border-left-color: var(--red); }
+  .review-head { font-size: .78rem; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); margin-bottom: 6px; }
+  .review-stem { margin-bottom: 10px; }
+  .review-options .opt-row { margin-bottom: 6px; cursor: default; }
+
+  /* flashcards */
+  .flash-header { text-align: center; margin-bottom: 10px; }
+  #flashQueueInfo { font-size: .9rem; color: var(--dim); margin-bottom: 8px; }
+  .stage { max-width: 640px; margin: 0 auto; perspective: 1200px; }
+  .card { position: relative; width: 100%; min-height: 260px; cursor: pointer;
+          transform-style: preserve-3d; transition: transform .45s cubic-bezier(.4,1.4,.6,1); }
+  .card.flipped { transform: rotateY(180deg); }
+  .face { position: absolute; inset: 0; backface-visibility: hidden; background: var(--panel);
+          border: 1px solid var(--border); border-radius: 16px; padding: 30px 26px 46px;
+          display: flex; flex-direction: column; }
+  .face.back { transform: rotateY(180deg); background: var(--panel2); }
+  .tag { font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+  .face .body { font-size: 1.02rem; line-height: 1.55; flex: 1; display: flex; align-items: center; }
+  .face .hint { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; color: var(--dim); font-size: .68rem; }
+  .controls { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+  button.ctl { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 10px;
+               padding: 10px 18px; font-size: .85rem; cursor: pointer; }
+  button.ctl.got { border-color: var(--green); color: var(--green); }
+  button.ctl.got:hover { background: var(--green); color: #fff; }
+  button.ctl.miss { border-color: var(--red); color: var(--red); }
+  button.ctl.miss:hover { background: var(--red); color: #fff; }
+  .meta { text-align: center; margin-top: 12px; color: var(--dim); font-size: .78rem; }
+  .flash-empty { text-align: center; color: var(--dim); padding: 40px 20px; }
+  .keys { margin-top: 22px; color: var(--dim); font-size: .7rem; text-align: center; line-height: 2; }
+  kbd { background: var(--panel2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-size: .68rem; }
+
+  /* dashboard */
+  .weak-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .weak-list li { background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--red);
+                  border-radius: 8px; padding: 10px 14px; font-size: .88rem; }
+  textarea#dashExportArea { width: 100%; background: var(--panel2); color: var(--text); border: 1px solid var(--border);
+                             border-radius: 8px; padding: 10px; font-family: ui-monospace, Consolas, monospace; font-size: .78rem;
+                             margin: 10px 0; resize: vertical; }
+  #dashCopyStatus { margin-left: 10px; color: var(--green); font-size: .82rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CCDV-F <span>Study Hub</span></h1>
+  <div class="sub meta-line" id="headerMeta"></div>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="exam">Exam</button>
+    <button class="tab-btn" data-tab="quiz">Quiz</button>
+    <button class="tab-btn" data-tab="flash">Flashcards</button>
+    <button class="tab-btn" data-tab="dash">Dashboard</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ================= EXAM ================= -->
+  <section id="tab-exam" class="tab-panel active">
+    <div id="examSetup">
+      <h2>Mock Exam</h2>
+      <p class="sub" id="examFacts"></p>
+      <div id="examResumeBox" class="resume-box" style="display:none">
+        <p>An exam is in progress — started <span id="examResumeTime"></span>, <span id="examResumeRemain"></span> remaining.</p>
+        <button class="btn primary" id="examResumeBtn">Resume exam</button>
+        <button class="btn" id="examDiscardBtn">Discard &amp; start new</button>
+      </div>
+      <button class="btn primary" id="examStartBtn">Start new exam</button>
+    </div>
+    <div id="examRun" style="display:none">
+      <div class="exam-header">
+        <div class="exam-timer" id="examTimer">--:--</div>
+        <button class="btn small" id="examFlagBtn">Flag this question</button>
+        <button class="btn small primary" id="examSubmitBtn" style="margin-left:auto">Submit exam</button>
+      </div>
+      <div class="exam-palette" id="examPalette"></div>
+      <div class="q-card">
+        <div class="q-tag" id="examTag"></div>
+        <div class="q-stem" id="examStem"></div>
+        <div class="q-options" id="examOptions"></div>
+      </div>
+      <div class="exam-nav">
+        <button class="btn" id="examPrevBtn">&larr; Prev</button>
+        <button class="btn" id="examNextBtn">Next &rarr;</button>
+      </div>
+    </div>
+    <div id="examReport" style="display:none"></div>
+  </section>
+
+  <!-- ================= QUIZ ================= -->
+  <section id="tab-quiz" class="tab-panel">
+    <div id="quizSetup">
+      <h2>Quiz</h2>
+      <p class="sub">Pick domains, then work through questions one at a time with full rationale on every option.</p>
+      <div class="filter-row" id="quizDomainFilters"></div>
+      <label class="toggle-row"><input type="checkbox" id="quizPrioritizeMisses"> Prioritize my misses</label>
+      <label class="toggle-row"><input type="checkbox" id="quizShuffle" checked> Shuffle order</label>
+      <p class="sub" id="quizCount"></p>
+      <button class="btn primary" id="quizStartBtn">Start Quiz</button>
+    </div>
+    <div id="quizRun" style="display:none">
+      <p class="sub" id="quizProgress"></p>
+      <div class="q-card">
+        <div class="q-tag" id="quizTag"></div>
+        <div class="q-stem" id="quizStem"></div>
+        <div class="q-options" id="quizOptions"></div>
+        <div class="q-actions">
+          <button class="btn" id="quizSubmitBtn" disabled>Submit</button>
+          <button class="btn primary" id="quizNextBtn" style="display:none">Next</button>
+        </div>
+        <div class="q-feedback" id="quizFeedback"></div>
+      </div>
+    </div>
+    <div id="quizDone" style="display:none"></div>
+  </section>
+
+  <!-- ================= FLASHCARDS ================= -->
+  <section id="tab-flash" class="tab-panel">
+    <div class="flash-header">
+      <h2>Flashcards <span class="sub">(spaced repetition)</span></h2>
+      <div id="flashQueueInfo"></div>
+      <div class="filter-row" id="flashDomainFilters"></div>
+    </div>
+    <div class="stage" id="flashStage">
+      <div class="card" id="flashCard">
+        <div class="face front"><div class="tag" id="flashTagF"></div><div class="body" id="flashQBody"></div><div class="hint">click or press space to flip</div></div>
+        <div class="face back"><div class="tag" id="flashTagB"></div><div class="body" id="flashABody"></div><div class="hint">rate yourself: got it / missed it</div></div>
+      </div>
+      <div class="controls">
+        <button class="ctl miss" id="flashMiss">&#10007; Missed it</button>
+        <button class="ctl got" id="flashGot">&#10003; Got it</button>
+      </div>
+      <div class="meta"><span id="flashPos"></span></div>
+    </div>
+    <div class="flash-empty" id="flashEmpty" style="display:none"></div>
+    <div class="keys"><kbd>space</kbd> flip &nbsp; <kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate &nbsp; <kbd>1</kbd> missed &nbsp; <kbd>2</kbd> got it</div>
+  </section>
+
+  <!-- ================= DASHBOARD ================= -->
+  <section id="tab-dash" class="tab-panel">
+    <h2>Weak-Areas Dashboard</h2>
+    <p class="sub">Blueprint weight vs. your recent accuracy (last 10 quiz+exam attempts per domain).</p>
+    <div id="dashDomainTable"></div>
+    <h3>Active weak topics</h3>
+    <p class="sub">A domain · skill pair stays weak until the miss is followed by 2 consecutive correct answers.</p>
+    <div id="dashWeakList"></div>
+    <h3>Export to weak-areas.md</h3>
+    <p class="sub">Matches the table columns in <code>weak-areas.md</code> — paste these rows in directly.</p>
+    <textarea id="dashExportArea" readonly rows="8"></textarea>
+    <button class="btn" id="dashCopyBtn">Copy rows</button>
+    <span id="dashCopyStatus"></span>
+  </section>
+
+</main>
+
+<script>
+const DATA = __DATA_JSON__;
+const LS_PREFIX = "ccdvf.v1.";
+const $ = id => document.getElementById(id);
+
+/* ---------------- localStorage helpers ---------------- */
+function lsGet(key, def) {
+  try {
+    const raw = localStorage.getItem(LS_PREFIX + key);
+    if (raw === null || raw === undefined) return def;
+    return JSON.parse(raw);
+  } catch (e) { return def; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(val)); } catch (e) {}
+}
+
+let META = lsGet("meta", { schemaVersion: 1, legacyMigrated: false, newCardsPerDay: 20 });
+let SRS = lsGet("srs", {});
+let QSTATS = lsGet("qstats", {});
+let EVENTS = lsGet("events", []);
+let EXAMS = lsGet("exams", []);
+
+function saveMeta() { lsSet("meta", META); }
+function saveSRS() { lsSet("srs", SRS); }
+function saveQstats() { lsSet("qstats", QSTATS); }
+function saveEvents() { lsSet("events", EVENTS); }
+function saveExams() { lsSet("exams", EXAMS); }
+function saveExamInProgress() { lsSet("examInProgress", examState); }
+
+function addEvent(mode, id, domain, skill, ok) {
+  EVENTS.push({ t: Date.now(), mode, id, domain, skill, ok });
+  if (EVENTS.length > 5000) EVENTS = EVENTS.slice(EVENTS.length - 5000);
+  saveEvents();
+}
+function recordQstat(qid, ok) {
+  const s = QSTATS[qid] || { attempts: 0, correct: 0, lastSeen: 0, lastResult: null };
+  s.attempts++;
+  if (ok) s.correct++;
+  s.lastSeen = Date.now();
+  s.lastResult = ok;
+  QSTATS[qid] = s;
+  saveQstats();
+}
+
+/* ---------------- data flattening ---------------- */
+const DOMAINS = DATA.domains;
+const DOMAIN_BY_CODE = {};
+DOMAINS.forEach(d => DOMAIN_BY_CODE[d.code] = d);
+const ALL_QUESTIONS = [];
+DOMAINS.forEach(d => d.questions.forEach(q => ALL_QUESTIONS.push(q)));
+const QUESTION_BY_ID = {};
+ALL_QUESTIONS.forEach(q => QUESTION_BY_ID[q.id] = q);
+const ALL_CARDS = [];
+DOMAINS.forEach(d => d.cards.forEach(c => ALL_CARDS.push(Object.assign({ domainCode: d.code, domainName: d.name }, c))));
+
+function cardKey(c) { return c.domainCode + "::" + c.q.slice(0, 80); }
+
+/* ---------------- render helpers ---------------- */
+function escapeHtml(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function renderMd(s) {
+  let t = escapeHtml(s);
+  t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+  t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  return t;
+}
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+function todayStr(d) { return (d || new Date()).toISOString().slice(0, 10); }
+function addDaysStr(dateStr, n) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function attachMultiCap(name, maxN, cb) {
+  document.querySelectorAll(`input[name="${name}"]`).forEach(inp => {
+    inp.addEventListener("change", e => {
+      if (inp.type === "checkbox" && e.target.checked) {
+        const checkedNow = document.querySelectorAll(`input[name="${name}"]:checked`);
+        if (checkedNow.length > maxN) { e.target.checked = false; return; }
+      }
+      cb();
+    });
+  });
+}
+
+/* ---------------- tabs ---------------- */
+function getActiveTab() {
+  const el = document.querySelector(".tab-btn.active");
+  return el ? el.dataset.tab : null;
+}
+function switchTab(tab) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === "tab-" + tab));
+  if (tab === "dash") renderDashboard();
+}
+document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click", () => switchTab(btn.dataset.tab)));
+
+/* ======================================================================
+   QUIZ MODE
+   ====================================================================== */
+let quizSelectedDomains = new Set(DOMAINS.filter(d => d.questions.length > 0).map(d => d.code));
+let quizQueue = [], quizIdx = 0, quizAnswered = false, quizSelected = new Set();
+
+function renderQuizSetup() {
+  const wrap = $("quizDomainFilters"); wrap.innerHTML = "";
+  DOMAINS.forEach(d => {
+    const lbl = document.createElement("label");
+    lbl.className = "chip-check";
+    lbl.innerHTML = `<input type="checkbox" ${quizSelectedDomains.has(d.code) ? "checked" : ""} ${d.questions.length === 0 ? "disabled" : ""}> ${d.code} <small>(${d.questions.length})</small>`;
+    lbl.querySelector("input").addEventListener("change", e => {
+      if (e.target.checked) quizSelectedDomains.add(d.code); else quizSelectedDomains.delete(d.code);
+      updateQuizCount();
+    });
+    wrap.appendChild(lbl);
+  });
+  updateQuizCount();
+}
+function filteredQuizPool() { return ALL_QUESTIONS.filter(q => quizSelectedDomains.has(q.domain)); }
+function updateQuizCount() {
+  const n = filteredQuizPool().length;
+  $("quizCount").textContent = n + (n === 1 ? " question matches" : " questions match") + " current filters.";
+  $("quizStartBtn").disabled = n === 0;
+}
+$("quizStartBtn").onclick = () => {
+  let pool = filteredQuizPool();
+  if ($("quizPrioritizeMisses").checked) {
+    pool = pool.slice().sort((a, b) => {
+      const missA = (QSTATS[a.id] && QSTATS[a.id].lastResult === false) ? 0 : 1;
+      const missB = (QSTATS[b.id] && QSTATS[b.id].lastResult === false) ? 0 : 1;
+      return missA - missB;
+    });
+  }
+  if ($("quizShuffle").checked) pool = shuffle(pool.slice());
+  quizQueue = pool; quizIdx = 0;
+  $("quizSetup").style.display = "none";
+  $("quizDone").style.display = "none";
+  $("quizRun").style.display = "block";
+  showQuizQuestion();
+};
+
+function showQuizQuestion() {
+  if (quizIdx >= quizQueue.length) return finishQuiz();
+  const q = quizQueue[quizIdx];
+  quizAnswered = false; quizSelected = new Set();
+  $("quizProgress").textContent = `Question ${quizIdx + 1} / ${quizQueue.length}`;
+  $("quizTag").textContent = `${q.domain} · ${q.skill} — select ${["", "ONE", "TWO", "THREE"][q.select]}`;
+  $("quizStem").innerHTML = renderMd(q.stem);
+  const optWrap = $("quizOptions"); optWrap.innerHTML = "";
+  const inputType = q.select === 1 ? "radio" : "checkbox";
+  q.options.forEach(o => {
+    const row = document.createElement("label");
+    row.className = "opt-row"; row.dataset.letter = o.letter;
+    row.innerHTML = `<input type="${inputType}" name="quizOpt" value="${o.letter}"><span class="opt-letter">${o.letter}.</span><span class="opt-text">${renderMd(o.text)}</span>`;
+    optWrap.appendChild(row);
+  });
+  if (q.select === 1) {
+    document.querySelectorAll('input[name="quizOpt"]').forEach(inp => inp.addEventListener("change", () => {
+      quizSelected = new Set([inp.value]);
+      gradeQuiz(q);
+    }));
+  } else {
+    attachMultiCap("quizOpt", q.select, () => {
+      quizSelected = new Set(Array.from(document.querySelectorAll('input[name="quizOpt"]:checked')).map(i => i.value));
+      $("quizSubmitBtn").disabled = quizSelected.size !== q.select;
+    });
+  }
+  $("quizFeedback").innerHTML = "";
+  $("quizSubmitBtn").style.display = q.select === 1 ? "none" : "inline-block";
+  $("quizSubmitBtn").disabled = true;
+  $("quizNextBtn").style.display = "none";
+}
+$("quizSubmitBtn").onclick = () => gradeQuiz(quizQueue[quizIdx]);
+$("quizNextBtn").onclick = () => { quizIdx++; showQuizQuestion(); };
+
+function gradeQuiz(q) {
+  if (quizAnswered) return;
+  quizAnswered = true;
+  const correctSet = new Set(q.correct);
+  const selected = quizSelected;
+  const ok = selected.size === correctSet.size && [...selected].every(l => correctSet.has(l));
+  document.querySelectorAll('input[name="quizOpt"]').forEach(inp => inp.disabled = true);
+  q.options.forEach(o => {
+    const row = document.querySelector(`#quizOptions .opt-row[data-letter="${o.letter}"]`);
+    const isCorrect = correctSet.has(o.letter);
+    row.classList.add(isCorrect ? "correct" : (selected.has(o.letter) ? "incorrect" : "neutral"));
+    const r = q.rationales[o.letter];
+    const div = document.createElement("div");
+    div.className = "opt-rationale";
+    div.innerHTML = `<span class="mark ${isCorrect ? 'ok' : 'bad'}">${isCorrect ? "✓" : "✗"}</span>${r ? renderMd(r.text) : ""}`;
+    row.appendChild(div);
+  });
+  $("quizFeedback").innerHTML = `<div class="feedback ${ok ? 'ok' : 'bad'}">${ok ? "Correct!" : "Not quite — review the rationale above."}</div>`;
+  $("quizSubmitBtn").style.display = "none";
+  $("quizNextBtn").style.display = "inline-block";
+  recordQstat(q.id, ok);
+  addEvent("quiz", q.id, q.domain, q.skill, ok);
+}
+function finishQuiz() {
+  $("quizRun").style.display = "none";
+  $("quizDone").style.display = "block";
+  $("quizDone").innerHTML = `<h2>Quiz complete</h2><p class="sub">${quizQueue.length} question(s) reviewed.</p><button class="btn primary" id="quizRestartBtn">Back to setup</button>`;
+  $("quizRestartBtn").onclick = () => { $("quizDone").style.display = "none"; $("quizSetup").style.display = "block"; renderQuizSetup(); };
+}
+
+/* ======================================================================
+   EXAM MODE
+   ====================================================================== */
+let examState = null;
+let examTimerHandle = null;
+
+function computeExamTargets() {
+  const size = DATA.examSize;
+  const quotas = DOMAINS.map(d => ({ code: d.code, quota: d.weight / 100 * size }));
+  const targets = {};
+  quotas.forEach(q => targets[q.code] = Math.floor(q.quota));
+  let used = quotas.reduce((s, q) => s + Math.floor(q.quota), 0);
+  let remaining = size - used;
+  const byRemainder = quotas.slice().sort((a, b) => (b.quota - Math.floor(b.quota)) - (a.quota - Math.floor(a.quota)));
+  for (let i = 0; i < remaining; i++) targets[byRemainder[i % byRemainder.length].code]++;
+  return targets;
+}
+function sampleExam() {
+  const targets = computeExamTargets();
+  const pools = {}; DOMAINS.forEach(d => pools[d.code] = d.questions.length);
+  const codes = DOMAINS.map(d => d.code);
+  let deficit = 0;
+  codes.forEach(c => { if (targets[c] > pools[c]) { deficit += targets[c] - pools[c]; targets[c] = pools[c]; } });
+  if (deficit > 0) {
+    const capacity = codes.map(c => ({ code: c, spare: pools[c] - targets[c] })).sort((a, b) => b.spare - a.spare);
+    let guard = 0;
+    while (deficit > 0 && capacity.some(c => c.spare > 0) && guard < 10000) {
+      const c = capacity[guard % capacity.length];
+      if (c.spare > 0) { targets[c.code]++; c.spare--; deficit--; }
+      guard++;
+    }
+  }
+  const qids = [];
+  codes.forEach(code => {
+    const domainQs = ALL_QUESTIONS.filter(q => q.domain === code);
+    const ranked = domainQs.slice().sort((a, b) => {
+      const la = QSTATS[a.id] ? (QSTATS[a.id].lastSeen || 0) : 0;
+      const lb = QSTATS[b.id] ? (QSTATS[b.id].lastSeen || 0) : 0;
+      if (la !== lb) return la - lb;
+      return Math.random() - 0.5;
+    });
+    qids.push(...ranked.slice(0, targets[code]).map(q => q.id));
+  });
+  return shuffle(qids);
+}
+
+function refreshExamSetup() {
+  const inProg = lsGet("examInProgress", null);
+  if (inProg && inProg.qids && inProg.qids.length) {
+    $("examResumeBox").style.display = "block";
+    $("examResumeTime").textContent = new Date(inProg.startedAt).toLocaleString();
+    const remain = Math.max(0, inProg.remainingSec);
+    $("examResumeRemain").textContent = `${Math.floor(remain / 60)}m ${remain % 60}s`;
+  } else {
+    $("examResumeBox").style.display = "none";
+  }
+}
+$("examStartBtn").onclick = () => startNewExam();
+$("examResumeBtn").onclick = () => {
+  examState = lsGet("examInProgress", null);
+  if (!examState) return;
+  $("examSetup").style.display = "none";
+  $("examRun").style.display = "block";
+  renderExamPalette();
+  showExamQuestion(examState.idx || 0);
+  startExamTimer();
+};
+$("examDiscardBtn").onclick = () => { lsSet("examInProgress", null); refreshExamSetup(); };
+
+function startNewExam() {
+  examState = { startedAt: Date.now(), remainingSec: DATA.examMinutes * 60, qids: sampleExam(), answers: {}, flags: {}, idx: 0 };
+  saveExamInProgress();
+  $("examSetup").style.display = "none";
+  $("examReport").style.display = "none";
+  $("examRun").style.display = "block";
+  renderExamPalette();
+  showExamQuestion(0);
+  startExamTimer();
+}
+function startExamTimer() {
+  clearInterval(examTimerHandle);
+  examTimerHandle = setInterval(() => {
+    examState.remainingSec--;
+    updateExamTimerDisplay();
+    if (examState.remainingSec % 15 === 0) saveExamInProgress();
+    if (examState.remainingSec <= 0) { clearInterval(examTimerHandle); submitExam(true); }
+  }, 1000);
+  updateExamTimerDisplay();
+}
+function updateExamTimerDisplay() {
+  const s = Math.max(0, examState.remainingSec);
+  const m = Math.floor(s / 60), sec = s % 60;
+  $("examTimer").textContent = `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  $("examTimer").classList.toggle("low", s < 300);
+}
+function renderExamPalette() {
+  const wrap = $("examPalette"); wrap.innerHTML = "";
+  examState.qids.forEach((qid, i) => {
+    const btn = document.createElement("button");
+    btn.className = "palette-btn"; btn.textContent = i + 1;
+    btn.onclick = () => showExamQuestion(i);
+    wrap.appendChild(btn);
+  });
+  updateExamPalette();
+}
+function updateExamPalette() {
+  document.querySelectorAll("#examPalette .palette-btn").forEach((btn, i) => {
+    const qid = examState.qids[i];
+    btn.classList.toggle("current", i === examState.idx);
+    btn.classList.toggle("answered", !!(examState.answers[qid] && examState.answers[qid].length));
+    btn.classList.toggle("flagged", !!examState.flags[qid]);
+  });
+}
+function showExamQuestion(i) {
+  examState.idx = i;
+  const qid = examState.qids[i];
+  const q = QUESTION_BY_ID[qid];
+  $("examTag").textContent = `Q${i + 1}/${examState.qids.length} · ${q.domain} · ${q.skill} — select ${["", "ONE", "TWO", "THREE"][q.select]}`;
+  $("examStem").innerHTML = renderMd(q.stem);
+  const optWrap = $("examOptions"); optWrap.innerHTML = "";
+  const inputType = q.select === 1 ? "radio" : "checkbox";
+  const chosen = new Set(examState.answers[qid] || []);
+  q.options.forEach(o => {
+    const row = document.createElement("label");
+    row.className = "opt-row";
+    row.innerHTML = `<input type="${inputType}" name="examOpt" value="${o.letter}" ${chosen.has(o.letter) ? "checked" : ""}><span class="opt-letter">${o.letter}.</span><span class="opt-text">${renderMd(o.text)}</span>`;
+    optWrap.appendChild(row);
+  });
+  const commit = () => {
+    examState.answers[qid] = Array.from(document.querySelectorAll('input[name="examOpt"]:checked')).map(i2 => i2.value);
+    updateExamPalette();
+    saveExamInProgress();
+  };
+  if (q.select === 1) {
+    document.querySelectorAll('input[name="examOpt"]').forEach(inp => inp.addEventListener("change", commit));
+  } else {
+    attachMultiCap("examOpt", q.select, commit);
+  }
+  $("examFlagBtn").classList.toggle("active", !!examState.flags[qid]);
+  updateExamPalette();
+  saveExamInProgress();
+}
+$("examFlagBtn").onclick = () => {
+  const qid = examState.qids[examState.idx];
+  examState.flags[qid] = !examState.flags[qid];
+  $("examFlagBtn").classList.toggle("active", !!examState.flags[qid]);
+  updateExamPalette();
+  saveExamInProgress();
+};
+$("examPrevBtn").onclick = () => { if (examState.idx > 0) showExamQuestion(examState.idx - 1); };
+$("examNextBtn").onclick = () => { if (examState.idx < examState.qids.length - 1) showExamQuestion(examState.idx + 1); };
+$("examSubmitBtn").onclick = () => { if (confirm("Submit the exam now?")) submitExam(false); };
+
+function submitExam(auto) {
+  clearInterval(examTimerHandle);
+  const perDomain = {}; DOMAINS.forEach(d => perDomain[d.code] = { correct: 0, total: 0 });
+  let correctCount = 0;
+  const reviewRows = [];
+  examState.qids.forEach(qid => {
+    const q = QUESTION_BY_ID[qid];
+    const chosen = new Set(examState.answers[qid] || []);
+    const correctSet = new Set(q.correct);
+    const ok = chosen.size === correctSet.size && [...chosen].every(l => correctSet.has(l));
+    perDomain[q.domain].total++;
+    if (ok) { perDomain[q.domain].correct++; correctCount++; }
+    recordQstat(q.id, ok);
+    addEvent("exam", q.id, q.domain, q.skill, ok);
+    reviewRows.push({ q, chosen, ok });
+  });
+  const raw = correctCount / examState.qids.length;
+  const scaled = Math.round(100 + 900 * raw);
+  const durationSec = DATA.examMinutes * 60 - Math.max(0, examState.remainingSec);
+  const record = { t: Date.now(), durationSec, raw, scaled, perDomain };
+  EXAMS.push(record); saveExams();
+  lsSet("examInProgress", null);
+  examState = null;
+  renderExamReport(record, reviewRows, auto);
+}
+function renderExamReport(record, reviewRows, auto) {
+  $("examRun").style.display = "none";
+  $("examReport").style.display = "block";
+  const pass = record.scaled >= DATA.passScaled;
+  let html = `<h2>Score Report</h2>`;
+  if (auto) html += `<p class="warn">Time expired — the exam was auto-submitted.</p>`;
+  html += `<div class="score-hero ${pass ? 'pass' : 'fail'}">
+    <div class="scaled">${record.scaled}</div>
+    <div class="scaled-sub">estimated scaled score (100–1000) · pass line ${DATA.passScaled}${pass ? " · PASS" : " · below pass"}</div>
+    <div class="raw">${Math.round(record.raw * 100)}% raw (${reviewRows.filter(r => r.ok).length}/${reviewRows.length})</div>
+    <p class="estimate-note">Estimate only, computed as 100 + 900 × raw% — the real exam uses an undisclosed equating formula.</p>
+  </div>`;
+  html += `<table class="domain-table"><thead><tr><th>Domain</th><th>Correct</th><th>Total</th><th>%</th><th>Weight</th></tr></thead><tbody>`;
+  DOMAINS.forEach(d => {
+    const pd = record.perDomain[d.code];
+    if (!pd || pd.total === 0) return;
+    const pct = Math.round(pd.correct / pd.total * 100);
+    html += `<tr><td>${d.code} · ${d.name}</td><td>${pd.correct}</td><td>${pd.total}</td><td>${pct}%</td><td>${d.weight}%</td></tr>`;
+  });
+  html += `</tbody></table><h3>Full review</h3><div class="review-list">`;
+  reviewRows.forEach((r, i) => {
+    html += `<div class="review-item ${r.ok ? 'ok' : 'bad'}"><div class="review-head">Q${i + 1} · ${r.q.domain} · ${r.q.skill} — ${r.ok ? "correct" : "missed"}</div><div class="review-stem">${renderMd(r.q.stem)}</div><div class="review-options">`;
+    r.q.options.forEach(o => {
+      const isCorrect = r.q.correct.includes(o.letter);
+      const chosen = r.chosen.has(o.letter);
+      const rat = r.q.rationales[o.letter];
+      html += `<div class="opt-row ${isCorrect ? 'correct' : (chosen ? 'incorrect' : 'neutral')}"><span class="opt-letter">${o.letter}.</span> ${renderMd(o.text)}${chosen ? ' <em>(your pick)</em>' : ''}<div class="opt-rationale"><span class="mark ${isCorrect ? 'ok' : 'bad'}">${isCorrect ? "✓" : "✗"}</span>${rat ? renderMd(rat.text) : ""}</div></div>`;
+    });
+    html += `</div></div>`;
+  });
+  html += `</div><button class="btn primary" id="examBackBtn">Back to exam setup</button>`;
+  $("examReport").innerHTML = html;
+  $("examBackBtn").onclick = () => { $("examReport").style.display = "none"; $("examSetup").style.display = "block"; refreshExamSetup(); };
+}
+
+/* ======================================================================
+   FLASHCARDS (Leitner SRS)
+   ====================================================================== */
+const BOX_INTERVALS = [0, 2, 4, 8, 16]; // days, indexed box-1
+let flashSelectedDomains = new Set(DOMAINS.filter(d => d.cards.length > 0).map(d => d.code));
+let flashQueue = [], flashIdx = 0;
+
+function migrateLegacy() {
+  if (META.legacyMigrated) return;
+  let legacy = null;
+  try { legacy = JSON.parse(localStorage.getItem("ccdvf-missed") || "null"); } catch (e) {}
+  if (legacy && typeof legacy === "object") {
+    const today = todayStr();
+    Object.keys(legacy).forEach(key => {
+      if (!SRS[key]) SRS[key] = { box: 1, due: today, reps: 0, lapses: 1, lastSeen: Date.now() };
+    });
+    saveSRS();
+  }
+  try { localStorage.removeItem("ccdvf-missed"); } catch (e) {}
+  META.legacyMigrated = true;
+  saveMeta();
+}
+function getNewCardBudgetRemaining() {
+  const today = todayStr();
+  if (META.newCardsShownDate !== today) { META.newCardsShownDate = today; META.newCardsShownCount = 0; saveMeta(); }
+  return (META.newCardsPerDay || 20) - (META.newCardsShownCount || 0);
+}
+function consumeNewCardBudget(n) {
+  const today = todayStr();
+  if (META.newCardsShownDate !== today) { META.newCardsShownDate = today; META.newCardsShownCount = 0; }
+  META.newCardsShownCount = (META.newCardsShownCount || 0) + n;
+  saveMeta();
+}
+function cardsPool() { return ALL_CARDS.filter(c => flashSelectedDomains.has(c.domainCode)); }
+function buildFlashQueue() {
+  const today = todayStr();
+  const pool = cardsPool();
+  const due = [], newCards = [];
+  pool.forEach(c => {
+    const key = cardKey(c);
+    const st = SRS[key];
+    if (st) { if (st.due <= today) due.push({ c, st }); }
+    else newCards.push(c);
+  });
+  due.sort((a, b) => (a.st.box - b.st.box) || (Math.random() - 0.5));
+  shuffle(newCards);
+  // Budget is only consumed when a new card is actually graded (rateFlash),
+  // so opening the tab or toggling filters never burns the daily quota.
+  const budget = Math.max(0, getNewCardBudgetRemaining());
+  const newSlice = newCards.slice(0, budget);
+  flashQueue = due.map(d => d.c).concat(newSlice);
+  flashIdx = 0;
+  $("flashQueueInfo").textContent = `${due.length} due · ${newSlice.length} new`;
+}
+function renderFlashDomainFilters() {
+  const wrap = $("flashDomainFilters"); wrap.innerHTML = "";
+  DOMAINS.forEach(d => {
+    if (d.cards.length === 0) return;
+    const lbl = document.createElement("label");
+    lbl.className = "chip-check";
+    lbl.innerHTML = `<input type="checkbox" ${flashSelectedDomains.has(d.code) ? "checked" : ""}> ${d.code} <small>(${d.cards.length})</small>`;
+    lbl.querySelector("input").addEventListener("change", e => {
+      if (e.target.checked) flashSelectedDomains.add(d.code); else flashSelectedDomains.delete(d.code);
+      buildFlashQueue(); showFlashCard();
+    });
+    wrap.appendChild(lbl);
+  });
+}
+function showFlashCard() {
+  if (flashIdx >= flashQueue.length) return flashQueueEmpty();
+  const c = flashQueue[flashIdx];
+  $("flashStage").style.display = "block";
+  $("flashEmpty").style.display = "none";
+  $("flashCard").classList.remove("flipped");
+  $("flashTagF").textContent = c.domainCode + " · " + (c.skill || c.domainName);
+  $("flashTagB").textContent = "Answer";
+  $("flashQBody").innerHTML = renderMd(c.q);
+  $("flashABody").innerHTML = renderMd(c.a);
+  $("flashPos").textContent = `card ${flashIdx + 1} / ${flashQueue.length}`;
+}
+function flashQueueEmpty() {
+  $("flashStage").style.display = "none";
+  $("flashEmpty").style.display = "block";
+  $("flashEmpty").innerHTML = "<p>Nothing due right now. Check back tomorrow, or widen the domain filter.</p>";
+}
+function rateFlash(hit) {
+  if (flashIdx >= flashQueue.length) return;
+  const c = flashQueue[flashIdx];
+  const key = cardKey(c);
+  const today = todayStr();
+  if (!SRS[key]) consumeNewCardBudget(1); // first-ever grade of a new card
+  let st = SRS[key] || { box: 0, due: today, reps: 0, lapses: 0, lastSeen: 0 };
+  if (hit) { st.box = Math.min(5, (st.box || 0) + 1); st.reps = (st.reps || 0) + 1; }
+  else { st.box = 1; st.lapses = (st.lapses || 0) + 1; }
+  st.due = addDaysStr(today, BOX_INTERVALS[st.box - 1] ?? 0);
+  st.lastSeen = Date.now();
+  SRS[key] = st; saveSRS();
+  addEvent("srs", key, c.domainCode, c.skill, hit);
+  flashIdx++;
+  showFlashCard();
+}
+$("flashGot").onclick = () => rateFlash(true);
+$("flashMiss").onclick = () => rateFlash(false);
+$("flashCard").onclick = () => $("flashCard").classList.toggle("flipped");
+document.addEventListener("keydown", e => {
+  if (getActiveTab() !== "flash") return;
+  if (document.activeElement && ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+  if (e.code === "Space") { e.preventDefault(); $("flashCard").classList.toggle("flipped"); }
+  else if (e.key === "ArrowRight") { flashIdx = Math.min(flashQueue.length, flashIdx + 1); showFlashCard(); }
+  else if (e.key === "ArrowLeft") { flashIdx = Math.max(0, flashIdx - 1); showFlashCard(); }
+  else if (e.key === "1") rateFlash(false);
+  else if (e.key === "2") rateFlash(true);
+});
+
+/* ======================================================================
+   DASHBOARD
+   ====================================================================== */
+function computeWeakTopics() {
+  const relevant = EVENTS.filter(e => e.mode === "quiz" || e.mode === "exam").slice().sort((a, b) => a.t - b.t);
+  const groups = {};
+  relevant.forEach(e => {
+    const key = e.domain + "::" + e.skill;
+    (groups[key] || (groups[key] = { domain: e.domain, skill: e.skill, events: [] })).events.push(e);
+  });
+  const result = [];
+  Object.values(groups).forEach(g => {
+    let lastMissIdx = -1;
+    for (let i = g.events.length - 1; i >= 0; i--) { if (!g.events[i].ok) { lastMissIdx = i; break; } }
+    if (lastMissIdx === -1) return;
+    const after = g.events.slice(lastMissIdx + 1);
+    let streak = 0;
+    for (const e of after) { if (e.ok) streak++; else break; }
+    result.push({
+      domain: g.domain, skill: g.skill,
+      lastMissTime: g.events[lastMissIdx].t,
+      lastMissId: g.events[lastMissIdx].id,
+      lastMissMode: g.events[lastMissIdx].mode,
+      streakSinceMiss: streak,
+      retired: streak >= 2,
+    });
+  });
+  return result.sort((a, b) => b.lastMissTime - a.lastMissTime);
+}
+function renderDashboard() {
+  const relevantEvents = EVENTS.filter(e => e.mode === "quiz" || e.mode === "exam");
+  let tableHtml = `<table class="domain-table"><thead><tr><th>Domain</th><th>Weight</th><th>Attempts</th><th>Accuracy (last 10)</th><th>Trend</th></tr></thead><tbody>`;
+  DOMAINS.forEach(d => {
+    const domEvents = relevantEvents.filter(e => e.domain === d.code).sort((a, b) => a.t - b.t);
+    const last10 = domEvents.slice(-10);
+    const acc = last10.length ? Math.round(last10.filter(e => e.ok).length / last10.length * 100) : null;
+    const prev10 = domEvents.slice(-20, -10);
+    const prevAcc = prev10.length ? Math.round(prev10.filter(e => e.ok).length / prev10.length * 100) : null;
+    let trend = "—";
+    if (acc !== null && prevAcc !== null) trend = acc > prevAcc ? "▲" : (acc < prevAcc ? "▼" : "▬");
+    const accCell = acc === null ? "—" :
+      `<div class="bar-cell"><div class="bar-track"><div class="bar-fill acc ${acc < 60 ? 'low' : acc < 80 ? 'mid' : 'high'}" style="width:${acc}%"></div></div><span>${acc}%</span></div>`;
+    tableHtml += `<tr>
+      <td>${d.code} · ${d.name}</td>
+      <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill weight" style="width:${d.weight}%"></div></div><span>${d.weight}%</span></div></td>
+      <td>${domEvents.length}</td>
+      <td>${accCell}</td>
+      <td>${trend}</td>
+    </tr>`;
+  });
+  tableHtml += `</tbody></table>`;
+  $("dashDomainTable").innerHTML = tableHtml;
+
+  const weak = computeWeakTopics();
+  const weakActive = weak.filter(w => !w.retired);
+  $("dashWeakList").innerHTML = weakActive.length
+    ? "<ul class='weak-list'>" + weakActive.map(w =>
+        `<li><strong>${w.domain} · ${escapeHtml(w.skill)}</strong> — last missed ${new Date(w.lastMissTime).toLocaleDateString()} (${escapeHtml(w.lastMissId)}, ${w.lastMissMode}); ${w.streakSinceMiss}/2 correct since</li>`
+      ).join("") + "</ul>"
+    : "<p class='sub'>No active weak topics — nice work.</p>";
+
+  const rows = weak.map(w => {
+    const date = new Date(w.lastMissTime).toISOString().slice(0, 10);
+    const topic = `${w.domain} · ${w.skill}`;
+    const q = QUESTION_BY_ID[w.lastMissId];
+    const excerpt = q ? q.stem.replace(/\*\*/g, "").replace(/\|/g, "/").slice(0, 70).trim() + "…" : "";
+    const missed = w.lastMissId ? `${w.lastMissId} — ${excerpt}` : "—";
+    const gotWrong = `Missed ${w.lastMissId} (${w.lastMissMode})`;
+    const retired = w.retired ? "✅" : "—";
+    return `| ${date} | ${topic} | ${missed} | ${gotWrong} | ${retired} |`;
+  });
+  $("dashExportArea").value = rows.length ? rows.join("\n") : "| — | — | _Nothing logged yet_ | — | — |";
+}
+$("dashCopyBtn").onclick = async () => {
+  const text = $("dashExportArea").value;
+  let copied = false;
+  try { await navigator.clipboard.writeText(text); copied = true; }
+  catch (e) {
+    try { $("dashExportArea").select(); copied = document.execCommand("copy"); }
+    catch (e2) { copied = false; }
+  }
+  $("dashCopyStatus").textContent = copied ? "Copied!" : "Copy failed — select the text manually.";
+  setTimeout(() => { $("dashCopyStatus").textContent = ""; }, 2500);
+};
+
+/* ======================================================================
+   INIT
+   ====================================================================== */
+$("headerMeta").textContent = `${DATA.examSize} items · ${DATA.examMinutes} min · scaled 100–1000 · pass ${DATA.passScaled} · generated ${DATA.generated}`;
+$("examFacts").textContent = `${DATA.examSize} items · ${DATA.examMinutes} minutes · questions sampled by blueprint weight (largest-remainder method)`;
+
+migrateLegacy();
+renderQuizSetup();
+refreshExamSetup();
+renderFlashDomainFilters();
+buildFlashQueue();
+showFlashCard();
+switchTab("exam");
+</script>
+</body>
+</html>

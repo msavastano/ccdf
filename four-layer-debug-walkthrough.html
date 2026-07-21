@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F · Four-Layer Debug Walkthrough</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232736; --code:#0b0d13;
+    --text:#e8eaf0; --dim:#9aa0b4; --accent:#d97748; --green:#4fa877; --red:#c95b5b;
+    --purple:#c98bdb; --blue:#5b9bd9; --border:#2e3345;
+  }
+  *{box-sizing:border-box; margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:22px 16px 60px;}
+  a{color:var(--accent);}
+  header{text-align:center; margin-bottom:16px;}
+  h1{font-size:1.15rem; font-weight:600; letter-spacing:.03em;}
+  h1 span{color:var(--accent);}
+  .sub{color:var(--dim); font-size:.8rem; margin-top:4px;}
+
+  /* step rail */
+  .rail{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:900px; margin:10px auto 4px;}
+  .rail button{background:var(--panel); color:var(--dim); border:1px solid var(--border); border-radius:999px;
+       padding:5px 12px; font-size:.72rem; cursor:pointer; transition:all .15s; white-space:nowrap;}
+  .rail button:hover{border-color:var(--accent); color:var(--text);}
+  .rail button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .rail button.done{color:var(--text); border-color:#3c4256;}
+  .rail button.done::before{content:"\2713 "; color:var(--green);}
+
+  main{width:100%; max-width:840px;}
+  .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
+  .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+         padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
+  .badge.schema{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  .badge.stream{background:rgba(217,119,72,.16); color:var(--accent); border:1px solid rgba(217,119,72,.35);}
+  .badge.context{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
+  .badge.memory{background:rgba(79,168,119,.16); color:var(--green); border:1px solid rgba(79,168,119,.35);}
+  .badge.plain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
+  h2{font-size:1.35rem; font-weight:650; margin-bottom:4px; line-height:1.25;}
+  h3{font-size:.96rem; font-weight:650; margin:20px 0 8px; color:var(--text);}
+  .loc{color:var(--dim); font-size:.82rem; margin-bottom:14px;}
+  p{line-height:1.62; margin:9px 0; color:#d4d8e4; font-size:.92rem;}
+  p.lead{font-size:1rem; color:var(--text);}
+  strong{color:#fff;}
+  em{color:var(--accent); font-style:normal;}
+  code.inl{background:var(--code); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+        font-family:'Cascadia Code','Consolas',monospace; font-size:.82em; color:#cdd3e6;}
+  ul{margin:8px 0 8px 2px; padding-left:18px; line-height:1.6; color:#d4d8e4; font-size:.92rem;}
+  li{margin:5px 0;}
+
+  /* code block */
+  .code{background:var(--code); border:1px solid var(--border); border-radius:10px; overflow-x:auto;
+        font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:.82rem; line-height:1.62; margin:10px 0;}
+  .ln{display:flex; white-space:pre; min-width:max-content;}
+  .ln .gut{width:2.6em; text-align:right; padding:0 12px 0 10px; color:#454b62; user-select:none; flex:none;}
+  .ln .src{padding-right:16px; flex:1;}
+  .ln.bug{background:rgba(201,91,91,.14);}
+  .ln.bug .gut{color:var(--red); font-weight:700;}
+  .ln.add{background:rgba(79,168,119,.13);}
+  .ln.add .gut{color:var(--green);}
+  .ln.ctx{background:rgba(217,119,72,.07);}
+  .ln.clk{cursor:pointer;}
+  .ln.clk:hover{background:rgba(255,255,255,.05);}
+  .ln.found{background:rgba(201,91,91,.16); outline:1px solid rgba(201,91,91,.4); outline-offset:-1px;}
+  .ln.found .gut{color:var(--red); font-weight:700;}
+  .ln.wrong{background:rgba(120,130,160,.14);}
+  .t-kw{color:var(--purple);} .t-str{color:#8fbf87;} .t-com{color:#5c6478; font-style:italic;} .t-num{color:#d99a5b;}
+
+  .tagline{font-size:.7rem; color:var(--red); margin-left:8px; font-weight:600; letter-spacing:.04em;}
+  .tagline.add{color:var(--green);}
+
+  /* reveal blocks */
+  .revwrap{margin:12px 0;}
+  .revbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+      padding:9px 16px; font-size:.83rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px;}
+  .revbtn:hover{border-color:var(--accent);}
+  .revbtn .chev{color:var(--accent); transition:transform .2s;}
+  .reveal{display:none; margin-top:12px; padding:16px 18px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel2); animation:fade .25s ease;}
+  .reveal.open{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .reveal .oneliner{font-size:.96rem; color:#fff; font-weight:600; line-height:1.5;}
+
+  .callout{border-left:3px solid var(--accent); background:var(--panel2); border-radius:0 8px 8px 0;
+      padding:12px 16px; margin:14px 0; font-size:.88rem; line-height:1.6;}
+  .callout.key{border-left-color:var(--accent);}
+  .callout.warn{border-left-color:var(--red);}
+  .callout.good{border-left-color:var(--green);}
+  .callout b{color:#fff;}
+
+  /* history sequence diagram (bug 3) */
+  .seq{display:flex; flex-direction:column; gap:6px; margin:8px 0;}
+  .turn{border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:.8rem; font-family:'Cascadia Code',monospace;}
+  .turn.user{background:rgba(91,155,217,.1); border-color:rgba(91,155,217,.3);}
+  .turn.asst{background:rgba(217,119,72,.1); border-color:rgba(217,119,72,.3);}
+  .turn.missing{background:rgba(201,91,91,.1); border-color:rgba(201,91,91,.4); color:var(--red);}
+  .turn small{color:var(--dim); font-family:'Segoe UI',sans-serif;}
+  .seqcol{flex:1; min-width:260px;}
+  .seqrow{display:flex; gap:18px; flex-wrap:wrap;}
+  .seqcol h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; color:var(--dim);}
+
+  /* recap table */
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:.83rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.5;}
+  th{background:var(--panel2); color:var(--text); font-weight:600;}
+  td .lyr{font-weight:600;}
+  .ck{list-style:none; padding-left:0;}
+  .ck li{display:flex; align-items:flex-start; gap:9px; margin:8px 0; cursor:pointer;}
+  .ck input{margin-top:3px; accent-color:var(--green); flex:none;}
+
+  .grid4{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:14px 0;}
+  .lc{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .lc .n{font-size:.7rem; letter-spacing:.08em; text-transform:uppercase; font-weight:600;}
+  .lc h5{font-size:.9rem; margin:4px 0 3px;}
+  .lc p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.45;}
+
+  /* nav */
+  .nav{display:flex; justify-content:space-between; align-items:center; max-width:840px; width:100%; margin-top:16px; gap:10px;}
+  .nav button{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:11px 22px; font-size:.88rem; cursor:pointer; transition:all .15s; font-weight:500;}
+  .nav button:hover:not(:disabled){border-color:var(--accent);}
+  .nav button:disabled{opacity:.3; cursor:not-allowed;}
+  .nav button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .progress{color:var(--dim); font-size:.78rem; text-align:center;}
+  .progress b{color:var(--text);}
+  .spotmeter{font-size:.85rem; color:var(--dim); margin:10px 0;}
+  .spotmeter b{color:var(--accent); font-size:1.05rem;}
+  .keys{margin-top:22px; color:var(--dim); font-size:.7rem; text-align:center; line-height:1.9;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.68rem;}
+  .foot{margin-top:8px; color:#5c6478; font-size:.72rem; text-align:center; line-height:1.7; max-width:640px;}
+  .foot a{color:var(--dim);}
+</style>
+</head>
+<body>
+<header>
+  <h1>Four-Layer Debug <span>Walkthrough</span></h1>
+  <div class="sub">CCDV-F cumulative debug task · one planted bug in each of four layers · identify &rarr; fix</div>
+</header>
+
+<div class="rail" id="rail"></div>
+<main><div class="view" id="view"></div></main>
+
+<div class="nav">
+  <button id="prev">&#8592; Back</button>
+  <div class="progress">Step <b id="stepNo">1</b> / <b id="stepTot">11</b><br><span id="stepName"></span></div>
+  <button id="next" class="primary">Next &#8594;</button>
+</div>
+
+<div class="keys"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate &nbsp;·&nbsp; click a <kbd>reveal</kbd> to self-test before you look</div>
+<div class="foot" id="foot"></div>
+
+<script>
+/* ============================ helpers ============================ */
+const $ = id => document.getElementById(id);
+function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+/* tiny Python highlighter: comments, strings, keywords, numbers */
+const KW = /^\b(?:def|return|if|elif|else|for|while|in|with|as|not|and|or|is|True|False|None|raise|import|from|class|lambda)\b/;
+function pyHi(line){
+  let i=0, out="";
+  while(i<line.length){
+    const rest=line.slice(i);
+    let m;
+    if(rest[0]==="#"){ out+='<span class="t-com">'+esc(rest)+'</span>'; break; }
+    if((m=rest.match(/^"(?:[^"\\]|\\.)*"|^'(?:[^'\\]|\\.)*'/))){ out+='<span class="t-str">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(KW))){ out+='<span class="t-kw">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(/^\b\d+\b/))){ out+='<span class="t-num">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    out+=esc(line[i]); i++;
+  }
+  return out;
+}
+/* render a code block. lines = [{n, t, mark}] ; mark in bug|add|ctx */
+function code(lines){
+  let h='<div class="code">';
+  for(const l of lines){
+    const cls = l.mark ? " "+l.mark : "";
+    const tag = l.tag ? '<span class="tagline'+(l.mark==="add"?" add":"")+'">'+l.tag+'</span>' : "";
+    h+='<div class="ln'+cls+'"><span class="gut">'+(l.n||"")+'</span><span class="src">'+pyHi(l.t)+tag+'</span></div>';
+  }
+  return h+'</div>';
+}
+function reveal(id,btn){
+  const el=$(id); el.classList.toggle("open");
+  const c=btn.querySelector(".chev"); if(c) c.style.transform=el.classList.contains("open")?"rotate(90deg)":"none";
+}
+
+/* ============================ the buggy source ============================ */
+const SRC = [
+"# --- TOOL DEFINITIONS ---",
+"tools = [",
+"  {",
+'    "name": "get_customer_data",',
+'    "description": "Gets data.",',
+'    "input_schema": { "type": "object", "properties": { "id": {"type":"string"} }, "required": ["id"] }',
+"  }",
+"]",
+"",
+"# --- AGENT LOOP ---",
+"def run_agent(user_request, session_history):",
+'  messages = session_history + [{"role":"user","content":user_request}]',
+"  while True:",
+"    blocks = {}",
+"    stop_seen = False",
+"    with client.messages.stream(",
+"        model=model, max_tokens=4096, tools=tools, messages=messages,",
+'        thinking={"type": "adaptive"}',
+"    ) as stream:",
+"      for event in stream:",
+'        if event.type == "content_block_start":',
+"          blocks[event.index] = init_block(event)",
+'        elif event.type == "content_block_delta":',
+"          apply_delta(blocks[event.index], event.delta)",
+'        elif event.type == "message_stop":',
+"          stop_seen = True",
+'    assistant_content = [b for b in assemble(blocks) if b["type"] != "thinking"]',
+'    messages.append({"role": "assistant", "content": assistant_content})',
+"    response = finalize(blocks)",
+'    if response.stop_reason == "end_turn":',
+"      return response",
+"    for block in response.content:",
+'      if block.type == "tool_use":',
+"        result = execute_tool(block.name, block.input)",
+'        messages.append({"role":"user","content":[{"type":"tool_result",',
+'                         "tool_use_id":block.id,"content":result}]})',
+"",
+"# --- MEMORY ---",
+"def build_session_history(prior_sessions):",
+"  # Concatenating all prior session transcripts in-context",
+"  full_history = []",
+"  for session in prior_sessions:",
+'    full_history.extend(session["messages"])',
+"  return full_history"
+];
+/* map 1-indexed source line -> bug id */
+const LINEBUG = {5:1, 27:2, 28:2, 35:3, 36:3, 40:4, 42:4, 43:4};
+
+/* excerpt builder: give 1-indexed range, attach marks/tags */
+function excerpt(from,to,marks){
+  marks=marks||{};
+  const out=[];
+  for(let n=from;n<=to;n++){
+    const m=marks[n]||{};
+    out.push({n:n, t:SRC[n-1], mark:m.mark, tag:m.tag});
+  }
+  return out;
+}
+
+/* ============================ bug data ============================ */
+const BUGS = [
+ {
+  id:1, layer:"Schema layer", cls:"schema",
+  title:"A tool description that says nothing",
+  loc:"Line 5 — the tool’s <code class=\"inl\">description</code> field",
+  excerpt: () => excerpt(2,8,{5:{mark:"bug",tag:"← bug"}}),
+  oneliner:"Claude cannot distinguish this tool from any other retrieval tool, so it selects on surface-level word matching rather than intent.",
+  cause:`<p>Claude routes tool calls on the <strong>name + description</strong>, not on your runtime code. <code class="inl">"Gets data."</code> carries no intent and no boundary: nothing says <em>what</em> data, <em>when</em> to reach for it, or when <em>not</em> to. The moment a second retrieval-style tool exists (order history, transactions, tickets), selection degrades to guessing on surface words in the user's message.</p>
+  <p>The tell that this is the layer: the failure is <strong>systematic wrong-tool selection</strong>, and it lives in the schema, so no amount of loop or prompt code fixes it.</p>`,
+  err:null,
+  fix: () => [
+    {n:4, t:SRC[3], mark:"ctx"},
+    {n:5, t:'    "description": "Use this to retrieve full account and contact details', mark:"add", tag:"← fix"},
+    {n:"",  t:'                    for a customer by customer ID. Do not use this for', mark:"add"},
+    {n:"",  t:'                    order history or transaction records.",', mark:"add"}
+  ],
+  fixnote:`<p><b>What it changes:</b> the description now states <em>intent</em> (“full account and contact details … by customer ID”) and an <em>exclusion</em> (“do not use this for order history or transaction records”). Intent + exclusion is what lets Claude disambiguate this tool from its neighbours.</p>`,
+  why:`Tool selection is driven by the description; a good one names what the tool does, when to use it, and an explicit "when NOT to use it." See <code class="inl">domain-8-tools-mcps/notes.md</code> · Tool Implementation.`
+ },
+ {
+  id:2, layer:"Streaming layer", cls:"stream",
+  title:"The turn is committed before the stream finishes — and the thinking block is thrown away",
+  loc:"Lines 27–28 — assemble &amp; commit, right after the event loop",
+  excerpt: () => excerpt(25,29,{26:{mark:"ctx",tag:"← set…"},27:{mark:"bug",tag:"← strips thinking"},28:{mark:"bug",tag:"← …but never checked"}}),
+  oneliner:"An interrupted stream writes a partial, possibly half-built tool_use block into history, and stripping the signed thinking block breaks the carry-back rule — so the API rejects the next request because the signature no longer matches.",
+  cause:`<p>Two defects sit on these two lines:</p>
+  <p><strong>1 — The commit isn't gated.</strong> <code class="inl">stop_seen</code> is set when <code class="inl">message_stop</code> arrives (line 26) but line 28 appends the assistant turn <em>unconditionally</em>. If the stream drops mid-flight — timeout, disconnect — a partial, possibly half-built <code class="inl">tool_use</code> block gets written into <code class="inl">messages</code>. Anthropic's docs are explicit: <em>tool_use and extended-thinking blocks cannot be partially recovered.</em> A turn is only safe to keep once <code class="inl">message_stop</code> has arrived.</p>
+  <p><strong>2 — The thinking block is discarded.</strong> <code class="inl">if b["type"] != "thinking"</code> filters thinking blocks out before committing. With extended thinking + tools, each thinking block carries a cryptographic <code class="inl">signature</code> and must be passed back <em>unmodified</em> on the next request. Strip it and the carry-back rule breaks.</p>`,
+  err:`On the next iteration the API rejects the request — HTTP 400, invalid/mismatched thinking-block signature, and/or an unpaired tool_use block.`,
+  fix: () => [
+    {n:27, t:"assistant_content = assemble(blocks)  # keep ALL blocks, incl. thinking", mark:"add", tag:"← fix"},
+    {n:28, t:"if stop_seen:", mark:"add"},
+    {n:"", t:'    messages.append({"role": "assistant", "content": assistant_content})', mark:"add"},
+    {n:"", t:"else:", mark:"add"},
+    {n:"", t:"    raise StreamInterruptedError(", mark:"add"},
+    {n:"", t:'        "Discarding partial turn; retry from last complete turn."', mark:"add"},
+    {n:"", t:"    )", mark:"add"}
+  ],
+  fixnote:`<p><b>What it changes:</b> two things. (1) <code class="inl">assemble(blocks)</code> now keeps <em>every</em> block, including the signed thinking block, so carry-back stays intact. (2) The commit is <em>gated on <code class="inl">stop_seen</code></em>; an interrupted stream raises instead of writing a partial turn to history. Retry starts from the last complete turn.</p>`,
+  why:`A streamed turn equals a non-streamed response only after message_stop; never act on a partial block, and discard — don't commit — a turn from a cut-off stream. See <code class="inl">domain-2-applications/notes.md</code> · Streaming.`
+ },
+ {
+  id:3, layer:"Context layer", cls:"context",
+  title:"A tool_result with no complete assistant tool_use turn in front of it",
+  loc:"Lines 35–36 — the tool_result append (symptom of the streaming bug)",
+  excerpt: () => excerpt(32,36,{35:{mark:"bug",tag:"← pairing"},36:{mark:"bug"}}),
+  oneliner:"The API sees a tool_result referencing a tool_use block it never received as a complete assistant turn, and rejects the request.",
+  cause:`<p>The Messages API enforces a hard invariant: every <code class="inl">tool_use</code> block in an assistant turn must be answered by a <code class="inl">tool_result</code> with the <em>matching</em> <code class="inl">tool_use_id</code> in the very next user turn — and that assistant <code class="inl">tool_use</code> turn must actually be present, in full, in <code class="inl">messages</code>.</p>
+  <p>Here the loop appends the <code class="inl">tool_result</code> (lines 35–36), but the assistant turn that should carry the matching <code class="inl">tool_use</code> was committed by the <em>broken</em> streaming code above — stripped of its thinking block and, on an interrupted stream, half-built. So the <code class="inl">tool_result</code> points at a <code class="inl">tool_use</code> the API never received as a clean, complete turn.</p>`,
+  err:`HTTP 400 — unpaired / dangling tool_result. It is structural: no prompt wording can fix it.`,
+  seq:true,
+  fix:null,
+  fixnote:`<p><b>Bug 3 is resolved once Bug 2 is fixed.</b> With the streaming commit gated on <code class="inl">stop_seen</code> and all blocks preserved, the full assistant turn — including the <code class="inl">tool_use</code> block and its signed thinking — is appended <em>before</em> the <code class="inl">tool_result</code>. The pairing rule is then satisfied with no separate change on lines 35–36.</p>`,
+  why:`Pairing lives in how you build the message array, not in the tool call itself. Keep the whole assistant content array; commit it before its tool_result. See <code class="inl">domain-8-tools-mcps/notes.md</code> · block-pairing invariant.`
+ },
+ {
+  id:4, layer:"Memory layer", cls:"memory",
+  title:"Every prior session transcript concatenated into context",
+  loc:"Lines 39–43 — <code class=\"inl\">build_session_history</code>",
+  excerpt: () => excerpt(39,44,{40:{mark:"ctx"},42:{mark:"bug"},43:{mark:"bug",tag:"← unbounded growth"}}),
+  oneliner:"The context window grows with every session and fills before the agent can process the current request — by session four or five.",
+  cause:`<p><code class="inl">extend</code>-ing <code class="inl">full_history</code> with every message of every prior session means the window carries the <em>entire</em> transcript history forward. It's fine in a demo with one prior session; it grows linearly with use. By the fourth or fifth session the accumulated history fills the window before the current request is even added — the request is rejected, or there's no room left to work.</p>
+  <p>This is the classic <strong>memory-scope</strong> mistake: holding cross-session state <em>in-context</em> when it belongs in external storage.</p>`,
+  err:null,
+  fix: () => [
+    {n:39, t:"def build_session_history(prior_sessions):", mark:"add", tag:"← fix"},
+    {n:40, t:"    if not prior_sessions:", mark:"add"},
+    {n:"", t:"        return []", mark:"add"},
+    {n:"", t:'    summary = load_session_summary(prior_sessions[-1]["id"])  # external store', mark:"add"},
+    {n:"", t:'    return [{"role": "user", "content": f"Session context: {summary}"}]', mark:"add"}
+  ],
+  fixnote:`<p><b>What it changes:</b> transcripts live in external storage; only a compact <em>summary</em> of the most recent session is injected at start. Context cost stays flat across sessions instead of growing without bound. (A well-specified summarizer is what keeps task-critical state from being dropped.)</p>`,
+  why:`Choose memory scope at design time: in-context grows every turn; external storage / summarized memory carry state across sessions at flat cost. See <code class="inl">domain-1-agents/notes.md</code> · Agent memory.`
+ }
+];
+
+/* ============================ steps ============================ */
+const STEPS = [
+ {name:"Start",         type:"intro"},
+ {name:"The loop",      type:"orient", k:"loop"},
+ {name:"Streaming",     type:"orient", k:"stream"},
+ {name:"Invariants",    type:"orient", k:"inv"},
+ {name:"Memory",        type:"orient", k:"mem"},
+ {name:"Spot the bugs", type:"spot"},
+ {name:"Bug 1",         type:"bug", b:0},
+ {name:"Bug 2",         type:"bug", b:1},
+ {name:"Bug 3",         type:"bug", b:2},
+ {name:"Bug 4",         type:"bug", b:3},
+ {name:"Recap",         type:"recap"}
+];
+
+let cur = 0;
+const found = new Set();          // bugs found in the spot game
+const seen  = new Set([0]);       // steps visited (for rail checkmarks)
+
+/* ---------- renderers ---------- */
+function rIntro(){
+  return `
+  <span class="badge plain">Cumulative debug task · seasoned dev, cold read</span>
+  <h2>Four layers, four bugs</h2>
+  <p class="lead">A customer-service agent. Extended thinking is on, it has one tool, it runs the classic raw&#8209;Messages&#8209;API loop, and it carries memory across sessions. Exactly one bug is planted in each of four layers.</p>
+  <div class="grid4">
+    <div class="lc"><div class="n" style="color:var(--blue)">Schema</div><h5>Tool definitions</h5><p>How Claude decides which tool to call.</p></div>
+    <div class="lc"><div class="n" style="color:var(--accent)">Streaming</div><h5>Assemble &amp; commit</h5><p>Turning SSE events into a saved turn.</p></div>
+    <div class="lc"><div class="n" style="color:var(--purple)">Context</div><h5>Message structure</h5><p>The tool_use / tool_result pairing.</p></div>
+    <div class="lc"><div class="n" style="color:var(--green)">Memory</div><h5>Cross-session state</h5><p>What carries into the next session.</p></div>
+  </div>
+  <p>You're seeing this code cold. The next four panels orient you on the machinery — the loop, streaming, the two invariants, and memory scope — then you'll <strong>spot</strong> the four bugs and step through each one in two stages: <em>identify</em> (name the layer + one-sentence runtime effect), then <em>fix</em>.</p>
+  <div class="callout key"><b>How to use it:</b> on each bug, try to answer before you hit <em>Reveal</em>. The reveal holds the model answer so you can self-test first — the same muscle the exam's debug items work.</div>`;
+}
+
+function rOrient(k){
+  if(k==="loop") return `
+    <span class="badge plain">Orientation · 1 of 4</span>
+    <h2>The agent loop, in plain terms</h2>
+    <p><code class="inl">run_agent</code> takes the running <code class="inl">messages</code> plus a new user request, then loops:</p>
+    <ul>
+      <li>Open a <strong>streaming</strong> request to the model with the tools registered and thinking enabled.</li>
+      <li>As events arrive, build up the reply blocks (<code class="inl">init_block</code> / <code class="inl">apply_delta</code> / <code class="inl">assemble</code> / <code class="inl">finalize</code> are the app's own accumulator).</li>
+      <li><strong>Commit</strong> the assembled assistant turn to <code class="inl">messages</code>.</li>
+      <li>If the model says it's done (<code class="inl">stop_reason == "end_turn"</code>), return.</li>
+      <li>Otherwise, for each tool the model asked for, <strong>execute it</strong> and append a <code class="inl">tool_result</code> user turn — then loop.</li>
+    </ul>
+    <p>This is the <strong>raw Messages&#8209;API path</strong>: your code owns tool execution <em>and</em> history. That ownership is exactly where three of the four bugs hide.</p>
+    ${code(excerpt(11,13).concat(excerpt(28,36)))}
+    <div class="callout"><b>Read it as:</b> stream &rarr; assemble &rarr; commit &rarr; check stop_reason &rarr; run tools &rarr; append results &rarr; repeat.</div>`;
+  if(k==="stream") return `
+    <span class="badge plain">Orientation · 2 of 4</span>
+    <h2>Streaming isn't a whole reply — it's events</h2>
+    <p>The model's answer arrives as a sequence of server-sent events, not one object:</p>
+    ${code([
+      {n:"",t:"message_start"},
+      {n:"",t:"  content_block_start   →  content_block_delta ×N  →  content_block_stop   (per block)"},
+      {n:"",t:"message_delta   (carries stop_reason)"},
+      {n:"",t:"message_stop"}
+    ])}
+    <p>Two rules a newcomer must internalize before touching this loop:</p>
+    <ul>
+      <li>A block isn't real until its <code class="inl">content_block_stop</code>. A <code class="inl">tool_use</code> block's JSON <code class="inl">input</code> arrives as <em>partial</em> string fragments — not valid JSON until the block closes.</li>
+      <li>The whole turn isn't safe to keep until <code class="inl">message_stop</code>. Until then, what you've accumulated is <strong>provisional</strong>.</li>
+    </ul>
+    <div class="callout warn"><b>From the docs:</b> “Tool use and extended thinking blocks cannot be partially recovered.” An interrupted stream can't be trusted for those blocks — <b>discard the partial turn, don't commit it.</b></div>`;
+  if(k==="inv") return `
+    <span class="badge plain">Orientation · 3 of 4</span>
+    <h2>Two invariants that make multi-turn tool use legal</h2>
+    <h3>Thinking carry-back</h3>
+    <p>With extended thinking + tools, every thinking block the model produced carries a cryptographic <code class="inl">signature</code>. On the next request you must send those blocks back <strong>unmodified</strong>. Strip them, edit them, or reorder them and the signature no longer matches — the API returns <code class="inl">HTTP 400</code>.</p>
+    <h3>tool_use / tool_result pairing</h3>
+    <p>Every <code class="inl">tool_use</code> block in an assistant turn must be answered by a <code class="inl">tool_result</code> with the <strong>matching</strong> <code class="inl">tool_use_id</code> in the immediately following user turn — and that assistant <code class="inl">tool_use</code> turn must actually be committed to <code class="inl">messages</code> first.</p>
+    <div class="callout"><b>Why they travel together here:</b> both invariants are satisfied (or broken) at the same place — the moment you assemble and commit the assistant turn. Break the commit and you break <em>both</em> at once. That's Bug 2 and Bug 3.</div>`;
+  if(k==="mem") return `
+    <span class="badge plain">Orientation · 4 of 4</span>
+    <h2>Memory has to live somewhere</h2>
+    <p>Cross-session memory is a design-time choice about <em>what the next session starts knowing</em> and <em>what it costs to carry that forward</em>:</p>
+    <table>
+      <tr><th>Approach</th><th>What it costs</th></tr>
+      <tr><td class="lyr">In-context (concatenate transcripts)</td><td>Token cost grows every session; the window eventually overflows.</td></tr>
+      <tr><td class="lyr">External storage</td><td>Retrieval latency + read/write code, but flat context cost.</td></tr>
+      <tr><td class="lyr">Summarized</td><td>Cheap and flat; drops any detail the summarizer didn't keep.</td></tr>
+      <tr><td class="lyr">Stateless</td><td>Nothing carried — right when each job is self-contained.</td></tr>
+    </table>
+    <p>The scalable pattern for a returning user is <strong>store transcripts externally, inject a summary at session start</strong>. Holding it all in-context is Bug 4.</p>`;
+  return "";
+}
+
+function rSpot(){
+  let h=`<span class="badge plain">Find them yourself</span>
+    <h2>Spot the four bugs</h2>
+    <p>Click the line (or lines) where you think each planted bug lives — one per layer. Hits lock in red; misses flash grey.</p>
+    <div class="spotmeter">Bugs found: <b id="fc">${found.size}</b> / 4</div>
+    <div class="code" id="spotcode">`;
+  SRC.forEach((t,idx)=>{
+    const n=idx+1;
+    const bug=LINEBUG[n];
+    const isFound = bug && found.has(bug);
+    const clk = t.trim()==="" ? "" : " clk";
+    h+='<div class="ln'+clk+(isFound?" found":"")+'" data-n="'+n+'"'+(clk?' onclick="spotClick('+n+')"':"")+'><span class="gut">'+n+'</span><span class="src">'+pyHi(t)+(isFound?'<span class="tagline">← bug '+bug+'</span>':"")+'</span></div>';
+  });
+  h+='</div>';
+  h+=`<div class="callout ${found.size===4?"good":"key"}" id="spotmsg">${found.size===4?"All four found. Step through each one →":"Tip: two of the four sit on adjacent lines in the same place — the assemble-and-commit step."}</div>`;
+  return h;
+}
+
+function rBug(b){
+  const B=BUGS[b];
+  let h=`<span class="badge ${B.cls}">Bug ${B.id} · ${B.layer}</span>
+    <h2>${B.title}</h2>
+    <div class="loc">${B.loc}</div>
+    ${code(B.excerpt())}
+    <div class="revwrap">
+      <button class="revbtn" onclick="reveal('s1_${b}',this)"><span class="chev">▶</span> Stage 1 — reveal what it causes at runtime</button>
+      <div class="reveal" id="s1_${b}">
+        <div class="oneliner">${B.oneliner}</div>
+        ${B.cause}
+        ${B.err?`<div class="callout warn"><b>API result:</b> ${B.err}</div>`:""}
+      </div>
+    </div>
+    <div class="revwrap">
+      <button class="revbtn" onclick="reveal('s2_${b}',this)"><span class="chev">▶</span> Stage 2 — show the fix</button>
+      <div class="reveal" id="s2_${b}">`;
+  if(B.seq){
+    h+=`<div class="seqrow">
+      <div class="seqcol"><h4>Buggy — unpaired</h4><div class="seq">
+        <div class="turn missing">assistant: (thinking stripped / partial) <small>tool_use id ✗ missing or half-built</small></div>
+        <div class="turn user">user: tool_result <small>&rarr; id X</small></div>
+      </div></div>
+      <div class="seqcol"><h4>Fixed — paired</h4><div class="seq">
+        <div class="turn asst">assistant: text + thinking(signed) + tool_use <small>id X</small></div>
+        <div class="turn user">user: tool_result <small>&rarr; id X ✓</small></div>
+      </div></div>
+    </div>`;
+  }
+  if(B.fix){ h+=code(B.fix()); }
+  h+=`${B.fixnote}
+        <div class="callout good"><b>Why this is the layer:</b> ${B.why}</div>
+      </div>
+    </div>`;
+  return h;
+}
+
+function rRecap(){
+  let rows=[
+    ["1","schema","Schema","<code class='inl'>\"Gets data.\"</code> — no intent, no exclusion","Claude can't tell this tool from any other retrieval tool; routes on surface words.","Intent-stating description + explicit “do not use for…” exclusion."],
+    ["2","stream","Streaming","Commits the turn before <code class='inl'>message_stop</code> and strips the thinking block","Partial <code class='inl'>tool_use</code> enters history; stripped signed thinking → next request HTTP 400.","Gate the commit on <code class='inl'>stop_seen</code>; keep all blocks; raise on interruption."],
+    ["3","context","Context","<code class='inl'>tool_result</code> with no complete preceding assistant <code class='inl'>tool_use</code> turn","API sees an unpaired tool_result → HTTP 400.","Resolved by fixing Bug 2 — full assistant turn is appended first."],
+    ["4","memory","Memory","Concatenates <em>all</em> prior transcripts in-context","Window fills by session 4–5; request rejected before work starts.","External store + inject a summary only."]
+  ];
+  let t=`<table><tr><th>#</th><th>Layer</th><th>Bug</th><th>Runtime effect</th><th>Fix</th></tr>`;
+  for(const r of rows){ t+=`<tr><td>${r[0]}</td><td class="lyr">${r[2]}</td><td>${r[3]}</td><td>${r[4]}</td><td>${r[5]}</td></tr>`; }
+  t+=`</table>`;
+  return `<span class="badge plain">Recap &amp; self-assess</span>
+    <h2>Four layers, four fixes</h2>
+    ${t}
+    <div class="callout key"><b>The coupling to remember:</b> Bugs 2 and 3 are one defect seen twice. The broken streaming commit is the <em>root</em>; the pairing violation is the <em>symptom</em>. Fix the commit (keep every block, gate on <code class="inl">message_stop</code>) and both go away.</div>
+    <h3>Self-assessment</h3>
+    <p>For each bug, can you — cold — do all three?</p>
+    <ul class="ck">
+      <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>layer</b> it belongs to.</li>
+      <li onclick="this.querySelector('input').click()"><input type="checkbox"> State the <b>runtime effect</b> in one sentence.</li>
+      <li onclick="this.querySelector('input').click()"><input type="checkbox"> Write the <b>fix</b> and say what it changes.</li>
+    </ul>
+    <div class="callout good">Blueprint tie-ins — <b>D1</b> Agent memory (Bug 4) · <b>D2</b> Streaming &amp; message structure (Bugs 2–3) · <b>D8</b> Tool schema &amp; pairing (Bugs 1, 3) · <b>D4</b> the debug method itself. Full notes, flashcards, and 8 practice items are in the domain folders.</div>`;
+}
+
+/* ---------- driver ---------- */
+function render(){
+  const s=STEPS[cur];
+  let html="";
+  if(s.type==="intro") html=rIntro();
+  else if(s.type==="orient") html=rOrient(s.k);
+  else if(s.type==="spot") html=rSpot();
+  else if(s.type==="bug") html=rBug(s.b);
+  else if(s.type==="recap") html=rRecap();
+  $("view").innerHTML=html;
+  $("view").scrollIntoView({behavior:"smooth",block:"nearest"});
+  $("stepNo").textContent=cur+1;
+  $("stepName").textContent=s.name;
+  $("prev").disabled = cur===0;
+  $("next").disabled = cur===STEPS.length-1;
+  $("next").textContent = cur===STEPS.length-2 ? "Recap →" : "Next →";
+  renderRail();
+}
+function renderRail(){
+  const r=$("rail"); r.innerHTML="";
+  STEPS.forEach((s,i)=>{
+    const b=document.createElement("button");
+    b.textContent=s.name;
+    if(i===cur) b.className="active";
+    else if(seen.has(i)) b.className="done";
+    b.onclick=()=>goto(i);
+    r.appendChild(b);
+  });
+}
+function goto(i){ cur=Math.max(0,Math.min(STEPS.length-1,i)); seen.add(cur); render(); }
+function go(d){ goto(cur+d); }
+function spotClick(n){
+  const bug=LINEBUG[n];
+  const rowEls=document.querySelectorAll('#spotcode .ln[data-n="'+n+'"]');
+  if(bug){
+    found.add(bug);
+    render();  // re-render to lock in all lines of that bug + update meter
+  }else{
+    rowEls.forEach(el=>{ el.classList.add("wrong"); setTimeout(()=>el.classList.remove("wrong"),450); });
+  }
+}
+$("prev").onclick=()=>go(-1);
+$("next").onclick=()=>go(1);
+document.addEventListener("keydown",e=>{
+  if(e.key==="ArrowRight"){ go(1); } else if(e.key==="ArrowLeft"){ go(-1); }
+});
+$("foot").innerHTML='Grounded in official docs — <a href="https://docs.claude.com/en/docs/build-with-claude/streaming">streaming</a>, <a href="https://docs.claude.com/en/docs/build-with-claude/extended-thinking">extended thinking</a>. Practice items are original, written to blueprint objectives — not live exam content.';
+$("stepTot").textContent=STEPS.length;
+render();
+</script>
+</body>
+</html>
