@@ -27,6 +27,7 @@ Official sources only (per project instructions). Links verified 2026-07-12 at t
   - [`capstone-production-grade-prompting.md`](capstone-production-grade-prompting.md) — Module 2, routed across D1/D2/D5/D6/D8
   - [`capstone-claude-code-mcp-integration.md`](capstone-claude-code-mcp-integration.md) — Module 3, routed across D3/D7/D8 (+ D2)
   - [`capstone-production-engineering-evals-security.md`](capstone-production-engineering-evals-security.md) — Module 4, routed across D4/D5/D1/D6/D7
+- [`project-studymate/`](project-studymate/README.md) — hands-on: an 8-level Claude API build (D2 spine, pulls in D1/D5/D6/D7/D8/D4), for learning by doing rather than reading
 
 ## Version-sensitive watch list
 Re-verify before the exam: **ZDR eligibility by model and by platform** (varies; not guaranteed under an existing agreement), current model names and tiers, batch API pricing/window, prompt-caching mechanics, Claude Code feature names (Rules/Skills/Commands/Agents/Agent Memory), Claude Code permission mode names (`default`/`acceptEdits`/`plan`/`auto`/`dontAsk`/`bypassPermissions`) and settings-file paths, MCP transport options.

@@ -16,3 +16,8 @@ Thumbs.db
 
 instructor_6nizmqk8tpzpfjvt6qmmav7rh_public_1783542875_Claude+Certified+Developer+–+Foundations+Exam+Guide.pdf
 instructor_6nizmqk8tpzpfjvt6qmmav7rh_public_1783542947_Claude+Certification+Program+-+Exam+Registration+Guide.pdf
+
+# Project StudyMate (hands-on build) — secrets and generated session data
+project-studymate/.env
+project-studymate/sandbox/session_state.json
+project-studymate/sandbox/trace_log.jsonl

@@ -22,6 +22,15 @@ Rule of thumb: ~53 items means Domain 2 ≈ 17–18 questions; Domains 3+4 combi
 >
 > Shared term definitions from all four modules live in [`glossary.md`](glossary.md).
 
+> **Learn by building.** [`project-studymate/`](project-studymate/README.md) is an
+> optional hands-on track that runs alongside weeks 1–3: an 8-level coding project
+> (real Claude API calls, escalating from a single request to a tool-using, guarded,
+> evaluated, MCP-wrapped capstone) with D2 as the spine and D1/D5/D6/D7/D8/D4 pulled
+> in as the build matures. Not a substitute for the domain notes — a way to feel the
+> tradeoffs (model tiers, workflow vs. agent, tool description scoping, injection
+> defense) instead of only reading about them. Its own checkpoint questions live in
+> `project-studymate/checkpoints.md`, separate from the domain practice sets below.
+
 ## Progress Tracker
 
 | Domain | Weight | Notes | Flashcards | Practice Qs | Last quiz % |
@@ -58,3 +67,4 @@ Rule of thumb: ~53 items means Domain 2 ≈ 17–18 questions; Domains 3+4 combi
 - [ ] Schedule exam (Pearson VUE via Anthropic Partner Academy)
 - [ ] Work all four capstone integration sheets in exam week — `capstone-production-grade-prompting.md` (cross-domain diagnosis + scenario Qs), `capstone-claude-code-mcp-integration.md` (requirement→mechanism table + scenario Qs), `capstone-production-engineering-evals-security.md` (symptom→layer table + scenario Qs), and `capstone-accelerators-ip-contribution.md` (situation→move table + 10 scenario Qs — highest weight of the four)
 - [ ] Final review of weak-areas.md in exam week
+- [ ] (Optional, hands-on) Work through `project-studymate/`'s 8 levels and its `checkpoints.md`

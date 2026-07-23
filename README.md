@@ -21,6 +21,15 @@ Requires only Python 3 (no packages to install).
 
 All progress is saved locally in your browser (`localStorage`) — nothing leaves your machine.
 
+## Hands-on: Project StudyMate
+
+Prefer learning by building over reading? [`project-studymate/`](project-studymate/README.md)
+is an 8-level coding project — one Python program using the real Claude API, built in
+escalating increments from a single API call to a tool-using, guarded, evaluated,
+MCP-wrapped multi-agent capstone. Each level maps to blueprint domains (D2 spine, with
+D1/D5/D6/D7/D8/D4 pulled in as the build matures) and ends with checkpoint questions in
+[`project-studymate/checkpoints.md`](project-studymate/checkpoints.md).
+
 ### Regenerating after edits
 
 If you edit any `flashcards.md` or `practice-questions.md`, rerun the build command above to refresh `study-hub.html`. Don't hand-edit `study-hub.html` itself — it's generated output.
@@ -40,6 +49,7 @@ weak-areas.md                 topics missed in practice, logged with date
 glossary.md                   cross-referenced term index
 resources.md                  links to official Anthropic docs, by domain
 capstone-*.md                 cross-domain review sheets (exam-week reading)
+project-studymate/            hands-on: build a Claude app in 8 escalating levels
 
 build-study-hub.py            generates study-hub.html — run this after editing content
 study-hub-template.html       the app shell/logic the build script fills in
