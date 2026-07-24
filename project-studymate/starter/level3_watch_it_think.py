@@ -1,6 +1,6 @@
 """
 LEVEL 3 — Watch It Think                                            difficulty: ***
-Blueprint: D2 Streaming · D5 Extended Thinking
+Blueprint: D2 Streaming · D5 Adaptive Thinking
 
 WHAT YOU'RE BUILDING
     1. stream_answer(prompt) — prints tokens as they arrive AND returns the full
@@ -9,9 +9,9 @@ WHAT YOU'RE BUILDING
     2. A 2-turn conversation built from repeated stream_answer() calls, to prove
        your commit timing is right (the follow-up question only makes sense if
        turn 1 was captured correctly).
-    3. ask_with_thinking(prompt, budget_tokens) — same question, but with extended
-       thinking enabled, so you can see the thinking block and the answer block
-       as two separate pieces of one response.
+    3. ask_with_thinking(prompt) — same question, but with adaptive thinking
+       enabled, so you can see the thinking block and the answer block as two
+       separate pieces of one response.
 
 WHY THIS IS THE RIGHT NEXT STEP
     Levels 1-2 were single-shot request/response. Production traffic streams, and
@@ -61,15 +61,21 @@ def stream_answer(client: Anthropic, model: str, messages: list[dict]) -> str:
     raise NotImplementedError("TODO: implement stream_answer()")
 
 
-def ask_with_thinking(client: Anthropic, model: str, prompt: str, budget_tokens: int) -> tuple[str, str]:
+def ask_with_thinking(client: Anthropic, model: str, prompt: str, effort: str = "high") -> tuple[str, str]:
     """
-    Ask one question with extended thinking enabled. Return (thinking_text, answer_text).
+    Ask one question with adaptive thinking enabled. Return (thinking_text, answer_text).
 
     TODO:
       1. Call client.messages.create(
              model=model,
-             max_tokens=budget_tokens + 600,   # max_tokens MUST exceed budget_tokens
-             thinking={"type": "enabled", "budget_tokens": budget_tokens},
+             max_tokens=2500,
+             # The old fixed-budget knob — thinking={"type":"enabled","budget_tokens":N} —
+             # is gone on current models (claude-sonnet-5 400s on it). Adaptive thinking
+             # lets Claude decide how much to think; output_config.effort controls the
+             # depth that budget_tokens used to. display:"summarized" makes the thinking
+             # block carry readable text (the default, "omitted", leaves it empty).
+             thinking={"type": "adaptive", "display": "summarized"},
+             output_config={"effort": effort},
              messages=[{"role": "user", "content": prompt}],
          )
       2. response.content is a list of blocks. Walk it and pull out:
@@ -106,7 +112,6 @@ def main() -> None:
         MODEL_SONNET,
         "A support bot needs to pick between issuing a refund or escalating to a human, "
         "given a messy multi-paragraph complaint. Should this call use extended thinking? Decide, then answer.",
-        budget_tokens=2000,
     )
     print("[thinking]\n" + thinking[:500] + ("..." if len(thinking) > 500 else ""))
     print("\n[answer]\n" + answer)

@@ -6,7 +6,7 @@ import time
 import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from common import REPO_ROOT, MODEL_HAIKU, MODEL_SONNET, require_api_key
+from common import REPO_ROOT, MODEL_HAIKU, MODEL_SONNET, load_json_response, require_api_key
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import level2_give_it_a_job as l2
@@ -65,7 +65,10 @@ def judge_check(client: Anthropic, q: dict) -> tuple[bool, str]:
         messages=[{"role": "user", "content": prompt}],
         output_config={"format": {"type": "json_schema", "schema": JUDGE_SCHEMA}},
     )
-    result = json.loads(response.content[0].text)
+    # Haiku 4.5 runs thinking-off by default, so content[0] is the text block here —
+    # but go through the shared extractor anyway so this stays correct if the judge
+    # model ever changes to a thinking-by-default tier.
+    result = load_json_response(response)
     return result["passes"], result["reason"]
 
 

@@ -5,7 +5,7 @@ import json
 import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from common import REPO_ROOT, DOMAIN_WEIGHTS, MODEL_SONNET, require_api_key
+from common import REPO_ROOT, DOMAIN_WEIGHTS, MODEL_SONNET, load_json_response, require_api_key
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import level2_give_it_a_job as l2
@@ -74,7 +74,9 @@ def recommend_weak_area(client: Anthropic, question: dict, chosen_index: int) ->
         messages=[{"role": "user", "content": prompt}],
         output_config={"format": {"type": "json_schema", "schema": RECOMMENDATION_SCHEMA}},
     )
-    rec = json.loads(response.content[0].text)
+    # load_json_response finds the text block by type (Sonnet 5 can lead with a
+    # thinking block) and guards stop_reason before json.loads.
+    rec = load_json_response(response)
     return rec if rec["should_log"] else None
 
 

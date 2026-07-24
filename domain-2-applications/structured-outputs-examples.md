@@ -221,6 +221,27 @@ def parse_structured(response):
 
 ---
 
+## Schema keyword support is narrower than the JSON Schema spec (verified against the live API 2026-07-23)
+
+`output_config.format.schema` only accepts a subset of JSON Schema keywords. Confirmed by direct API probing:
+
+| Keyword | Result |
+|---|---|
+| `array` + `minItems: 4` (any value other than 0 or 1) | **400** — "minItems values other than 0 or 1 are not supported" |
+| `array` + `maxItems` (any value) | **400** — "property 'maxItems' is not supported" |
+| `array` + `prefixItems` (tuple typing) | **400** — "property 'prefixItems' is not supported" |
+| `integer` + `minimum` / `maximum` | **400** — "properties maximum, minimum are not supported" |
+| `integer` + `enum: [0, 1, 2, 3]` | **Works** |
+| `string` + `enum: [...]` | **Works** |
+
+**Practical takeaway:** you cannot force "exactly N items" via array bounds, and you cannot bound an integer's range via `minimum`/`maximum`. Two schema-legal workarounds:
+- **Fixed count of items** (e.g. "exactly 4 answer choices") → four named properties (`choice_a`..`choice_d`) instead of one 4-element array. Reassemble into a list in your own code after `json.loads()`.
+- **Bounded integer** (e.g. "an index from 0-3") → `"enum": [0, 1, 2, 3]` instead of `minimum`/`maximum`.
+
+This is exam bait because the *concept* ("constrain the shape so Claude can't slip") is correct — the trap is assuming every JSON Schema keyword you know from elsewhere is honored. Unsupported keywords fail the whole request with a 400 at call time, not silently ignored.
+
+---
+
 ## Exam traps to remember
 1. **Prompt instruction ≠ schema constraint.** "Respond only in JSON" is a request the model can slip on; `output_config.format` is enforced per-token. The exam rewards the API-level guarantee for production, not better prompt wording.
 2. **`output_config.format` constrains the response; `strict: true` constrains tool inputs.** Don't swap them — a scenario about *a tool argument crashing your function* wants `strict`, not JSON outputs.

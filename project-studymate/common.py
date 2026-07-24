@@ -81,6 +81,38 @@ def append_weak_area(domain_skill: str, topic: str, what_you_got_wrong: str) -> 
     return f"Logged to weak-areas.md: {topic} ({today})"
 
 
+def first_text_block(response) -> str:
+    """Return the first text block's ``.text`` from a Messages response.
+
+    Do NOT assume ``response.content[0]`` is the text block: ``claude-sonnet-5``
+    runs adaptive thinking by *default*, so a response can lead with a
+    ``ThinkingBlock`` (which has ``.thinking``, not ``.text``) even when thinking
+    was never requested. Index by block type, not by position.
+    """
+    for block in response.content:
+        if getattr(block, "type", None) == "text":
+            return block.text
+    raise ValueError(
+        f"No text block in response (stop_reason={getattr(response, 'stop_reason', None)})."
+    )
+
+
+def load_json_response(response) -> dict:
+    """``first_text_block`` + a ``stop_reason`` guard + ``json.loads``.
+
+    Use for structured-output calls (``output_config.format``). A schema is not a
+    guarantee of success — a refusal or a ``max_tokens`` truncation returns output
+    that won't parse, so check ``stop_reason`` before ``json.loads``.
+    """
+    import json
+
+    if response.stop_reason == "refusal":
+        raise RuntimeError(f"Model refused: {first_text_block(response)}")
+    if response.stop_reason == "max_tokens":
+        raise RuntimeError("Truncated before completing the schema — raise max_tokens and retry.")
+    return json.loads(first_text_block(response))
+
+
 def cost_note() -> str:
     """
     Pricing changes independently of model names and is out of scope to hard-code

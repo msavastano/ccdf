@@ -22,11 +22,18 @@ def stream_answer(client: Anthropic, model: str, messages: list[dict]) -> str:
     return full_text
 
 
-def ask_with_thinking(client: Anthropic, model: str, prompt: str, budget_tokens: int) -> tuple[str, str]:
+def ask_with_thinking(client: Anthropic, model: str, prompt: str, effort: str = "high") -> tuple[str, str]:
     response = client.messages.create(
         model=model,
-        max_tokens=budget_tokens + 600,
-        thinking={"type": "enabled", "budget_tokens": budget_tokens},
+        max_tokens=2500,
+        # The fixed-budget_tokens knob ("type": "enabled", budget_tokens=N) is gone
+        # on current models (claude-sonnet-5 rejects it with a 400). Adaptive thinking
+        # + output_config.effort is the replacement: Claude decides how much to think,
+        # and effort ("high" here) controls the depth that budget_tokens used to.
+        # display:"summarized" makes each thinking block carry readable summary text —
+        # the default ("omitted") leaves it empty.
+        thinking={"type": "adaptive", "display": "summarized"},
+        output_config={"effort": effort},
         messages=[{"role": "user", "content": prompt}],
     )
     thinking_parts = [b.thinking for b in response.content if b.type == "thinking"]
@@ -53,7 +60,6 @@ def main() -> None:
         MODEL_SONNET,
         "A support bot needs to pick between issuing a refund or escalating to a human, "
         "given a messy multi-paragraph complaint. Should this call use extended thinking? Decide, then answer.",
-        budget_tokens=2000,
     )
     print("[thinking]\n" + thinking[:500] + ("..." if len(thinking) > 500 else ""))
     print("\n[answer]\n" + answer)

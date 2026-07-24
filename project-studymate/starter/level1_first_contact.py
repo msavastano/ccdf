@@ -42,7 +42,8 @@ def ask(question: str, model: str) -> tuple[str, dict]:
            - model=model
            - max_tokens=300          (small on purpose — you're paying for every one)
            - messages=[{"role": "user", "content": question}]
-      3. Pull the text out of response.content[0].text
+      3. Pull the text out of the first response.content block whose .type == "text"
+         (not content[0] — see the HINT below).
       4. Return (text, {"input_tokens": ..., "output_tokens": ...})
 
     HINT — the messages list is a list of turns, each a dict with "role" and
@@ -51,8 +52,10 @@ def ask(question: str, model: str) -> tuple[str, dict]:
     meet in Level 2).
 
     HINT — response.content is a LIST of content blocks (a model detail that
-    matters a lot once you add tools/thinking in later levels). For a plain text
-    reply there's exactly one block, so response.content[0].text is the answer.
+    matters a lot once you add tools/thinking in later levels). Don't assume
+    content[0] is the text — claude-sonnet-5 (one of the tiers you loop over)
+    runs adaptive thinking by default and can lead with a thinking block. Walk
+    the list and return the first block whose .type == "text".
     """
     raise NotImplementedError("TODO: implement ask()")
 

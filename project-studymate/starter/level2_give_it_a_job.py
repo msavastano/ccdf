@@ -25,6 +25,7 @@ RUN IT
 import sys
 import json
 import pathlib
+from typing import Any, cast
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 from common import MODEL_SONNET, require_api_key
@@ -39,26 +40,40 @@ Never claim a question is from the real exam. You are precise, concise, and a li
 encouraging — this is a hard exam and the student is doing the work.
 """
 
+# THE CONSTRAINT THIS LEVEL TEACHES: you cannot force "exactly 4 items" with array
+# length here. Anthropic's structured-output validator only whitelists a subset of
+# JSON Schema, and the natural first attempt trips three separate rejections:
+#   - `minItems` accepts only 0 or 1 (it's a non-empty toggle, not a count) — any
+#     other value 400s: "minItems values other than 0 or 1 are not supported"
+#   - `maxItems` is rejected at ANY value: "property 'maxItems' is not supported"
+#   - `minimum`/`maximum` are rejected on integers too
+# (all verified against the live API 2026-07-23; see the 400 table in
+# ../domain-2-applications/structured-outputs-examples.md). So the "obvious" schema —
+# `"choices": {"type":"array","minItems":4,"maxItems":4}` — 400s before Claude runs.
+#
+# The schema-legal way to force exactly four is four NAMED, required properties;
+# generate_question() reassembles them into a `choices` list below. Bound the index
+# with `enum`, not minimum/maximum.
 QUESTION_SCHEMA = {
     "type": "object",
     "properties": {
         "question": {"type": "string"},
-        "choices": {
-            "type": "array",
-            "items": {"type": "string"},
-            "minItems": 4,
-            "maxItems": 4,
-        },
-        "correct_index": {"type": "integer", "minimum": 0, "maximum": 3},
-        "rationale": {
-            "type": "array",
-            "items": {"type": "string"},
-            "minItems": 4,
-            "maxItems": 4,
-            "description": "One rationale string per choice, same order as `choices`.",
-        },
+        "choice_a": {"type": "string"},
+        "choice_b": {"type": "string"},
+        "choice_c": {"type": "string"},
+        "choice_d": {"type": "string"},
+        "correct_index": {"type": "integer", "enum": [0, 1, 2, 3]},
+        "rationale_a": {"type": "string"},
+        "rationale_b": {"type": "string"},
+        "rationale_c": {"type": "string"},
+        "rationale_d": {"type": "string"},
     },
-    "required": ["question", "choices", "correct_index", "rationale"],
+    "required": [
+        "question",
+        "choice_a", "choice_b", "choice_c", "choice_d",
+        "correct_index",
+        "rationale_a", "rationale_b", "rationale_c", "rationale_d",
+    ],
     "additionalProperties": False,
 }
 
@@ -77,7 +92,11 @@ def generate_question(topic: str, domain_folder: str) -> dict:
       3. Check response.stop_reason before parsing:
            - "refusal"    -> raise RuntimeError with the refusal text
            - "max_tokens" -> raise RuntimeError telling the caller to raise max_tokens
-           - otherwise    -> json.loads(response.content[0].text) and return it
+      4. json.loads the text block, then REASSEMBLE the four named choice_* /
+         rationale_* fields into `choices` / `rationale` lists (see the
+         QUESTION_SCHEMA note for why the schema uses named fields instead of a
+         length-4 array) and return
+         {"question", "choices", "correct_index", "rationale"}.
 
     Why check stop_reason at all, if the schema is "guaranteed"? Because the
     guarantee only covers a completed, non-refused turn — see

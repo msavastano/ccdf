@@ -92,7 +92,10 @@ def recommend_weak_area(client: Anthropic, question: dict, chosen_index: int) ->
       2. Call client.messages.create(...) with output_config JSON schema:
              {"should_log": bool, "domain_skill": str, "topic": str, "what_you_got_wrong": str}
          (should_log lets the model say "this was a careless slip, not a gap").
-      3. Return the parsed dict if should_log is True, else return None.
+      3. Parse the JSON out of the response, then return the dict if should_log
+         is True, else None. Don't index response.content[0] — MODEL_SONNET runs
+         adaptive thinking by default and can lead with a thinking block; find the
+         text block by type (common.load_json_response does this + guards stop_reason).
 
     This is a JUDGMENT call, not a lookup — that's why it's a model call and not
     an if/else in your code.

@@ -33,7 +33,7 @@ import pathlib
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from common import MODEL_SONNET, DOMAIN_WEIGHTS, require_api_key
+from common import MODEL_SONNET, DOMAIN_WEIGHTS, load_json_response, require_api_key
 
 import level2_give_it_a_job as l2
 
@@ -48,12 +48,16 @@ def _generate_question_with_usage(client: Anthropic, model: str, topic: str, dom
     """
     response = client.messages.create(
         model=model,
-        max_tokens=800,
+        # 2048, not 800: on Sonnet 5 a leading (adaptive) thinking block shares this
+        # budget with the JSON, and 800 can truncate the schema. Matches level2.
+        max_tokens=2048,
         system=l2.SYSTEM_PROMPT,
         messages=[{"role": "user", "content": f"Write a question about: {topic} (blueprint domain: {domain_folder})."}],
         output_config={"format": {"type": "json_schema", "schema": l2.QUESTION_SCHEMA}},
     )
-    q = json.loads(response.content[0].text)
+    # load_json_response finds the text block by type (content[0] can be a thinking
+    # block on Sonnet 5) and guards stop_reason before json.loads.
+    q = load_json_response(response)
     usage = {"input_tokens": response.usage.input_tokens, "output_tokens": response.usage.output_tokens}
     return q, usage
 

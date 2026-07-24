@@ -5,7 +5,7 @@ import time
 import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-from common import ALL_TIERS, require_api_key
+from common import ALL_TIERS, first_text_block, require_api_key
 
 from anthropic import Anthropic
 
@@ -18,7 +18,9 @@ def ask(question: str, model: str) -> tuple[str, dict]:
         max_tokens=300,
         messages=[{"role": "user", "content": question}],
     )
-    text = response.content[0].text
+    # content[0] isn't reliably the text block: claude-sonnet-5 (one of the tiers
+    # below) runs adaptive thinking by default and can lead with a ThinkingBlock.
+    text = first_text_block(response)
     usage = {
         "input_tokens": response.usage.input_tokens,
         "output_tokens": response.usage.output_tokens,
