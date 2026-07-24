@@ -1,0 +1,5 @@
+# Keep this folder tracked in git, but ignore anything placed inside it.
+# `*` ignores every entry; `!.gitignore` re-includes this file so the folder
+# has something to commit (git cannot track a truly empty directory).
+*
+!.gitignore
