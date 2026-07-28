@@ -176,3 +176,210 @@ E. Both teams: paste the full corpus into the system prompt on every call
 - C — A fast-changing corpus and multi-step questions favor reading current files at query time — no index to keep in sync, no staleness — accepting higher tokens/time per query. ✓
 - D — A nightly index is stale by construction on an hourly-changing corpus; multi-step questions don't *require* an index. ✗
 - E — Pasting the full corpus every call wastes budget and can blow the window — the problem retrieval exists to avoid. ✗
+
+---
+
+## Supplement — Prompt Engineering, Context Engineering, and Output Handling
+
+_Added 2026-07-27 to rebalance toward blueprint weight: D6 is 11.0% of the exam and had eleven items. Sourced from `notes.md` and `../domain-2-applications/structured-outputs-examples.md`._
+
+**Q12 · D6 · Prompt Engineering** (select ONE)
+**A label that is not a label.** A classifier prompt returns the right category but returns it as a full sentence on some runs, capitalized differently on others. The downstream router expects one value from a fixed set and breaks on anything else.
+Which technique is missing?
+
+A. An output constraint — the prompt never specified the form, the field names, or the stopping point, so the model returns plausible text the parser was not built to accept
+B. A system prompt, since the content keeps changing
+C. Few-shot examples, since the model has not understood the task
+D. XML tags, since the ticket text is not delimited from the instructions
+
+**Q13 · D6 · Prompt Engineering** (select ONE)
+**The right answer in the wrong shape.** An extraction prompt reliably finds the correct values but invents its own nesting and field names, differently each run. The instructions describe the desired structure in prose.
+Which technique is missing?
+
+A. Few-shot examples — the model understood the task but cannot infer an exact structure from a description, and one correct input-to-output pair pins the shape down
+B. A longer and more detailed prose description of the structure
+C. A system prompt establishing the assistant's role
+D. Lower model tier, since smaller models invent less
+
+**Q14 · D6 · Prompt Engineering** (select ONE)
+**Instructions and data in one blob.** A prompt says "debug this code using these docs" and then concatenates the code and the documentation with no separators. The model sometimes treats a comment in the code as an instruction and sometimes debugs the documentation.
+Which technique is missing?
+
+A. XML tags with descriptive names that mark where each input begins and ends, so the model can tell instructions, code, and documentation apart
+B. A system prompt raising the priority of the debugging instruction
+C. Few-shot examples showing correctly debugged code
+D. An output constraint specifying the format of the debug report
+
+**Q15 · D6 · Prompt Engineering** (select ONE)
+**A prompt that keeps growing.** After six iterations a prompt has tripled in length and still fails on the same class of inputs. Each pass added more emphasis and more caveats.
+What does this pattern indicate?
+
+A. The diagnosis step is being skipped — rewording changes how something is said without supplying missing structure, so the fix is to name the failure type and add the one technique that matches it
+B. The prompt is still too short and needs further elaboration
+C. The task exceeds what prompting can achieve and requires fine-tuning
+D. The model tier is too low and should be raised before any further prompt work
+
+**Q16 · D6 · Prompt Engineering** (select ONE)
+**Naming the tags.** An engineer delays adding XML tags to a prompt while searching the documentation for the official reserved tag names to use.
+What is the correct guidance?
+
+A. Use descriptive names that match the content, such as tags naming the code and the docs — there is no reserved set, and the descriptive name is what makes the boundary clear
+B. Only a documented set of reserved tag names is recognized, so the search is necessary
+C. Tag names are ignored entirely, so any single-letter name works equally well
+D. XML tags should be avoided in favor of markdown headings, which are parsed natively
+
+**Q17 · D6 · Prompt Engineering** (select ONE)
+**Stacking on a simple task.** A prompt reads "Summarize this paragraph." An engineer proposes adding a system prompt, XML tags, three few-shot examples, and an output schema, on the grounds that all four techniques are best practice.
+What is the correct assessment?
+
+A. Do not add all four to a task that needs one — each technique answers a specific failure, and adding them without a failure to address costs context and adds nothing
+B. Correct — stacking all four is the recommended baseline for every prompt
+C. Correct for the examples and schema, but a system prompt is never needed for summarization
+D. The task should be rewritten as a tool call instead
+
+**Q18 · D6 · Context Engineering** (select ONE)
+**Choosing among the four strategies.** A long agent session has accumulated a lengthy unproductive debugging detour. The team wants to continue the same task, keeping the knowledge that was actually useful and shedding the rest.
+Which strategy fits, and what does it cost?
+
+A. Compaction — summarize the history into a condensed version that keeps the key learnings, at the cost of any detail the summary did not capture
+B. Clearing — start a fresh conversation, at the cost of nothing, since the useful knowledge can be re-derived
+C. Pruning — rewind to before the detour, which preserves everything learned during it
+D. Subagent handoff — delegate the remainder of the current task, which preserves full visibility into how it was completed
+
+**Q19 · D6 · Context Engineering** (select ONE)
+**A summarizer that lost the state.** A multi-session agent compacts with the instruction "summarize the conversation so far." After compaction it repeatedly re-explores files it already modified and re-encounters errors it had already resolved.
+What is the fix?
+
+A. Engineer the summarizer against the state the task cannot afford to lose — instruct it to preserve file paths modified, decisions made, and errors encountered with their resolutions
+B. Compact less frequently, so more of the original history survives
+C. Switch to clearing instead, since compaction always loses task state
+D. Raise the model tier, since summarization quality is a capability limit
+
+**Q20 · D6 · Context Engineering** (select ONE)
+**Too big for one window.** A long-horizon task does not fit in a single context window. The team's proposal is to wait for a model with a larger window.
+What is the correct approach?
+
+A. Decompose the task — give each subagent a scoped task, the minimum relevant context, the tools it needs, and clear exit conditions, and have the parent collect results
+B. Wait for the larger window, since decomposition adds implementation overhead for the same result
+C. Raise `max_tokens`, which increases the space available for the task
+D. Disable thinking, which frees the largest share of the window
+
+**Q21 · D6 · Output Handling** (select ONE)
+**Request versus guarantee.** A prompt instructs "return only JSON, no other text." It holds across every case the team tested and occasionally fails in production, returning a leading sentence that breaks the parser.
+What is the correct characterization and fix?
+
+A. A prompt is a request, so it holds on tested cases and slips on untested ones. Structured outputs constrain generation against a schema, so a schema-violating response cannot be produced in the first place
+B. The instruction needs to be repeated in both the system prompt and the user turn
+C. The parser should be made tolerant of leading prose, which is the standard approach
+D. The failures indicate a model regression and should be addressed by pinning an older snapshot
+
+**Q22 · D6 · Output Handling** (select ONE)
+**A schema that still did not parse.** A service uses structured outputs with a JSON schema. Most responses parse. A small number arrive as incomplete JSON, and a few arrive as plain refusal text.
+What does correct handling look like?
+
+A. Check `stop_reason` before parsing — a truncated response ended at the token cap and needs a higher limit and a retry, while a refusal overrides the schema and must be handled as a refusal rather than parsed
+B. Wrap every parse in a try-catch and retry on failure, which covers both cases
+C. Remove the schema, since it is evidently not being enforced
+D. Treat both as transient and retry the identical request until it parses
+
+**Q23 · D6 · Output Handling** (select ONE)
+**An enum that did not match.** A schema defines an enum with the values `high`, `medium`, and `low`. Downstream code compares the returned value with an exact string match and occasionally fails on a value that looks correct.
+What is the defensive practice?
+
+A. Compare case-insensitively, and never define two enum values that differ only in capitalization — returned casing is not guaranteed to match the schema exactly
+B. Add every capitalization variant to the enum so all forms validate
+C. Convert the enum to a free-text field and normalize in application code
+D. Nothing is needed; enum values are returned exactly as defined
+
+**Q24 · D6 · Output Handling** (select TWO)
+**What structured outputs cost.** A team is deciding whether to adopt structured outputs across all endpoints and wants an accurate picture of the cost.
+Which TWO statements are correct?
+
+A. They add input tokens, because a format-describing prompt is injected into the request
+B. The first request against a new schema pays a grammar-compile latency, after which the compiled schema is cached for a period
+C. They reduce input tokens, since the schema replaces the formatting instructions in the prompt
+D. They are always faster than an unconstrained request, because invalid tokens are never generated
+E. They eliminate the need to check `stop_reason`, since the schema guarantees a parseable response
+
+---
+
+## Answer Key & Rationale — Prompt, Context, and Output Handling supplement
+
+**Q12: A.**
+- A — The content is right and the form varies, which is the signature of a missing output constraint: the prompt never named the form, the label set, or the stopping point. ✓
+- B — Scope drift worsening across turns is what points at a system prompt; here the category is correct every time. ✗
+- C — Examples help when the model invents a structure it was never given; here the problem is that no form was specified at all. ✗
+- D — Delimiting inputs matters when instructions and data are mixed, which is not the failure described. ✗
+
+**Q13: A.**
+- A — Correct task, invented structure is the row that maps to few-shot examples: the model cannot infer an exact structure from a description, and one correct pair shows it. ✓
+- B — More prose describing the structure is what has already failed. ✗
+- C — Role and scope are steady; the shape is the problem. ✗
+- D — A smaller model does not invent less, and capability is not the constraint here. ✗
+
+**Q14: A.**
+- A — Mixed inputs with no boundary is the case XML tags exist for. Descriptive names make each region's role unambiguous, so a comment inside the code is not read as an instruction. ✓
+- B — A system prompt does not tell the model where the code ends and the docs begin. ✗
+- C — Examples of debugged code do not resolve which of the two supplied inputs to debug. ✗
+- D — The output shape is not what is failing. ✗
+
+**Q15: A.**
+- A — A prompt that gets longer rather than more precise with each pass is the tell that the diagnosis step is being skipped. Name the failure type, add the single technique that matches it, and re-run. ✓
+- B — More text is the approach that produced six failed iterations. ✗
+- C — Nothing indicates a capability limit; the failure is structural and repeatable. ✗
+- D — Raising the tier to compensate for a missing structural piece pays more for the same gap. ✗
+
+**Q16: A.**
+- A — There is no reserved tag vocabulary. Descriptive names matching the content are what make the boundary clear, so the search is unnecessary and the work is blocked for no reason. ✓
+- B — No such reserved set exists. ✗
+- C — Names are not ignored — a descriptive name is what conveys what the region contains. ✗
+- D — Tags are the Claude convention for this boundary; substituting headings weakens the delimiter. ✗
+
+**Q17: A.**
+- A — Each technique answers a specific failure. Applied to a task with no such failure they cost context and add nothing — the guidance is to simplify, not to stack by default. ✓
+- B — Stacking is right when there is a defined output contract with edge cases to cover, not as a universal baseline. ✗
+- C — The over-application is the problem, and singling out the system prompt misses it. ✗
+- D — A summarization request is not a tool call. ✗
+
+**Q18: A.**
+- A — Same task, want the useful knowledge kept, want the bulk shed: that is compaction. What it costs is any detail the summary failed to capture, which is why the summarizer prompt matters. ✓
+- B — Clearing discards all session context, and the cost is not nothing — anything needed later must have been persisted. ✗
+- C — Pruning rewinds to an earlier point and drops everything after it, so anything learned during the detour is lost, not preserved. ✗
+- D — Subagent handoff suits a self-contained subtask, and it costs visibility into how the answer was reached rather than preserving it. ✗
+
+**Q19: A.**
+- A — What survives compaction depends entirely on how the summarizer is written. Naming the state the task cannot lose — paths modified, decisions made, errors and their resolutions — is the fix, and under-specified summarizers are among the most common causes of multi-session agent failure. ✓
+- B — Compacting less often postpones the loss without changing what the summary keeps. ✗
+- C — Clearing discards everything, which is strictly worse when the task is continuing. ✗
+- D — The instruction is under-specified; that is a prompting defect, not a capability ceiling. ✗
+
+**Q20: A.**
+- A — When a task is too big for one window, decomposition is the fix rather than a bigger window. Each subagent gets a scoped task, minimum context, its tools, and exit conditions, and the parent collects results. ✓
+- B — Waiting blocks the work, and a larger window still fills and still degrades as it does. ✗
+- C — `max_tokens` caps output for a single response; it does not enlarge the window. ✗
+- D — Disabling thinking trades reasoning quality for space and does not make a task that exceeds the window fit. ✗
+
+**Q21: A.**
+- A — A prompt asks; it does not constrain. Structured outputs apply the schema during generation, so an invalid response cannot be produced — moving correctness from something verified afterward to something ruled out beforehand. ✓
+- B — Repeating a request in two channels is still a request. ✗
+- C — A tolerant parser accepts whatever arrives, which abandons the contract rather than enforcing it. ✗
+- D — Occasional slippage on untested inputs is the expected behavior of a prompt-level instruction, not a regression. ✗
+
+**Q22: A.**
+- A — A guaranteed schema is not a guaranteed success. Check `stop_reason` first: a truncated structure means the token cap was reached and needs a higher limit plus a retry, while a refusal overrides the schema and must be handled as a refusal. ✓
+- B — A blanket retry on parse failure re-sends an identical request that will truncate again, and retries a refusal that will refuse again. ✗
+- C — The schema is being enforced; these two outcomes are the documented exceptions to it. ✗
+- D — Neither is transient, so identical retries do not converge. ✗
+
+**Q23: A.**
+- A — Returned casing is not guaranteed to match the schema exactly, so compare case-insensitively — and never define two enum values that differ only in capitalization, since that makes the comparison ambiguous. ✓
+- B — Enumerating variants makes the set ambiguous and does not scale. ✗
+- C — Dropping to free text discards the constraint entirely. ✗
+- D — Exact casing is precisely what is not guaranteed. ✗
+
+**Q24: A and B.**
+- A — A format-describing prompt is injected into the request, so structured outputs add input tokens rather than removing them. ✓
+- B — A new schema pays a one-time grammar-compile latency on its first request, after which the compiled form is cached for a period. ✓
+- C — Reversed: input tokens go up, not down. ✗
+- D — "Always faster" is wrong; the first request on a new schema is slower, which is the cost in B. ✗
+- E — Refusals and truncation both return non-conforming output, so `stop_reason` still has to be checked. ✗

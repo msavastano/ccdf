@@ -15,7 +15,7 @@
 
 ## LLM Fundamentals (5.2%)
 
-Spans tokens, context windows, sampling/non-determinism, fast mode, **extended/adaptive thinking + effort levels**, and zero/single/multi-shot prompting. Extended thinking is written up below; the other subtopics are still to be drafted.
+Spans tokens, context windows, sampling/non-determinism, fast mode, **extended/adaptive thinking + effort levels**, and zero/single/multi-shot prompting. Extended thinking is written up first (it's the largest subtopic); the rest follow below it.
 
 ### Extended thinking (adaptive thinking + effort)
 
@@ -76,9 +76,200 @@ If accumulated reasoning is bloating context, the fix is context engineering —
 
 > **Placement note:** the source class lesson taught extended thinking inside the *Prompt & Context Engineering* module, but the CCDV-F blueprint maps "extended/adaptive thinking, effort levels" to **D5 · LLM Fundamentals**, so it lives here with cross-refs from D6/D8.
 
+### Tokens and tokenization
+
+_Verified 2026-07-27, docs.claude.com._
+
+A **token** is the unit the model actually reads and writes — roughly a word fragment, not a word and not a character. Everything downstream is denominated in them: **pricing** (input and output priced separately, output several times higher), **rate limits**, and the **context window**.
+
+🔑 **Tokenization is model-specific, and token counts are not portable.** The same text tokenizes differently across model generations — Sonnet 5 produces roughly **30% more tokens** than Sonnet 4.6 for identical input, and Opus 4.7's tokenizer produces ~1×–1.35× the count of Opus 4.6's. A count measured on one model is not a count on another.
+
+Three consequences the exam can test:
+
+- **Re-baseline on a model change.** Token budgets, `max_tokens` values, compaction triggers, and cost dashboards calibrated on the old model can be wrong on the new one — including truncating output that used to fit. Don't apply a blanket multiplier; re-measure.
+- **Per-token price ≠ per-request price.** A cheaper model that needs more tokens for the same job can cost more. Compare **cost per completed task**.
+- 🚨 **Never use a third-party tokenizer.** `tiktoken` is OpenAI's; it undercounts Claude tokens by ~15–20% on prose and much more on code or non-English text. The only correct measurement is `count_tokens`, called with the **same model ID** you'll run inference on.
+
+**`count_tokens`** takes the same request body as a Messages call and returns the input count **without running inference** — see *Cost and Token Management* below for how it's used as a pre-flight gate.
+
+### Context windows
+
+_Verified 2026-07-27, docs.claude.com. Window sizes are version-sensitive._
+
+The context window is **everything the model can reference when generating a response, including the response itself** — a working memory, distinct from training data.
+
+**What counts toward it** — the exam likes this list because people under-count it:
+
+| Counts | Notes |
+|---|---|
+| The **system prompt** | |
+| **Every message** in `messages` | Including tool results, images, and documents |
+| **Tool definitions** | The schemas themselves, before any tool is called |
+| **The output Claude generates** this turn | Including its **thinking tokens** |
+
+⚠️ **Cached tokens still occupy the window.** Prompt caching changes what you *pay* for those tokens, not whether they take up space. "We enabled caching so context isn't a problem" is a wrong answer.
+
+**Current sizes** _(verified 2026-07-27)_: **1M tokens** on Fable 5, Opus 5, Opus 4.8/4.7/4.6, Sonnet 5, and Sonnet 4.6 — the **default**, no beta header, billed at standard pricing. **200K** on Haiku 4.5 and Sonnet 4.5. Max output per request is **128K** on the 1M-context models (**64K** on Haiku 4.5). A single request holds up to **600 images or PDF pages** (100 on 200K-context models) — large document sets can hit **request size limits before the token limit**.
+
+🚨 **Bigger is not automatically better — *context rot*.** As token count grows, accuracy and recall **degrade**. Curating what's in the window matters as much as how much room is left, which is why the fix for a bloated agent is context engineering rather than a bigger model → [D6 · Context Engineering](../domain-6-prompt-context/notes.md).
+
+**Overflow behavior** — two distinct failures, and the exam separates them:
+
+| Situation | Result |
+|---|---|
+| **Input alone** exceeds the window | `400 invalid_request_error` — "prompt is too long." Every model. Nothing ran. |
+| Input **+ `max_tokens`** exceeds the window (Claude 4.5+) | Request is **accepted**; if generation reaches the limit it stops with `stop_reason: "model_context_window_exceeded"` |
+
+Distinguish `model_context_window_exceeded` (ran out of *window*) from `max_tokens` (hit your *requested output cap*) — the fixes differ: compact or split the conversation vs. raise `max_tokens`.
+
+**Context awareness** _(verified 2026-07-27)_: Sonnet 5, Sonnet 4.6, Sonnet 4.5, and Haiku 4.5 are given their remaining token budget automatically by the API, so they pace long tasks against real remaining space. It is automatic — you never send those tags. Opus 4.7 and later Opus models, Fable 5, and Mythos 5 do **not** receive them; give those an explicit budget with **task budgets** (beta) instead.
+
+### Sampling and non-determinism
+
+_Verified 2026-07-27, docs.claude.com._
+
+The model produces a **probability distribution** over next tokens and **samples** from it. That sampling step is why **identical requests can return different outputs** — non-determinism is a property of how the model generates, not a bug or a configuration mistake.
+
+Historically `temperature`, `top_p`, and `top_k` shaped that distribution. ⚠️ **On the newest models they are removed and return a `400`** — Fable 5, Opus 5, Opus 4.8, and Opus 4.7 reject them outright, and Sonnet 5 rejects non-default values. **Steer behavior with prompting instead.** _(verified 2026-07-27; check the model's docs at build time.)_
+
+🚨 **`temperature = 0` never guaranteed identical output** on any model — it reduced variance, it did not eliminate it. Any design that depends on byte-identical responses is built on a false premise.
+
+**What follows for engineering:**
+
+| Implication | What to do |
+|---|---|
+| Tests can't assert exact string equality | Grade against **criteria** — schema validity, required facts present, constraints honored → [D4 · Evals](../domain-4-eval-testing/notes.md) |
+| One passing run isn't evidence | Run the eval set; a single sample tells you almost nothing about the distribution |
+| Output shape must be enforced, not hoped for | **Structured outputs** constrain the response to a schema; defensive parsing handles the rest → [D6 · Output Handling](../domain-6-prompt-context/notes.md) |
+| Reproducibility comes from pinning, not sampling | Pin the model **version**; an unpinned alias adds a second source of variation → [D2 · Deployment and Versioning](../domain-2-applications/notes.md) |
+
+### Fast mode
+
+_Research preview — verified 2026-07-27. Availability and pricing are highly version-sensitive._
+
+Fast mode runs **the same model** at up to **2.5× higher output tokens per second**, at premium pricing. It is a **latency** lever, not a quality or capability lever — the model does not change.
+
+| | |
+|---|---|
+| **Models** | Claude Opus 5 and Opus 4.8 only. Opus 4.7 fast mode was **removed** — requesting it now errors |
+| **Platforms** | Claude API only (including Managed Agents) — **not** Bedrock, Google Cloud, or Microsoft Foundry |
+| **Price** | $10 / $50 per MTok on Opus 5 (vs. $5 / $25 standard) |
+| **How** | Three things together: the **beta** messages endpoint, the beta flag `fast-mode-2026-02-01`, and `speed: "fast"` as a **top-level request parameter** |
+| **Not available with** | Batch API, Priority Tier, Claude Platform on AWS, third-party platforms |
+
+Operational details worth knowing: fast mode has its **own rate limit**, separate from standard Opus — on a `429` you either wait out `retry-after` or drop `speed` and fall back to standard. ⚠️ **Switching speed invalidates the prompt cache**, so a fallback path that flips `speed` per request destroys cache hits. `response.usage.speed` reports which speed actually served the request.
+
+> **Don't confuse the three latency levers.** *Fast mode* speeds up the same model at a price premium. *Model tier* trades capability for speed and cost. *Effort* controls how much the model thinks before answering. They compose, and a stem describing "we need lower latency" can point at any of them — read for whether quality can move.
+
+### Zero-, single-, and multi-shot prompting
+
+_Verified 2026-07-27. See [D6 · Prompt Engineering](../domain-6-prompt-context/notes.md) for the full prompting craft; this is the D5 framing._
+
+The "shot" count is simply **how many worked examples you put in the prompt**:
+
+| Approach | What's in the prompt | Reach for it when |
+|---|---|---|
+| **Zero-shot** | Instructions only, no examples | The task is common and the output format is easy to describe in words |
+| **Single-shot** (one-shot) | Instructions + **one** example | One example pins down a format that prose describes awkwardly |
+| **Multi-shot** (few-shot) | Instructions + **several** examples | Output format is intricate, or edge cases and boundaries need to be *shown* rather than described |
+
+🔑 **The load-bearing idea:** examples **demonstrate** what instructions can only **describe**. When a prompt keeps producing almost-right formatting, adding two or three examples usually fixes it faster than another paragraph of rules — and examples are where you encode the edge cases ("here's what to emit when the field is missing").
+
+**The tradeoff is context and cost.** Every example occupies the window on **every request**, forever. Two mitigations:
+
+- **Cache the examples.** A fixed example block is exactly the stable prefix prompt caching is for → *Cost and Token Management* below.
+- **Stop adding examples when they stop earning.** More is not monotonically better — a long example block competes for attention with the actual request (context rot again).
+
+⚠️ Exam trap: **few-shot examples are not a substitute for a schema.** If the requirement is *guaranteed* valid JSON, use structured outputs; examples make the right shape *likely*, not *guaranteed* → [D6 · Output Handling](../domain-6-prompt-context/notes.md).
+
+| | |
+|---|---|
+| **Handles well** | Format control, edge-case handling, and tone matching — cheaply, with no code change |
+| **Adds cost or complexity** | Permanent context occupancy on every request; examples must be maintained as the task drifts |
+| **Use a different approach** | **Guaranteed** output structure → structured outputs. Knowledge the model lacks → retrieval, not examples ([D6 · Context Engineering](../domain-6-prompt-context/notes.md)) |
+
 ## Technical Fundamentals (6.1%)
 
-_Notes not yet written._
+_Verified 2026-07-27 against platform.claude.com (Streaming, Context windows, Errors, Token counting). SDK defaults are version-sensitive — re-verify at build time._
+
+The blueprint names three things: **integrating with SDKs that wrap REST APIs**, **websockets**, and **basic engineering practices**. The through-line is that the SDK is a *convenience layer over an HTTP endpoint you could call yourself* — knowing what it does for you (and what it doesn't) is what the skill tests.
+
+### The SDK is a wrapper, not a different API
+
+Everything goes through one endpoint: **`POST /v1/messages`**. Tools, streaming, vision, thinking, caching, and structured outputs are all **parameters on that one request**, not separate APIs. The official SDKs (`anthropic` for Python, `@anthropic-ai/sdk` for TypeScript, plus Java, Go, Ruby, C#, PHP) build the JSON body, set headers, parse the response, and add the ergonomics below — but a raw `curl` sending the same body gets the same result.
+
+🔑 **Why this framing matters on the exam:** a stem describing "the SDK doesn't support X" is almost always wrong. If the REST API supports it, the SDK does — and if a binding is missing, raw HTTP is the escape hatch, not a blocker.
+
+**What the SDK adds over hand-rolled HTTP:**
+
+| Concern | What the SDK does |
+|---|---|
+| **Auth** | Resolves credentials from the environment (`ANTHROPIC_API_KEY`, then an auth token, then a stored login profile) — a zero-arg client works without you passing a key |
+| **Retries** | Automatic retry with exponential backoff on transient failures |
+| **Timeouts** | A default request timeout, raised automatically for large-output requests |
+| **Streaming** | Accumulates SSE events into a complete message object for you |
+| **Typed errors** | One exception class per HTTP status, so you branch on type rather than string-matching messages |
+| **Pagination** | List endpoints auto-paginate when you iterate the result |
+
+### Retries and backoff — mostly already done for you
+
+The SDKs retry **connection errors, 408, 409, 429, and 5xx** automatically with exponential backoff, defaulting to **2 retries**. Configure with `max_retries`; `0` disables it.
+
+⚠️ **The exam-relevant asymmetry: retry the transient class, fix the permanent class.**
+
+| Class | Codes | Retry? |
+|---|---|---|
+| Transient | `429` rate limit, `500` server error, `529` overloaded, network failures | ✅ Exponential backoff **+ jitter**; honor the `retry-after` header on a 429 |
+| Permanent | `400` invalid request, `401` auth, `403` permission, `404` bad model/endpoint, `413` too large | ❌ Retrying re-sends the same broken request — fix it instead |
+
+🚨 The classic wrong answer is **writing a custom retry loop that the SDK already provides**, or worse, one that retries `400`s. Reach for custom retry logic only when you need behavior beyond the built-in policy.
+
+**Jitter is not decoration.** Plain exponential backoff synchronizes every rate-limited client onto the same retry schedule, so they collide again on the next attempt. Randomized jitter spreads them out.
+
+### Timeouts
+
+Default request timeout is **10 minutes**. Two traps:
+
+- ⚠️ **Units differ by SDK** — Python and Ruby take **seconds**, TypeScript takes **milliseconds**, Go takes a `Duration`, Java a `Duration`, C# a `TimeSpan`. A "60" meant as seconds is 60 *milliseconds* in TypeScript.
+- ⚠️ **Timeouts are retried**, so worst-case wall-clock is `timeout × (max_retries + 1)` — not `timeout`. Size upstream deadlines against the product, not the single value.
+
+### Streaming is SSE — and the API does not use websockets
+
+**This is the contrast the blueprint is pointing at.** Set `stream: true` and the response arrives as **server-sent events (SSE)** over the same HTTP request. The Claude API does **not** expose a websocket transport for the Messages API.
+
+| | SSE (what the API uses) | Websockets (what it doesn't) |
+|---|---|---|
+| Direction | **Server → client only**, one direction | Full-duplex, both directions |
+| Transport | Ordinary HTTP response, stays open | Separate protocol after an HTTP upgrade |
+| Fit | A response streaming back token by token | Interactive bidirectional sessions |
+
+The fit is the reason: a Messages request is **one request, one streamed response**. Nothing needs to travel client→server mid-response, so the full-duplex channel would buy nothing and cost infrastructure complexity.
+
+**Event flow of a stream:** `message_start` → for each content block, `content_block_start` → one or more `content_block_delta` → `content_block_stop` → then `message_delta` (carries `stop_reason` and **cumulative** usage) → `message_stop`. `ping` events can appear anywhere, and **errors can arrive inside the stream** (e.g. `overloaded_error`) rather than as an HTTP status.
+
+⚠️ Two details that produce bugs:
+
+- **Usage counts on `message_delta` are cumulative**, not per-event — summing them double-counts.
+- **Tool-use deltas are partial JSON strings** (`input_json_delta`), not objects. Accumulate the string and parse once `content_block_stop` arrives; never match on the partial text.
+
+**Streaming is sometimes mandatory, not optional.** Large `max_tokens` values on a non-streaming request risk exceeding HTTP timeouts, and the SDKs refuse those requests rather than let the connection drop. Use `.get_final_message()` / `.finalMessage()` to stream for timeout protection while still receiving one complete message object — you get the safety without handling individual events.
+
+### Basic engineering practices that show up as items
+
+- **The API is stateless.** There is no server-side conversation. You resend the full `messages` array every turn, and the model has no memory of prior requests beyond what you send. Session state is *your* responsibility.
+- **Concurrency ≠ batching.** Async clients and connection pooling let many requests be in flight at once (still realtime, still per-request priced). The **Batch API** is one asynchronous job at ~50% cost with up to 24-hour turnaround. Choose by latency tolerance, not by volume alone → [D2 · Claude API Mechanics](../domain-2-applications/notes.md).
+- **Never hardcode API keys.** Environment variables or a secrets manager; a key in source is a `401` waiting to happen once it's rotated after the leak → [D7 · Identity, Secrets, and Key Management](../domain-7-security/notes.md).
+- **Log the request ID.** Every response carries one; it's what lets Anthropic trace a failure end to end.
+- **Handle unknown event and `stop_reason` types gracefully** — new ones are added under the versioning policy, and a `switch` with no default breaks on the next release.
+- **Pin the model version** rather than tracking an alias, so an upstream model update isn't an untracked change to your output → [D2 · Deployment and Versioning](../domain-2-applications/notes.md).
+
+| | |
+|---|---|
+| **Handles well** | Any Claude integration — the SDK removes auth, retry, timeout, streaming-accumulation, and error-typing boilerplate for free |
+| **Adds cost or complexity** | A dependency and its defaults; SDK units and behaviors differ per language, so a pattern copied across languages can silently change meaning |
+| **Use a different approach** | **Raw HTTP** when the language has no official SDK, the project is a shell/cURL pipeline, or the user explicitly asks for REST — never mix the two in one codebase |
+
+**Cross-references:** error families and the batch/realtime decision → [D2 · Claude API Mechanics](../domain-2-applications/notes.md) and [D2 · Software Engineering Foundations](../domain-2-applications/notes.md); measuring before sending → *Cost and Token Management* (this domain); defensive parsing of what comes back → [D6 · Output Handling](../domain-6-prompt-context/notes.md).
 
 ## Model Selection and Tradeoffs (2.7%)
 

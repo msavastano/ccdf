@@ -280,11 +280,93 @@ The Files API `file_id` **carries no payload weight as history grows**, which is
 
 ## Software Engineering Foundations (7.4%)
 
-- **REST/HTTP**: the Claude API is REST + JSON. Know the error family: `400` invalid request, `401` auth, `403` permission, `404` not found, `413` request too large (e.g., >256 MB batch), `429` rate limit, `500` server error, `529` overloaded. Retry `429`/`5xx` with **exponential backoff + jitter**; don't retry `400`s — fix the request.
-- **JSON**: schema-first thinking; defensive parsing of model output (see D6 Output Handling); unstable key ordering (some languages randomize it) breaks cache hits.
-- **Async programming**: concurrency for parallel API calls (async SDK clients, connection pooling); distinguish concurrency (many requests in flight) from batching (one async job). Claude streaming is SSE, not websockets.
-- **Version control / SDLC integration**: prompts, evals, and configs live in the repo; code review applies to prompt changes; CI runs evals.
-- **Refactoring**: small-scale (rename, extract) vs. large-scale (module boundaries, codebase modernization — a stated Claude Code use case). Behavior-preserving change backed by tests.
+_Second-largest skill on the exam, behind only Claude Application Design. Expanded 2026-07-27; error families and SDK behavior verified against docs.claude.com the same day._
+
+The framing to hold: **an LLM application is an ordinary distributed system that happens to call a probabilistic API.** Almost every item in this skill is a normal engineering practice applied to a component whose output varies — the AI part changes *what you assert*, not *whether you engineer*.
+
+### REST and HTTP
+
+The Claude API is **REST + JSON over HTTPS**, one endpoint (`POST /v1/messages`) with features expressed as request parameters. Two structural properties drive most design consequences:
+
+| Property | Consequence |
+|---|---|
+| **Stateless** | No server-side conversation. You resend the full `messages` array every turn; session state is yours to store. Context growth is therefore *your* bug to manage, not the API's |
+| **Versioned by header** | `anthropic-version` pins the wire contract; new event types and `stop_reason` values are added under that policy — code must tolerate unknown values |
+
+**The error family** — memorize the split, not just the numbers:
+
+| Code | Meaning | Retry? | Typical cause |
+|---|---|:--:|---|
+| `400` | Invalid request | ❌ | Malformed body, bad parameter, unsupported feature for that model, prompt too long |
+| `401` | Authentication | ❌ | Missing/invalid/revoked key; both `ANTHROPIC_API_KEY` and an auth token set at once |
+| `403` | Permission | ❌ | Key lacks access to that model or feature |
+| `404` | Not found | ❌ | Typo'd or retired model ID, wrong endpoint |
+| `413` | Request too large | ❌ | Body over the size limit (e.g. a >256 MB batch, oversized images) |
+| `429` | Rate limited | ✅ | RPM / ITPM / OTPM exceeded — honor `retry-after` |
+| `500` | Server error | ✅ | Anthropic-side fault |
+| `529` | Overloaded | ✅ | Capacity — back off, or shift load to a less-contended model |
+
+🚨 **The rule the exam tests: retry the transient class, fix the permanent class.** Retrying a `400` re-sends the same broken request forever. And ⚠️ **the SDKs already retry** transient failures with exponential backoff (default 2 attempts) — wrapping your own loop around them **multiplies** attempts against the rate limit rather than capping them.
+
+⚠️ **HTTP status is not the whole story.** A **refusal is HTTP `200`** with `stop_reason: "refusal"`, and a **stream can carry an error event** (e.g. `overloaded_error`) after a `200` header. A classifier that branches only on status code silently mishandles both → [Errors, retries, and rate-limit headers](#errors-retries-and-rate-limit-headers-verified-2026-07-19) above.
+
+### JSON and schema-first thinking
+
+- **Schema-first.** Define the shape you need before you prompt for it. Tool `input_schema` and structured-output schemas are contracts — `additionalProperties: false` plus an explicit `required` list is what makes validation meaningful.
+- **Defensive parsing.** Model output is untrusted input until it validates. Parse, don't string-match; handle the failure path → [D6 · Output Handling](../domain-6-prompt-context/notes.md).
+- ⚠️ **Never string-match a serialized tool input.** Tool-call `input` may differ in JSON escaping (Unicode, forward slashes) between models. Parse it into an object and read fields.
+- 🚨 **Unstable key ordering silently breaks prompt caching.** Serializers in several languages don't guarantee order (and iterating a set is worse). Caching is an **exact prefix match**, so a re-ordered JSON blob in the cached prefix produces a full-price miss with **no error** — the only symptom is `cache_read_input_tokens` sitting at zero. Sort keys deterministically.
+
+### Async programming and concurrency
+
+Three things that get conflated on exam stems, and the signal that separates them:
+
+| Pattern | What it is | Reach for it when |
+|---|---|---|
+| **Concurrency** | Many independent requests in flight at once (async client, connection pooling) | Throughput on realtime traffic; each caller still waits for its own response |
+| **Streaming** | One request whose response arrives incrementally as SSE | A user is watching, or `max_tokens` is large enough to risk an HTTP timeout |
+| **Batching** | One asynchronous job of many requests, ~50% cost, up to 24h | Nobody is waiting; volume is high and latency-tolerant |
+
+⚠️ **Concurrency is not batching.** Firing 1,000 parallel realtime requests is still realtime pricing and will hit rate limits; the Batch API is a different endpoint with different economics → [Realtime vs. batch](#realtime-vs-batch--the-classic-exam-tradeoff) above.
+
+⚠️ **Claude streaming is SSE, not websockets** — one-directional, over the same HTTP request → [D5 · Technical Fundamentals](../domain-5-model-selection/notes.md).
+
+**Concurrent requests can't read each other's cache.** A cache entry is only readable once the first response *begins*, so N parallel requests with the same prefix all pay full price. Fan-out pattern: send one, wait for first token, then fire the rest.
+
+### Version control and SDLC integration
+
+🔑 **Prompts, evals, tool schemas, and model pins are source code.** Treat them that way or you lose the ability to explain a behavior change:
+
+| Artifact | In the repo | Why |
+|---|---|---|
+| **Prompts** | ✅ Versioned files, not database rows or console edits | A prompt change is a behavior change; you need diff, blame, and rollback |
+| **Eval sets** | ✅ | The regression suite for a non-deterministic component |
+| **Model version pin** | ✅ | An unpinned alias makes every upstream model update an **untracked change to your output** → [Deployment and Versioning](#deployment-and-versioning--where-the-workload-runs-and-what-ships) |
+| **Tool schemas / configs** | ✅ | Changing a tool description changes tool selection — that's a code change |
+| **API keys** | ❌ Never | Environment or secrets manager → [D7 · Identity, Secrets, and Key Management](../domain-7-security/notes.md) |
+
+**Code review applies to prompt changes.** A one-word edit to a tool description can flip which tool the model selects; a reviewer who waves through "just a prompt tweak" is waving through a behavior change.
+
+**CI runs the evals.** This is the LLM-specific SDLC step: because output is non-deterministic, a unit test asserting exact strings is the wrong instrument. The gate is an **eval scored against criteria**, run in CI, on the same cases that justified the current configuration → [D4 · Evals](../domain-4-eval-testing/notes.md).
+
+⚠️ Exam trap: "we tested it manually and it looked good" is never the right answer for promoting a prompt or model change. The right answer names an **eval set** and a **measured comparison**.
+
+### Refactoring
+
+Behavior-preserving change, backed by tests that prove the behavior was preserved.
+
+| Scale | Examples | What makes it safe |
+|---|---|---|
+| **Small** | Rename, extract function, inline variable | A test suite that already covers the touched paths |
+| **Large** | Module boundaries, dependency swaps, codebase modernization — a stated Claude Code use case | Characterization tests **first**, then change; the tests are what distinguish a refactor from a rewrite |
+
+🚨 **Refactoring without tests isn't refactoring — it's rewriting and hoping.** When the stem describes an agent or assistant making sweeping changes to unfamiliar code, the missing control is almost always *tests that would catch a behavior change*, not more review.
+
+| | |
+|---|---|
+| **Handles well** | Everything above is ordinary engineering discipline — it transfers directly, and most of it is what makes an LLM app operable at all |
+| **Adds cost or complexity** | Non-determinism means the usual assertion style doesn't work; you pay for eval sets and criteria-based grading instead of cheap exact-match tests |
+| **Use a different approach** | When the failure is in *what the model produced* rather than *how you called it*, the fix is prompt/context/schema work, not more retry logic → [D4 · Debugging](../domain-4-eval-testing/notes.md) |
 
 ### AI-assisted code review — triage, don't apply
 
