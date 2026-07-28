@@ -37,6 +37,8 @@ Highest-yield skills (by exam share): Claude Application Design (8.6%), Software
 - Create these files/folders as needed; don't wait to be asked when producing material that belongs in them.
 - Markdown for everything unless I ask for another format. Keep notes scannable — short sections, tables for comparisons (e.g., Opus vs. Sonnet vs. Haiku; built-in tools vs. custom tools vs. Skills vs. MCPs).
 - `study-hub.html` (the single-file quiz/exam/flashcards/dashboard app) is generated — rebuild it with `python build-study-hub.py` after editing any domain's `flashcards.md` or `practice-questions.md`. Don't hand-edit `study-hub.html` itself.
+- `notes-pack.html` (all eight domains' `notes.md` in one searchable, printable file) is generated the same way — rebuild it with `python build-notes-pack.py` after editing any `notes.md`. Don't hand-edit it either.
+- Deploying is a separate, explicit step — building never publishes. `python deploy.py [hub|notes|all] [--build] [--prod] [--stage-only]` stages each page as `deploy/<project>/index.html` and hands that folder to the Vercel CLI, so the two pages are two independent Vercel projects. Don't hand-edit `deploy/*/index.html` — it's a staged copy, overwritten on every run. Never deploy without asking me first.
 
 ## Content Standards
 - Practice questions: state how many responses to select, always include answer key and per-option rationale, tag with domain and skill (e.g., "D5 · Cost and Token Management").

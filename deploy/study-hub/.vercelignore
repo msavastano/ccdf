@@ -1,0 +1,4 @@
+# Allowlist: upload only the built page and its config.
+/*
+!index.html
+!vercel.json
