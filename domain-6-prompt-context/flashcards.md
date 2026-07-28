@@ -25,6 +25,9 @@ Format: **Q:** question / **A:** answer. Group by skill. Keep answers short enou
 **Q:** When do XML tags solve the problem, and must you use official tag names?
 **A:** When the prompt **mixes inputs with instructions** (e.g., code + docs). Use **descriptive** names (`<my_code>`, `<docs>`) — official/reserved names are not required.
 
+**Q:** What is the *scope* of a system prompt, and where do rules that must hold across turns belong?
+**A:** It's the **persistent instruction layer** for the whole session — written **once**, holding role, output format, and rules that must not change between conversations. Cross-turn rules go **in the system prompt**, not repeated in each user message.
+
 **Q:** In the classifier before/after, what distinct job does each of the three techniques do?
 **A:** System prompt = output contract (one label from a fixed set, nothing else); XML tags = separate examples from the instruction; few-shot pairs = show exact casing/format.
 

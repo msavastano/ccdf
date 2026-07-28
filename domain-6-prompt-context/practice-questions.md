@@ -237,6 +237,15 @@ B. Correct — stacking all four is the recommended baseline for every prompt
 C. Correct for the examples and schema, but a system prompt is never needed for summarization
 D. The task should be rewritten as a tool call instead
 
+**Q25 · D6 · Prompt Engineering** (select ONE)
+**Where the durable rules live.** A team's assistant must always answer in a fixed report format and must never discuss competitor pricing. To enforce this, an engineer appends both rules to the end of every user message the application sends.
+What is the better design, and why?
+
+A. Put both rules in the system prompt — it is the persistent instruction layer that applies to every response regardless of the user turn, so rules that must not change between conversations belong there rather than being re-sent per turn
+B. Keep appending them to each user message, since instructions closest to the end of the prompt carry the most weight
+C. Move them into few-shot examples, since examples bind behavior more strongly than instructions
+D. Split them — the format rule in the system prompt, the competitor rule in every user turn, since safety rules must be repeated
+
 **Q18 · D6 · Context Engineering** (select ONE)
 **Choosing among the four strategies.** A long agent session has accumulated a lengthy unproductive debugging detour. The team wants to continue the same task, keeping the knowledge that was actually useful and shedding the rest.
 Which strategy fits, and what does it cost?
@@ -383,3 +392,9 @@ E. They eliminate the need to check `stop_reason`, since the schema guarantees a
 - C — Reversed: input tokens go up, not down. ✗
 - D — "Always faster" is wrong; the first request on a new schema is slower, which is the cost in B. ✗
 - E — Refusals and truncation both return non-conforming output, so `stop_reason` still has to be checked. ✗
+
+**Q25: A.**
+- A — The system prompt is the persistent instruction layer: written once, it carries role, output format, and the rules that must not change between conversations, and it applies to every response regardless of the user turn. Durable rules belong there. ✓
+- B — Re-sending the rules every turn burns tokens on each request and still leaves the contract dependent on the application remembering to append them; it is not the layer designed to hold cross-turn rules. ✗
+- C — Few-shot examples show an output *structure*; they are the fix for hallucinated structure, not the place to encode standing behavioral rules like a prohibited topic. ✗
+- D — Splitting the contract across two layers means neither layer holds it completely; there is no rule that safety constraints must be repeated per turn, and the system prompt already applies to every response. ✗

@@ -145,6 +145,8 @@ The rule: **name the failure → add the one technique that matches it → re-ru
 
 XML tag detail: use **descriptive** names that match your content (`<my_code>`, `<docs>`) — you do **not** need official/reserved tag names. The descriptive name is what makes the boundary clear.
 
+**System prompt detail — it's a *persistent instruction layer*, not a per-request field.** The system prompt carries the behavioral contract for the **whole session**: write it **once** and treat it as the layer that holds Claude's role, the output format, and any rules that **must not change between conversations**. That scope is why it's the fix for drift specifically — a per-turn instruction can be crowded out as the conversation grows, but the system prompt applies to **every** response regardless of the user turn. Corollary for the exam: rules that must hold across turns belong in the system prompt, **not** repeated in each user message (repetition burns tokens and still doesn't bind later turns).
+
 ### Diagnostic mapping (the heart of this domain)
 
 The failure mode tells you which technique is absent. Match the symptom, add exactly that one:
