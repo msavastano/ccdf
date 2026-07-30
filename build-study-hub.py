@@ -32,6 +32,7 @@ build will succeed):
 The build fails loudly (collects every problem, then exit(1)) rather than
 silently emitting a partial/incorrect study hub.
 """
+import collections
 import datetime as dt
 import json
 import re
@@ -246,6 +247,63 @@ def parse_questions(md_text, domain_code, filename, errors):
 
 
 # ---------------------------------------------------------------------------
+# Answer-bias lint
+# ---------------------------------------------------------------------------
+
+# A key that towers over every distractor is answerable by shape alone. 40 chars
+# is roughly a clause — below that the length difference reads as noise.
+LENGTH_MARGIN = 40
+# Uniform for 4-option items is 25%. Allow drift to 35% before flagging.
+LETTER_SHARE = 0.35
+# Don't flag letter skew on a handful of items; the sample is too small to mean much.
+LETTER_MIN_N = 8
+
+
+def bias_report(domains_payload):
+    """Flag items answerable without reading them: keys that are conspicuously
+    the longest option, and answer letters that dominate a domain.
+
+    Options are shuffled at render time, so letter skew no longer leaks to the
+    learner — but it still signals items written on autopilot, which is usually
+    where the length tell lives too.
+    """
+    warnings = []
+    for d in domains_payload:
+        single = [q for q in d["questions"] if len(q["correct"]) == 1]
+        if not single:
+            continue
+
+        long_keys = []
+        for q in single:
+            lens = {o["letter"]: len(o["text"]) for o in q["options"]}
+            key = q["correct"][0]
+            margin = lens[key] - max(v for L, v in lens.items() if L != key)
+            if margin > LENGTH_MARGIN:
+                long_keys.append((margin, q["id"]))
+        if long_keys:
+            long_keys.sort(reverse=True)
+            worst = ", ".join(f"{qid} (+{m})" for m, qid in long_keys[:5])
+            warnings.append(
+                f"{d['code']}: {len(long_keys)}/{len(single)} items "
+                f"({len(long_keys) / len(single) * 100:.0f}%) have a key longer than "
+                f"every distractor by >{LENGTH_MARGIN} chars - worst: {worst}"
+            )
+
+        if len(single) >= LETTER_MIN_N:
+            counts = collections.Counter(q["correct"][0] for q in single)
+            letters = sorted({o["letter"] for q in single for o in q["options"]})
+            for L in letters:
+                share = counts[L] / len(single)
+                if share > LETTER_SHARE:
+                    warnings.append(
+                        f"{d['code']}: answer '{L}' is the key on {counts[L]}/{len(single)} "
+                        f"single-answer items ({share * 100:.0f}%, threshold "
+                        f"{LETTER_SHARE * 100:.0f}%)"
+                    )
+    return warnings
+
+
+# ---------------------------------------------------------------------------
 # Build
 # ---------------------------------------------------------------------------
 
@@ -309,6 +367,21 @@ def main():
         for e in errors:
             print(f"  - {e}", file=sys.stderr)
         sys.exit(1)
+
+    strict = "--strict" in sys.argv
+    bias = bias_report(domains_payload)
+    if bias:
+        label = "error" if strict else "warning"
+        print(f"\n{len(bias)} answer-bias {label}(s):", file=sys.stderr)
+        for w in bias:
+            print(f"  - {w}", file=sys.stderr)
+        if strict:
+            print("  (--strict) study-hub.html NOT written.", file=sys.stderr)
+            sys.exit(1)
+        print(
+            "  Warnings only. Re-run with --strict to make these fail the build.",
+            file=sys.stderr,
+        )
 
     if not TEMPLATE_FILE.exists():
         print(f"\nTemplate file {TEMPLATE_FILE} not found.", file=sys.stderr)

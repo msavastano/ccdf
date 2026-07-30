@@ -207,7 +207,7 @@ full pack. All the notes themselves are below either way.</div></noscript>
     <div class="cover">
   <h1>CCDV-F Notes Pack</h1>
   <p class="sub">Every <code>notes.md</code> from the eight domain folders, in one file — offline, searchable, printable.
-     Generated 2026-07-28 18:52 · source of truth stays in the markdown.</p>
+     Generated 2026-07-30 07:58 · source of truth stays in the markdown.</p>
   <div class="facts">
     <span class="fact"><b>53</b> items</span>
     <span class="fact"><b>120</b> minutes</span>
@@ -423,11 +423,25 @@ def pre_tool_use(event):
   jump.addEventListener('click',function(){ window.scrollTo({top:0,behavior:'smooth'}); });
 
   /* ---- scrollspy ---- */
+  var side=document.querySelector('nav.side');
   var links={}, targets=[];
   document.querySelectorAll('.toc a').forEach(function(a){
     var id=a.getAttribute('href').slice(1); links[id]=a;
     var el=document.getElementById(id); if(el) targets.push(el);
   });
+  /* Keep the active entry visible by moving the sidebar's OWN scrollTop.
+     scrollIntoView() is wrong here: it scrolls every scrollable ancestor,
+     the document included, so as soon as the spy fired mid-navigation it
+     hijacked the in-flight anchor scroll and yanked the reader back up to
+     the sidebar — i.e. clicking a sub-entry appeared to jump to the top.
+     On the narrow layout the sidebar is static and not a scroll container,
+     so scrollHeight === clientHeight and this is a no-op. */
+  function revealInSide(a){
+    if(side.scrollHeight<=side.clientHeight) return;
+    var box=a.getBoundingClientRect(), pane=side.getBoundingClientRect();
+    if(box.top>=pane.top && box.bottom<=pane.bottom) return;
+    side.scrollTop += (box.top-pane.top) - (pane.height-box.height)/2;
+  }
   var active=null;
   var spy=new IntersectionObserver(function(entries){
     entries.forEach(function(e){
@@ -435,8 +449,7 @@ def pre_tool_use(event):
       var a=links[e.target.id]; if(!a||a===active) return;
       if(active) active.classList.remove('active');
       a.classList.add('active'); active=a;
-      var box=a.getBoundingClientRect(), nav=document.querySelector('nav.side').getBoundingClientRect();
-      if(box.top<nav.top||box.bottom>nav.bottom) a.scrollIntoView({block:'center'});
+      revealInSide(a);
     });
   },{rootMargin:'-70px 0px -75% 0px'});
   targets.forEach(function(t){ spy.observe(t); });

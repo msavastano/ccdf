@@ -343,6 +343,30 @@ function shuffle(arr) {
   }
   return arr;
 }
+/* Return a view of a question with its options in randomized order and the
+   correct-letter set remapped to match. The source markdown is position-biased
+   (~48% A, D never keyed), so rendering options in file order leaks the answer.
+   `perm` is the list of source letters in display order — pass a stored one to
+   keep an in-progress exam stable across resume, omit it for a fresh shuffle.
+   Rationales are keyed by letter but their text never names a letter, so they
+   travel with their option safely. */
+const DISPLAY_LETTERS = "ABCDEFGH";
+function presentQuestion(q, perm) {
+  const byLetter = {};
+  q.options.forEach(o => { byLetter[o.letter] = o; });
+  if (!perm || perm.length !== q.options.length || perm.some(l => !byLetter[l])) {
+    perm = shuffle(q.options.map(o => o.letter));
+  }
+  const options = [], rationales = {}, srcOf = {};
+  perm.forEach((src, i) => {
+    const dl = DISPLAY_LETTERS[i];
+    options.push({ letter: dl, text: byLetter[src].text });
+    if (q.rationales[src]) rationales[dl] = q.rationales[src];
+    srcOf[dl] = src;
+  });
+  const correct = options.map(o => o.letter).filter(dl => q.correct.includes(srcOf[dl]));
+  return Object.assign({}, q, { options, rationales, correct, perm, srcOf });
+}
 function todayStr(d) { return (d || new Date()).toISOString().slice(0, 10); }
 function addDaysStr(dateStr, n) {
   const d = new Date(dateStr + "T00:00:00");
@@ -378,6 +402,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => btn.addEventListener("click
    ====================================================================== */
 let quizSelectedDomains = new Set(DOMAINS.filter(d => d.questions.length > 0).map(d => d.code));
 let quizQueue = [], quizIdx = 0, quizAnswered = false, quizSelected = new Set();
+let quizCurrent = null; // the shuffled view of quizQueue[quizIdx] currently on screen
 
 function renderQuizSetup() {
   const wrap = $("quizDomainFilters"); wrap.innerHTML = "";
@@ -418,7 +443,8 @@ $("quizStartBtn").onclick = () => {
 
 function showQuizQuestion() {
   if (quizIdx >= quizQueue.length) return finishQuiz();
-  const q = quizQueue[quizIdx];
+  const q = presentQuestion(quizQueue[quizIdx]);
+  quizCurrent = q;
   quizAnswered = false; quizSelected = new Set();
   $("quizProgress").textContent = `Question ${quizIdx + 1} / ${quizQueue.length}`;
   $("quizTag").textContent = `${q.domain} · ${q.skill} — select ${["", "ONE", "TWO", "THREE"][q.select]}`;
@@ -447,7 +473,7 @@ function showQuizQuestion() {
   $("quizSubmitBtn").disabled = true;
   $("quizNextBtn").style.display = "none";
 }
-$("quizSubmitBtn").onclick = () => gradeQuiz(quizQueue[quizIdx]);
+$("quizSubmitBtn").onclick = () => gradeQuiz(quizCurrent);
 $("quizNextBtn").onclick = () => { quizIdx++; showQuizQuestion(); };
 
 function gradeQuiz(q) {
@@ -550,7 +576,7 @@ $("examResumeBtn").onclick = () => {
 $("examDiscardBtn").onclick = () => { lsSet("examInProgress", null); refreshExamSetup(); };
 
 function startNewExam() {
-  examState = { startedAt: Date.now(), remainingSec: DATA.examMinutes * 60, qids: sampleExam(), answers: {}, flags: {}, idx: 0 };
+  examState = { startedAt: Date.now(), remainingSec: DATA.examMinutes * 60, qids: sampleExam(), answers: {}, flags: {}, perms: {}, idx: 0 };
   saveExamInProgress();
   $("examSetup").style.display = "none";
   $("examReport").style.display = "none";
@@ -596,7 +622,11 @@ function updateExamPalette() {
 function showExamQuestion(i) {
   examState.idx = i;
   const qid = examState.qids[i];
-  const q = QUESTION_BY_ID[qid];
+  // Reuse the stored permutation so revisiting or resuming keeps the lettering
+  // the answer was recorded under.
+  examState.perms = examState.perms || {};
+  const q = presentQuestion(QUESTION_BY_ID[qid], examState.perms[qid]);
+  examState.perms[qid] = q.perm;
   $("examTag").textContent = `Q${i + 1}/${examState.qids.length} · ${q.domain} · ${q.skill} — select ${["", "ONE", "TWO", "THREE"][q.select]}`;
   $("examStem").innerHTML = renderMd(q.stem);
   const optWrap = $("examOptions"); optWrap.innerHTML = "";
@@ -639,7 +669,8 @@ function submitExam(auto) {
   let correctCount = 0;
   const reviewRows = [];
   examState.qids.forEach(qid => {
-    const q = QUESTION_BY_ID[qid];
+    // Grade and review against the same permutation the question was shown under.
+    const q = presentQuestion(QUESTION_BY_ID[qid], (examState.perms || {})[qid]);
     const chosen = new Set(examState.answers[qid] || []);
     const correctSet = new Set(q.correct);
     const ok = chosen.size === correctSet.size && [...chosen].every(l => correctSet.has(l));
