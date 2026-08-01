@@ -55,6 +55,30 @@ WALKTHROUGHS = [
                  "a steppable agent loop, exit conditions, HITL placement, compliance routing.",
     },
     {
+        "domain": "D1",
+        "match": "Agent Patterns and Frameworks",
+        "file": "agent-patterns-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "7 steps — orchestrator-worker as a hiring decision, a 15× multiplier "
+                 "calculator, fit-or-not drill, and the four memory scopes.",
+    },
+    {
+        "domain": "D2",
+        "match": "Understanding Requirements",
+        "file": "requirements-lifecycle-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "7 steps — goal vs. checkable requirement, the business-signal drill, the four "
+                 "infrastructure questions routing to a platform, the seven phases, and two gates.",
+    },
+    {
+        "domain": "D2",
+        "match": "Systems Life Cycle",
+        "file": "requirements-lifecycle-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "7 steps — goal vs. checkable requirement, the business-signal drill, the four "
+                 "infrastructure questions routing to a platform, the seven phases, and two gates.",
+    },
+    {
         "domain": "D2",
         "match": "Claude API Mechanics",
         "file": "api-mechanics-walkthrough.html",
@@ -119,6 +143,38 @@ WALKTHROUGHS = [
         "label": "Visual walkthrough",
         "blurb": "8 steps — a dev-vs-prod session filling the window live, the four budget "
                  "strategies, a summariser that loses state, the three RAG break points.",
+    },
+    {
+        "domain": "D6",
+        "match": "Prompt Engineering",
+        "file": "prompt-engineering-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "7 steps — the diagnose-don't-pad model, a six-symptom diagnostic drill, "
+                 "and a classifier you build one technique at a time.",
+    },
+    {
+        "domain": "D7",
+        "match": "AI Application Security",
+        "file": "security-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — injection as one token stream, the soft-boundary limit, a blast-radius "
+                 "simulator, hooks vs. prompts, OS sandboxing, and a layer-by-layer defense sim.",
+    },
+    {
+        "domain": "D7",
+        "match": "Guardrails and Safe Deployment",
+        "file": "security-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — injection as one token stream, the soft-boundary limit, a blast-radius "
+                 "simulator, hooks vs. prompts, OS sandboxing, and a layer-by-layer defense sim.",
+    },
+    {
+        "domain": "D7",
+        "match": "Claude Hooks",
+        "file": "security-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — injection as one token stream, the soft-boundary limit, a blast-radius "
+                 "simulator, hooks vs. prompts, OS sandboxing, and a layer-by-layer defense sim.",
     },
     {
         "domain": "D8",

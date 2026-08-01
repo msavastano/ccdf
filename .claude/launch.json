@@ -6,6 +6,12 @@
       "runtimeExecutable": "python",
       "runtimeArgs": ["-m", "http.server", "8642"],
       "port": 8642
+    },
+    {
+      "name": "notes-pack-staged",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8643", "--directory", "deploy/notes-pack"],
+      "port": 8643
     }
   ]
 }

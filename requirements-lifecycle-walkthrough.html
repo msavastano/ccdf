@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F · D2 Requirements and the Life Cycle — Visual Walkthrough</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232736; --code:#0b0d13;
+    --text:#e8eaf0; --dim:#9aa0b4; --accent:#d97748; --green:#4fa877; --red:#c95b5b;
+    --purple:#c98bdb; --blue:#5b9bd9; --yellow:#d9b45b; --teal:#4fb3a8; --border:#2e3345;
+  }
+  *{box-sizing:border-box; margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:22px 16px 60px;}
+  a{color:var(--accent);}
+  header{text-align:center; margin-bottom:16px;}
+  h1{font-size:1.15rem; font-weight:600; letter-spacing:.03em;}
+  h1 span{color:var(--accent);}
+  .sub{color:var(--dim); font-size:.8rem; margin-top:4px;}
+
+  .rail{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:960px; margin:10px auto 4px;}
+  .rail button{background:var(--panel); color:var(--dim); border:1px solid var(--border); border-radius:999px;
+       padding:5px 12px; font-size:.72rem; cursor:pointer; transition:all .15s; white-space:nowrap;}
+  .rail button:hover{border-color:var(--accent); color:var(--text);}
+  .rail button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .rail button.done{color:var(--text); border-color:#3c4256;}
+  .rail button.done::before{content:"\2713 "; color:var(--green);}
+
+  main{width:100%; max-width:940px;}
+  .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
+  .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+         padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
+  .badge.bgoal{background:rgba(201,91,91,.16); color:var(--red); border:1px solid rgba(201,91,91,.35);}
+  .badge.bsig{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  .badge.bfour{background:rgba(217,119,72,.16); color:var(--accent); border:1px solid rgba(217,119,72,.35);}
+  .badge.brec{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
+  .badge.barc{background:rgba(79,179,168,.16); color:var(--teal); border:1px solid rgba(79,179,168,.35);}
+  .badge.bgate{background:rgba(79,168,119,.16); color:var(--green); border:1px solid rgba(79,168,119,.35);}
+  .badge.bplain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
+  h2{font-size:1.35rem; font-weight:650; margin-bottom:4px; line-height:1.25;}
+  h3{font-size:.96rem; font-weight:650; margin:22px 0 8px; color:var(--text);}
+  h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; color:var(--dim); font-weight:600;}
+  .loc{color:var(--dim); font-size:.82rem; margin-bottom:14px;}
+  p{line-height:1.62; margin:9px 0; color:#d4d8e4; font-size:.92rem;}
+  p.lead{font-size:1rem; color:var(--text);}
+  strong{color:#fff;}
+  em{color:var(--accent); font-style:normal;}
+  code.inl{background:var(--code); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+        font-family:'Cascadia Code','Consolas',monospace; font-size:.82em; color:#cdd3e6;}
+  ul{margin:8px 0 8px 2px; padding-left:18px; line-height:1.6; color:#d4d8e4; font-size:.92rem;}
+  li{margin:5px 0;}
+
+  .callout{border-left:3px solid var(--accent); background:var(--panel2); border-radius:0 8px 8px 0;
+      padding:12px 16px; margin:14px 0; font-size:.88rem; line-height:1.6;}
+  .callout.warn{border-left-color:var(--red);}
+  .callout.good{border-left-color:var(--green);}
+  .callout.note{border-left-color:var(--blue);}
+  .callout b{color:#fff;}
+
+  .revwrap{margin:12px 0;}
+  .revbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+      padding:9px 16px; font-size:.83rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px;}
+  .revbtn:hover{border-color:var(--accent);}
+  .revbtn .chev{color:var(--accent); transition:transform .2s;}
+  .reveal{display:none; margin-top:12px; padding:16px 18px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel2); animation:fade .25s ease;}
+  .reveal.open{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .reveal .oneliner{font-size:.96rem; color:#fff; font-weight:600; line-height:1.5;}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:.83rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.5;}
+  th{background:var(--panel2); color:var(--text); font-weight:600;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin:14px 0;}
+  .card{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .card .n{font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+  .card h5{font-size:.9rem; margin:5px 0 4px;}
+  .card p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+
+  /* goal vs requirement */
+  .gvr{display:flex; gap:14px; flex-wrap:wrap; margin:14px 0;}
+  .gvr .col{flex:1; min-width:280px; border:1px solid var(--border); border-radius:12px; padding:14px 16px; background:var(--panel2);}
+  .gvr .col.bad{border-color:rgba(201,91,91,.4); background:rgba(201,91,91,.07);}
+  .gvr .col.good{border-color:rgba(79,168,119,.4); background:rgba(79,168,119,.07);}
+  .gvr h4{margin-bottom:9px;}
+  .req{font-size:.84rem; line-height:1.5; padding:8px 11px; border-radius:8px; margin:6px 0;
+    background:var(--code); border:1px solid var(--border); color:#d6dbea;}
+  .req .ck2{color:#8fd6ac; font-weight:700; margin-right:6px;}
+  .goalline{font-size:.95rem; font-style:italic; color:#f0b9b9; padding:10px 12px;
+    background:var(--code); border:1px solid rgba(201,91,91,.3); border-radius:8px;}
+  .why3{display:flex; gap:8px; flex-wrap:wrap; margin-top:11px;}
+  .why3 span{font-size:.72rem; padding:4px 10px; border-radius:999px; border:1px solid rgba(201,91,91,.4);
+    background:rgba(201,91,91,.12); color:#f0a5a5;}
+
+  /* drill */
+  .drill{border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin:10px 0; background:var(--panel2);}
+  .drill .stem{font-size:.88rem; line-height:1.55; margin-bottom:10px;}
+  .drill .opts{display:flex; gap:7px; flex-wrap:wrap;}
+  .drill .opts button{background:var(--code); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:7px 12px; font-size:.75rem; cursor:pointer; transition:all .15s;}
+  .drill .opts button:hover{border-color:var(--accent);}
+  .drill .opts button.right{border-color:var(--green); background:rgba(79,168,119,.15); color:#a7dcbf;}
+  .drill .opts button.wrong{border-color:var(--red); background:rgba(201,91,91,.12); color:#f0b9b9;}
+  .drill .why{display:none; margin-top:10px; font-size:.82rem; line-height:1.55; color:#d4d8e4;
+      border-left:3px solid var(--purple); padding-left:12px;}
+  .drill .why.open{display:block;} .drill .why b{color:#fff;}
+
+  /* four questions */
+  .axis{border:1px solid var(--border); border-radius:11px; padding:12px 14px; margin:9px 0; background:var(--panel2);}
+  .axis .q{font-size:.86rem; margin-bottom:8px;} .axis .q b{color:#fff;}
+  .axis .opts{display:flex; gap:7px; flex-wrap:wrap;}
+  .axis .opts button{background:var(--code); color:var(--text); border:1px solid var(--border); border-radius:8px;
+    padding:7px 12px; font-size:.75rem; cursor:pointer;}
+  .axis .opts button:hover{border-color:var(--accent);}
+  .axis .opts button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .verdictbox{border:1px solid var(--border); border-radius:12px; background:var(--code); padding:14px 16px; margin-top:12px;}
+  .vline{display:flex; gap:10px; padding:7px 0; border-bottom:1px dashed #232838; font-size:.83rem; line-height:1.5;}
+  .vline:last-child{border:none;}
+  .vline .vk{width:88px; flex:none; color:var(--dim); font-family:'Cascadia Code',monospace; font-size:.76rem;}
+  .vline .vv{flex:1; color:#d6dbea;} .vline .vv b{color:var(--accent);}
+  .plat{margin-top:11px; padding:11px 13px; border-radius:9px; font-size:.86rem; line-height:1.55;
+    background:rgba(79,168,119,.1); border:1px solid rgba(79,168,119,.38); color:#a7dcbf;}
+  .plat.hard{background:rgba(217,119,72,.11); border-color:rgba(217,119,72,.42); color:#f0c39a;}
+
+  /* lifecycle arc */
+  .arc{display:flex; flex-wrap:wrap; gap:7px; margin:14px 0;}
+  .ph{flex:1; min-width:118px; border:1px solid var(--border); border-radius:10px; padding:10px 11px;
+    background:var(--panel2); text-align:center; cursor:pointer; transition:all .15s;}
+  .ph:hover{border-color:var(--accent);}
+  .ph .num{font-family:'Cascadia Code',monospace; font-size:.68rem; color:var(--accent); font-weight:700;}
+  .ph b{font-size:.8rem; display:block; margin:3px 0 2px;}
+  .ph small{color:var(--dim); font-size:.68rem; line-height:1.35; display:block;}
+  .ph.sel{border-color:var(--accent); background:rgba(217,119,72,.12);}
+  .loopnote{text-align:center; font-size:.76rem; color:var(--dim); margin:-4px 0 10px;}
+  .loopnote b{color:var(--accent);}
+
+  /* gates */
+  .gate{border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin:10px 0; background:var(--panel2);}
+  .gate b.gt{font-size:.9rem; display:block; margin-bottom:5px;}
+  .gate .rule{font-size:.84rem; color:#d4d8e4; line-height:1.55;}
+  .gsel{display:flex; gap:8px; margin:11px 0 0;}
+  .gsel button{flex:1; background:var(--code); color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:8px 10px; font-size:.77rem; cursor:pointer;}
+  .gsel button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .gout{margin-top:10px; padding:10px 13px; border-radius:9px; font-size:.82rem; line-height:1.55;}
+  .gout.held{background:rgba(79,168,119,.1); border:1px solid rgba(79,168,119,.35); color:#a7dcbf;}
+  .gout.skipped{background:rgba(201,91,91,.11); border:1px solid rgba(201,91,91,.42); color:#f0b9b9;}
+
+  .choice{display:block; width:100%; text-align:left; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); border-radius:10px; padding:12px 15px; margin:8px 0; font-size:.87rem;
+      cursor:pointer; line-height:1.55; transition:all .15s;}
+  .choice:hover{border-color:var(--accent);}
+  .choice.right{border-color:var(--green); background:rgba(79,168,119,.12);}
+  .choice.wrong{border-color:var(--red); background:rgba(201,91,91,.1);}
+  .choice .tag{font-weight:700; margin-right:8px; color:var(--dim);}
+  .fb{display:none; margin:6px 0 14px; padding:12px 15px; border-radius:10px; font-size:.85rem; line-height:1.6;}
+  .fb.open{display:block;}
+  .fb.right{background:rgba(79,168,119,.1); border-left:3px solid var(--green);}
+  .fb.wrong{background:rgba(201,91,91,.09); border-left:3px solid var(--red);}
+  .fb b{color:#fff;}
+
+  .nav{display:flex; justify-content:space-between; align-items:center; max-width:940px; width:100%; margin-top:16px; gap:10px;}
+  .nav button{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:11px 22px; font-size:.88rem; cursor:pointer; transition:all .15s; font-weight:500;}
+  .nav button:hover:not(:disabled){border-color:var(--accent);}
+  .nav button:disabled{opacity:.3; cursor:not-allowed;}
+  .nav button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .progress{color:var(--dim); font-size:.78rem; text-align:center;} .progress b{color:var(--text);}
+  .keys{margin-top:22px; color:var(--dim); font-size:.7rem; text-align:center; line-height:1.9;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.68rem;}
+  .foot{margin-top:8px; color:#5c6478; font-size:.72rem; text-align:center; line-height:1.7; max-width:700px;}
+  .foot a{color:var(--dim);}
+  .ck{list-style:none; padding-left:0;}
+  .ck li{display:flex; align-items:flex-start; gap:9px; margin:8px 0; cursor:pointer;}
+  .ck input{margin-top:3px; accent-color:var(--green); flex:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Requirements and the Life Cycle — <span>Visual Walkthrough</span></h1>
+  <div class="sub">CCDV-F · Domain 2 · Understanding Requirements (3.4%) + Systems Life Cycle (2.8%)</div>
+</header>
+
+<div class="rail" id="rail"></div>
+<main><div class="view" id="view"></div></main>
+
+<div class="nav">
+  <button id="prev">&#8592; Back</button>
+  <div class="progress">Step <b id="stepNo">1</b> / <b id="stepTot">7</b><br><span id="stepName"></span></div>
+  <button id="next" class="primary">Next &#8594;</button>
+</div>
+
+<div class="keys"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate &nbsp;·&nbsp; answer the four questions on step 3 and watch the platform narrow</div>
+<div class="foot" id="foot"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function reveal(id,btn){
+  const el=$(id); el.classList.toggle("open");
+  const c=btn.querySelector(".chev"); if(c) c.style.transform=el.classList.contains("open")?"rotate(90deg)":"none";
+}
+
+let cur=0; const seen=new Set([0]);
+const drState={};
+const A={lat:null, scale:null, res:null, ident:null};
+let phaseSel=null;
+const G={design:"hold", deploy:"hold"};
+
+const STEPS=[
+ {name:"1 · Not a requirement", r:sGoal},
+ {name:"2 · Signal → need",     r:sSignal},
+ {name:"3 · Four questions",    r:sFour},
+ {name:"4 · The record",        r:sRecord},
+ {name:"5 · Seven phases",      r:sArc},
+ {name:"6 · Gates",             r:sGates},
+ {name:"7 · Recall",            r:sRecall}
+];
+
+/* ---------- 1 ---------- */
+function sGoal(){
+ return `<span class="badge bgoal">Where it starts</span>
+ <h2>"Help support agents answer faster"</h2>
+ <div class="loc">D2 · ShipRight's parent company opens the engagement with one sentence. Nothing can be built from it yet.</div>
+ <div class="gvr">
+  <div class="col bad"><h4>A business problem</h4>
+   <div class="goalline">"Help support agents answer faster."</div>
+   <div class="why3"><span>can't be designed against</span><span>can't be verified</span><span>can't be reviewed</span></div>
+   <p style="font-size:.82rem; margin-top:10px">It's a <b>goal</b>. Every one of those three failures matters later — you can't write an eval for it, and a reviewer has nothing to check.</p></div>
+  <div class="col good"><h4>Derived functional requirements</h4>
+   <div class="req"><span class="ck2">✓</span>Classify each ticket into one of four queues</div>
+   <div class="req"><span class="ck2">✓</span>Draft a reply citing the relevant policy</div>
+   <div class="req"><span class="ck2">✓</span>Never auto-send without human approval</div>
+   <p style="font-size:.82rem; margin-top:10px">Each is a <b>checkable statement of behaviour</b>. That's the whole discipline.</p></div>
+ </div>
+ <div class="callout good"><b>The payoff is downstream.</b> A specific requirement becomes <em>a line in an eval</em> and <em>a criterion at review</em>. A vague one becomes neither — which is why the vagueness is expensive later rather than harmless now.</div>
+
+ <h3>Two kinds, and the exam separates them</h3>
+ <table>
+  <tr><th>Functional</th><th>Infrastructure (non-functional)</th></tr>
+  <tr><td><b>What the system does</b> — inputs and outputs, features, tool integrations, output format, accuracy targets.</td>
+      <td><b>How well it must do it</b> — latency, throughput, availability, cost ceilings, data residency, compliance, scalability.</td></tr>
+ </table>
+ <div class="callout warn"><b>The trap to recognise:</b> a distractor that solves the <em>wrong</em> requirement. Cutting <code class="inl">max_tokens</code> when the real issue is realtime-vs-batch selection is the classic shape — a plausible technical action aimed at a constraint nobody stated.</div>`;
+}
+
+/* ---------- 2 ---------- */
+const SG=[
+ {stem:'"We need the summaries on the desk by tomorrow morning."', a:"batch",
+  why:"<b>Latency-tolerant → batch processing.</b> \"Overnight\" or \"by tomorrow\" is the signal. The deciding question is never volume — it's whether anyone is waiting."},
+ {stem:'"It sits in the customer-facing chat widget."', a:"rt",
+  why:"<b>Low latency → realtime, streaming, possibly a faster tier or fast mode.</b> Someone is watching a spinner, so perceived latency is part of the product."},
+ {stem:'"Tickets routinely contain customer names, addresses and payment references."', a:"sec",
+  why:"<b>Security, data-retention and residency requirements — <em>before</em> feature work.</b> This constraint decides endpoint, credentials and logging, and retrofitting it is far more expensive than scoping it."},
+ {stem:'"Three other product teams will want this same capability next quarter."', a:"shared",
+  why:"<b>A shared service boundary → an MCP server, not per-app logic.</b> The signal is reuse across teams, which is an architecture decision rather than a feature one."},
+ {stem:'"The budget won\'t stretch — this has to be materially cheaper than the pilot."', a:"cost",
+  why:"<b>Model tier, caching and batch — not just \"use a smaller model\".</b> The distractor here is always the single-lever answer; cost is a portfolio of levers."}
+];
+function sSignal(){
+ setTimeout(drawSG,20);
+ return `<span class="badge bsig">Mapping</span>
+ <h2>The business signal names the requirement</h2>
+ <div class="loc">The exam's favourite table, drilled. Match the sentence a stakeholder actually says to what it implies.</div>
+ <div id="sgDrills"></div>
+ <div class="callout note"><b>Why these are worth memorising as <em>phrases</em>:</b> stems are written in stakeholder language, not engineering language. "By tomorrow morning" <em>is</em> the batch signal; "customer-facing chat" <em>is</em> the realtime signal. Recognising the phrase is most of the work.</div>`;
+}
+function drawSG(){
+ const el=$("sgDrills"); if(!el) return;
+ const opts=[["rt","Realtime + streaming"],["batch","Batch"],["sec","Security / residency first"],["shared","Shared service (MCP)"],["cost","Cost levers"]];
+ el.innerHTML=SG.map((d,i)=>{
+  const s=drState["sg"+i];
+  const cls=x=>s?(x===d.a?"right":(s===x?"wrong":"")):"";
+  return `<div class="drill"><div class="stem">${i+1}. ${d.stem}</div>
+   <div class="opts">${opts.map(o=>`<button class="${cls(o[0])}" onclick="sgPick(${i},'${o[0]}')">${o[1]}</button>`).join("")}</div>
+   <div class="why ${s?"open":""}">${d.why}</div></div>`;
+ }).join("");
+}
+function sgPick(i,v){ drState["sg"+i]=v; drawSG(); }
+
+/* ---------- 3 ---------- */
+const AXES=[
+ {k:"lat", q:"<b>Latency</b> — how fast must a response be, <em>measured where the user is</em>?",
+  opts:[["now","Sub-second, user waiting"],["mins","Minutes is fine"],["night","Overnight"]]},
+ {k:"scale", q:"<b>Scale</b> — how many requests, and at what peak?",
+  opts:[["low","Hundreds/day"],["spiky","Steady with sharp peaks"],["bulk","Tens of thousands, scheduled"]]},
+ {k:"res", q:"<b>Residency</b> — where must data be processed, under which regulation?",
+  opts:[["any","No constraint stated"],["eu","EU residency"],["phi","PHI / HIPAA"],["gov","FedRAMP / government"]]},
+ {k:"ident", q:"<b>Identity</b> — who acts, under what credentials, and what must be auditable?",
+  opts:[["svc","Service account, light logging"],["sso","Per-user SSO, full audit trail"]]}
+];
+function sFour(){
+ setTimeout(drawFour,20);
+ return `<span class="badge bfour">Derivation</span>
+ <h2>Infrastructure requirements aren't stated — you derive them</h2>
+ <div class="loc">Four questions the business problem implies. These most often decide the deployment platform.</div>
+ <div id="axisBox"></div>
+ <div class="verdictbox" id="fourOut"></div>
+ <div class="callout warn"><b>Capture these first.</b> They are easiest to elicit at the start — <em>before a platform gets chosen for reasons of familiarity and then retrofitted with justifications</em>. That sentence describes most bad architecture decisions.</div>
+ <div class="callout note"><b>Note what the residency answer does to the others.</b> Pick EU or PHI or FedRAMP above and the platform stops being a preference — it becomes the one option that satisfies the constraint. Latency and scale then choose <em>within</em> it, not against it.</div>`;
+}
+function drawFour(){
+ const el=$("axisBox"); if(!el) return;
+ el.innerHTML=AXES.map(a=>`<div class="axis"><div class="q">${a.q}</div>
+   <div class="opts">${a.opts.map(o=>`<button class="${A[a.k]===o[0]?"on":""}" onclick="A['${a.k}']='${o[0]}';drawFour()">${o[1]}</button>`).join("")}</div></div>`).join("");
+
+ const out=$("fourOut");
+ const answered=Object.values(A).filter(Boolean).length;
+ if(answered===0){ out.innerHTML=`<div style="color:var(--dim); font-size:.85rem">Answer the four questions above. Each one narrows the deployment decision — and the record of <em>why</em> is what makes the choice defensible later.</div>`; return; }
+
+ const lat = {now:"Realtime, streaming; place compute near the user",mins:"Realtime, streaming optional",night:"Batch — nobody is waiting"}[A.lat];
+ const sca = {low:"Well inside standard rate limits",spiky:"Concurrency + backoff; watch peak RPM",bulk:"Batch API territory — volume with latency tolerance"}[A.scale];
+ const res = {any:"No platform constraint from residency",eu:"EU residency — the direct API does not currently provide it",phi:"PHI — needs a BAA-covered configuration",gov:"FedRAMP — needs an authorised cloud environment"}[A.res];
+ const ide = {svc:"Service account; log at the application layer",sso:"Per-user SSO through an approved gateway with full request/response logging"}[A.ident];
+
+ let h="";
+ if(A.lat) h+=`<div class="vline"><span class="vk">latency</span><span class="vv">${lat}</span></div>`;
+ if(A.scale) h+=`<div class="vline"><span class="vk">scale</span><span class="vv">${sca}</span></div>`;
+ if(A.res) h+=`<div class="vline"><span class="vk">residency</span><span class="vv">${res}</span></div>`;
+ if(A.ident) h+=`<div class="vline"><span class="vk">identity</span><span class="vv">${ide}</span></div>`;
+
+ let plat="", hard=false;
+ if(A.res==="eu"){ plat="<b>Bedrock or Vertex with the region pinned</b> in client config. The direct Anthropic API does not currently provide EU data residency, so EU-residency work routes through a cloud-mediated path."; hard=true; }
+ else if(A.res==="phi"){ plat="<b>Direct API/SDK on a BAA-covered configuration, or Bedrock / Vertex on a HIPAA-eligible cloud account.</b> The BAA does not cover Console, Workbench, beta features, or consumer plans — and note this also rules out Claude Managed Agents, whose sessions are stored server-side."; hard=true; }
+ else if(A.res==="gov"){ plat="<b>An authorised environment only</b> — Claude for Government (FedRAMP High via Palantir PFCS-SS), Bedrock GovCloud, or Vertex AI Assured Workloads. Claude Enterprise on AWS Marketplace is <em>not</em> FedRAMP authorised."; hard=true; }
+ else if(A.res==="any"){ plat="<b>No platform is forced by residency</b> — so the choice falls to procurement, existing cloud commitments, and the identity requirement. That is a legitimate reason to pick a platform; \"it's what we know\" is not."; }
+ if(plat) h+=`<div class="plat ${hard?"hard":""}">${hard?"⚠ <b>Constraint decides the platform:</b> ":"✓ "}${plat}</div>`;
+ if(answered===4) h+=`<div style="margin-top:10px; font-size:.8rem; color:var(--dim)">All four captured. This is now the input the <b>deployment decision</b> reads from — and the thing you hand a reviewer who wasn't in the room.</div>`;
+ out.innerHTML=h;
+}
+
+/* ---------- 4 ---------- */
+function sRecord(){
+ return `<span class="badge brec">Defensibility</span>
+ <h2>The decision will be reviewed by people who weren't there</h2>
+ <div class="loc">A short requirements record covers three things — and the third is the one teams omit.</div>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--blue)">1</div><h5>The functional behaviours</h5><p>What the system must do, each written as a checkable statement.</p></div>
+  <div class="card"><div class="n" style="color:var(--accent)">2</div><h5>The infrastructure constraints</h5><p>Latency, scale, residency, identity — the four you just derived.</p></div>
+  <div class="card" style="border-color:rgba(201,139,219,.5)"><div class="n" style="color:var(--purple)">3</div><h5>The regulation each constraint comes from</h5><p><b>The constraint alone isn't defensible — its source is.</b> "Data must stay in the EU" invites debate; naming the regulation ends it.</p></div>
+ </div>
+ <div class="callout good"><b>With the record, you defend a platform choice as <em>following from the requirements</em>. Without it, the choice looks like it followed from familiarity</b> — and a reviewer cannot tell those two apart from the outside, which is why the burden is on you to show the difference.</div>
+ <table>
+  <tr><td style="width:32%"><b>Handles well</b></td><td>Turning a business problem into checkable functional + infrastructure requirements <em>before</em> any platform is chosen.</td></tr>
+  <tr><td><b>Adds cost</b></td><td>Eliciting infrastructure constraints up front requires a scoping conversation teams under deadline skip.</td></tr>
+  <tr><td><b>Skip it when</b></td><td>Throwaway prototype, no review, no regulated data → lightweight notes suffice. <em>Not</em> when any of those three is false.</td></tr>
+ </table>`;
+}
+
+/* ---------- 5 ---------- */
+const PH=[
+ {n:1, t:"Requirements", w:"Capture functional + infrastructure needs", a:"Requirements record"},
+ {n:2, t:"Design",       w:"Choose platform, model, and trust boundaries", a:"Architecture / boundary decision"},
+ {n:3, t:"Build",        w:"Write the agent, tools, and prompts", a:"Working system"},
+ {n:4, t:"Test",         w:"Evals + unit, integration, end-to-end checks", a:"Eval suite + baseline"},
+ {n:5, t:"Deploy",       w:"Pin the version; gate promotion on the eval", a:"Pinned release"},
+ {n:6, t:"Operate",      w:"Instrument cost, latency, errors; enforce guardrails", a:"Telemetry + guardrails"},
+ {n:7, t:"Iterate",      w:"Feed production findings back into requirements", a:"Updated requirements → loop to 1"}
+];
+function sArc(){
+ setTimeout(drawArc,20);
+ return `<span class="badge barc">The arc</span>
+ <h2>Every task belongs to exactly one phase</h2>
+ <div class="loc">The value isn't the phase names — it's that each task has a <b>defined artifact and gate</b>. Work that arrives without a phase arrives as an unrelated task.</div>
+ <div class="arc" id="arcBox"></div>
+ <div class="loopnote">&#8630; phase 7 loops back to phase 1 — <b>the lifecycle is a cycle, not a line</b></div>
+ <div id="arcDetail"></div>
+ <h3>Claude-specific concerns, by phase</h3>
+ <table>
+  <tr><th>Phase</th><th>What's specific to a Claude system</th></tr>
+  <tr><td><b>Test → Deploy</b></td><td>Evals run <b>before promotion, not after incidents</b>.</td></tr>
+  <tr><td><b>Operate</b></td><td>Monitor token usage, error rates, and <b>output quality drift</b> — the third has no equivalent in ordinary systems.</td></tr>
+  <tr><td><b>Maintain</b></td><td><b>Model deprecations and retirements are routine.</b> A pinned model version will eventually be sunset — plan the migration path rather than discovering it. <em>(Opus 4 and Sonnet 4 retired, Opus 4.1 deprecated as of mid-2026.)</em></td></tr>
+  <tr><td><b>Change management</b></td><td><b>Prompt changes are production changes</b> — version, review, and eval them like code.</td></tr>
+ </table>`;
+}
+function drawArc(){
+ const el=$("arcBox"); if(!el) return;
+ el.innerHTML=PH.map((p,i)=>`<div class="ph ${phaseSel===i?"sel":""}" onclick="phaseSel=${phaseSel===i?null:i};drawArc()">
+   <span class="num">${p.n}</span><b>${p.t}</b><small>${p.w}</small></div>`).join("");
+ const d=$("arcDetail");
+ d.innerHTML = phaseSel===null
+  ? `<div class="callout note" style="margin-top:6px">Click a phase for its artifact. <b>The artifact is what makes the phase real</b> — a phase that produces nothing checkable was not actually completed.</div>`
+  : `<div class="callout" style="margin-top:6px"><b>Phase ${PH[phaseSel].n} · ${PH[phaseSel].t}</b> &rarr; artifact: <b>${PH[phaseSel].a}</b></div>`;
+}
+
+/* ---------- 6 ---------- */
+function sGates(){
+ setTimeout(drawGates,20);
+ return `<span class="badge bgate">Control</span>
+ <h2>A gate is the decision to move to the next phase</h2>
+ <div class="loc">Two canonical gates the exam can test. Try skipping each.</div>
+ <div class="gate">
+  <b class="gt">Gate 1 · Design &rarr; Build</b>
+  <div class="rule">You do not start building until the platform satisfies the <b>residency requirement</b>.</div>
+  <div class="gsel">
+    <button class="${G.design==="hold"?"on":""}" onclick="G.design='hold';drawGates()">Hold the gate</button>
+    <button class="${G.design==="skip"?"on":""}" onclick="G.design='skip';drawGates()">Skip it — start building</button>
+  </div>
+  <div id="g1out"></div>
+ </div>
+ <div class="gate">
+  <b class="gt">Gate 2 · Deploy &rarr; full production</b>
+  <div class="rule">You do not promote until the new version <b>clears the eval against the pinned baseline</b>.</div>
+  <div class="gsel">
+    <button class="${G.deploy==="hold"?"on":""}" onclick="G.deploy='hold';drawGates()">Hold the gate</button>
+    <button class="${G.deploy==="skip"?"on":""}" onclick="G.deploy='skip';drawGates()">Skip it — ship it</button>
+  </div>
+  <div id="g2out"></div>
+ </div>
+ <div class="callout good"><b>Placing work in the right phase and refusing to skip a gate is what keeps a Claude application <em>reviewable</em>.</b> Not correct — reviewable. Correctness you can sometimes recover; a decision nobody can reconstruct you cannot.</div>
+ <div class="callout note"><b>When collapsing phases is fine:</b> a one-off experiment may collapse them freely. <b>A regulated deployment cannot.</b> The gates add checkpoints a team under deadline is tempted to skip — which is precisely when they're load-bearing.</div>`;
+}
+function drawGates(){
+ if(!$("g1out")) return;
+ $("g1out").innerHTML = G.design==="hold"
+  ? `<div class="gout held">&#10003; <b>Held.</b> The platform is confirmed against the residency requirement before a line of agent code exists. Cheap now.</div>`
+  : `<div class="gout skipped">&#10007; <b>Skipped.</b> The agent gets built against an endpoint that can't legally serve the data. The rework isn't the prompt or the tools — it's <b>endpoint, credentials, region and logging</b>, i.e. the parts everything else was built on top of. This is the gate that costs the most to skip.</div>`;
+ $("g2out").innerHTML = G.deploy==="hold"
+  ? `<div class="gout held">&#10003; <b>Held.</b> The new version is measured against a pinned baseline before it carries traffic. A regression is caught by the gate rather than by a customer.</div>`
+  : `<div class="gout skipped">&#10007; <b>Skipped.</b> "We tested it manually and it looked good" is now the only evidence on record — which is never the right answer for promoting a prompt or model change. Any quality regression is discovered in production, by someone who didn't know a change had shipped.</div>`;
+}
+
+/* ---------- 7 ---------- */
+function sRecall(){
+ return `<span class="badge bplain">Recap &amp; recall</span>
+ <h2>Problem → requirement → platform → gate</h2>
+ <table>
+  <tr><th>Step</th><th>The single sentence</th></tr>
+  <tr><td><b>Not a requirement</b></td><td>A business problem is a goal — it can't be designed against, verified, or reviewed. Write each requirement as a <b>checkable statement of behaviour</b>.</td></tr>
+  <tr><td><b>Two kinds</b></td><td>Functional = what it does. Infrastructure = how well. The trap is a distractor solving the constraint nobody stated.</td></tr>
+  <tr><td><b>Four questions</b></td><td>Latency · Scale · Residency · Identity. Capture them <em>before</em> a platform is chosen for familiarity and justified afterwards.</td></tr>
+  <tr><td><b>The record</b></td><td>Behaviours + constraints + <b>the regulation each constraint comes from</b>. The constraint alone isn't defensible; its source is.</td></tr>
+  <tr><td><b>Seven phases</b></td><td>Requirements → Design → Build → Test → Deploy → Operate → Iterate, each with an artifact, and phase 7 loops to phase 1.</td></tr>
+  <tr><td><b>Two gates</b></td><td>Don't build until the platform satisfies residency. Don't promote until the eval clears the pinned baseline.</td></tr>
+ </table>
+
+ <h3>Blueprint-style item &mdash; D2 · Understanding Requirements</h3>
+ <p class="lead">A stakeholder asks for "a way to get through the overnight document backlog faster." The team's proposal reduces <code class="inl">max_tokens</code> and switches to a smaller model to cut per-request cost. Reviewing the proposal, what is the most significant problem? <b>Select ONE.</b></p>
+
+ <button class="choice" onclick="q('A',false)"><span class="tag">A</span>Reducing <code class="inl">max_tokens</code> risks truncating documents mid-structure, so the team should raise it and offset the cost by enabling prompt caching on the shared prefix instead.</button>
+ <div class="fb wrong" id="qfbA"><b>Incorrect.</b> A real risk, and still the wrong level of critique — it debates the tuning of a solution that was never derived from a requirement. Answering it would leave the actual defect in place.</div>
+
+ <button class="choice" onclick="q('B',true)"><span class="tag">B</span>No functional or infrastructure requirement was derived first — "overnight backlog" signals latency tolerance, which points at batch processing rather than per-request cost tuning.</button>
+ <div class="fb right" id="qfbB"><b>Correct.</b> The stakeholder sentence is a business problem, not a requirement. "Overnight" is the latency-tolerance signal, and the constraint that dominates is realtime-vs-batch selection. The proposal is the classic trap: a plausible technical action aimed at a constraint nobody established.</div>
+
+ <button class="choice" onclick="q('C',false)"><span class="tag">C</span>The proposal changes the model without an eval demonstrating the smaller tier holds the quality bar, so it should be gated on a measured comparison against the baseline.</button>
+ <div class="fb wrong" id="qfbC"><b>True, but not the most significant problem.</b> This is a real gate violation and worth raising. It critiques <em>how</em> the change would be promoted, while the deeper defect is that the change addresses an unestablished requirement — fixing the gate would just carefully ship the wrong solution.</div>
+
+ <button class="choice" onclick="q('D',false)"><span class="tag">D</span>The requirement should specify the throughput and peak volume of the backlog, since scale is the infrastructure axis that determines whether the workload fits standard rate limits.</button>
+ <div class="fb wrong" id="qfbD"><b>Incorrect.</b> Scale is one of the four questions and worth capturing, but it isn't the axis this stem turns on — "overnight" is a <em>latency</em> signal. Choosing the wrong axis leads to the same mistake the proposal made, one question over.</div>
+
+ <h3>Cold-recall check</h3>
+ <ul class="ck">
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Say why a business problem can't be built from — all <b>three</b> reasons.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>four</b> infrastructure questions and what each one decides.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Give the <b>three</b> parts of a requirements record, and which one teams omit.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> List the <b>seven</b> phases and one artifact each.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> State both canonical gates and what skipping each one costs.</li>
+ </ul>
+ <div class="callout good"><b>Where this connects:</b> the platform decision the four questions feed &rarr; the <b>Agent Construction</b> walkthrough, step 7 · the eval that gates promotion &rarr; <b>D4</b> · pinning and prompt versioning &rarr; the <b>SWE Foundations</b> walkthrough · realtime-vs-batch selection &rarr; the <b>API Mechanics</b> and <b>Cost &amp; Levers</b> walkthroughs · trust boundaries chosen at Design &rarr; the <b>Application Design</b> walkthrough.</div>`;
+}
+function q(k,ok){
+ ["A","B","C","D"].forEach(x=>$("qfb"+x).classList.remove("open"));
+ $("qfb"+k).classList.add("open");
+ document.querySelectorAll(".choice").forEach(b=>b.classList.remove("right","wrong"));
+ event.currentTarget.classList.add(ok?"right":"wrong");
+}
+
+/* ---------- driver ---------- */
+function render(){
+ const s=STEPS[cur];
+ $("view").innerHTML=s.r();
+ $("view").scrollIntoView({behavior:"smooth",block:"nearest"});
+ $("stepNo").textContent=cur+1;
+ $("stepName").textContent=s.name;
+ $("prev").disabled=cur===0;
+ $("next").disabled=cur===STEPS.length-1;
+ $("next").textContent = cur===STEPS.length-2 ? "Recall →" : "Next →";
+ renderRail();
+}
+function renderRail(){
+ const r=$("rail"); r.innerHTML="";
+ STEPS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.textContent=s.name;
+  if(i===cur) b.className="active"; else if(seen.has(i)) b.className="done";
+  b.onclick=()=>goto(i);
+  r.appendChild(b);
+ });
+}
+function goto(i){ cur=Math.max(0,Math.min(STEPS.length-1,i)); seen.add(cur); render(); }
+function go(d){ goto(cur+d); }
+$("prev").onclick=()=>go(-1);
+$("next").onclick=()=>go(1);
+document.addEventListener("keydown",e=>{
+ if(e.target.tagName==="INPUT") return;
+ if(e.key==="ArrowRight") go(1); else if(e.key==="ArrowLeft") go(-1);
+});
+$("stepTot").textContent=STEPS.length;
+$("foot").innerHTML='Grounded in the D2 class notes on requirements and the life cycle (2026-07-19); platform routing cross-checked against the D1 compliance table (recorded 2026-07-18). Covered configurations, FedRAMP status and model deprecation dates are all version-sensitive — verify at trust.anthropic.com before configuring. Practice item is original, written to blueprint objectives — not live exam content.';
+render();
+</script>
+</body>
+</html>

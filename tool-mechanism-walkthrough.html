@@ -31,7 +31,8 @@
   .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
   .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
          padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
-  .badge.ask{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  /* NB: not .ask — that is the card component class below */
+  .badge.askq{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
   .badge.mat{background:rgba(217,119,72,.16); color:var(--accent); border:1px solid rgba(217,119,72,.35);}
   .badge.skill{background:rgba(79,179,168,.16); color:var(--teal); border:1px solid rgba(79,179,168,.35);}
   .badge.route{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
@@ -256,7 +257,7 @@ const STEPS=[
 
 /* ---------- 1 ---------- */
 function sAsks(){
- return `<span class="badge ask">The question</span>
+ return `<span class="badge askq">The question</span>
  <h2>Six asks land in one sprint</h2>
  <div class="loc">D8 · Agentic Customization &nbsp;·&nbsp; ShipRight's assistant needs six new capabilities. Each wants a different mechanism.</div>
  <div class="asks">

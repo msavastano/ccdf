@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F · D6 Prompt Engineering — Visual Walkthrough</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232736; --code:#0b0d13;
+    --text:#e8eaf0; --dim:#9aa0b4; --accent:#d97748; --green:#4fa877; --red:#c95b5b;
+    --purple:#c98bdb; --blue:#5b9bd9; --yellow:#d9b45b; --teal:#4fb3a8; --border:#2e3345;
+  }
+  *{box-sizing:border-box; margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:22px 16px 60px;}
+  a{color:var(--accent);}
+  header{text-align:center; margin-bottom:16px;}
+  h1{font-size:1.15rem; font-weight:600; letter-spacing:.03em;}
+  h1 span{color:var(--accent);}
+  .sub{color:var(--dim); font-size:.8rem; margin-top:4px;}
+
+  .rail{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:960px; margin:10px auto 4px;}
+  .rail button{background:var(--panel); color:var(--dim); border:1px solid var(--border); border-radius:999px;
+       padding:5px 12px; font-size:.72rem; cursor:pointer; transition:all .15s; white-space:nowrap;}
+  .rail button:hover{border-color:var(--accent); color:var(--text);}
+  .rail button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .rail button.done{color:var(--text); border-color:#3c4256;}
+  .rail button.done::before{content:"\2713 "; color:var(--green);}
+
+  main{width:100%; max-width:940px;}
+  .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
+  .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+         padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
+  .badge.diag{background:rgba(201,91,91,.16); color:var(--red); border:1px solid rgba(201,91,91,.35);}
+  .badge.tech{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  /* NB: must not be named .drill — that is the drill-card component class below */
+  .badge.dmap{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
+  .badge.work{background:rgba(217,119,72,.16); color:var(--accent); border:1px solid rgba(217,119,72,.35);}
+  .badge.guar{background:rgba(79,168,119,.16); color:var(--green); border:1px solid rgba(79,168,119,.35);}
+  .badge.plain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
+  h2{font-size:1.35rem; font-weight:650; margin-bottom:4px; line-height:1.25;}
+  h3{font-size:.96rem; font-weight:650; margin:22px 0 8px; color:var(--text);}
+  h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; color:var(--dim); font-weight:600;}
+  .loc{color:var(--dim); font-size:.82rem; margin-bottom:14px;}
+  p{line-height:1.62; margin:9px 0; color:#d4d8e4; font-size:.92rem;}
+  p.lead{font-size:1rem; color:var(--text);}
+  strong{color:#fff;}
+  em{color:var(--accent); font-style:normal;}
+  code.inl{background:var(--code); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+        font-family:'Cascadia Code','Consolas',monospace; font-size:.82em; color:#cdd3e6;}
+  ul{margin:8px 0 8px 2px; padding-left:18px; line-height:1.6; color:#d4d8e4; font-size:.92rem;}
+  li{margin:5px 0;}
+
+  .code{background:var(--code); border:1px solid var(--border); border-radius:10px; overflow-x:auto;
+        font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:.79rem; line-height:1.62; margin:10px 0;
+        padding:11px 13px; white-space:pre-wrap; word-break:break-word; color:#c6cbdb;}
+  .code .sys{color:var(--purple);} .code .tag{color:#7fb3e0;} .code .usr{color:#8fbf87;}
+  .code .hi{background:rgba(79,168,119,.18); border-radius:3px;}
+
+  .callout{border-left:3px solid var(--accent); background:var(--panel2); border-radius:0 8px 8px 0;
+      padding:12px 16px; margin:14px 0; font-size:.88rem; line-height:1.6;}
+  .callout.warn{border-left-color:var(--red);}
+  .callout.good{border-left-color:var(--green);}
+  .callout.note{border-left-color:var(--blue);}
+  .callout b{color:#fff;}
+
+  .revwrap{margin:12px 0;}
+  .revbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+      padding:9px 16px; font-size:.83rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px;}
+  .revbtn:hover{border-color:var(--accent);}
+  .revbtn .chev{color:var(--accent); transition:transform .2s;}
+  .reveal{display:none; margin-top:12px; padding:16px 18px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel2); animation:fade .25s ease;}
+  .reveal.open{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .reveal .oneliner{font-size:.96rem; color:#fff; font-weight:600; line-height:1.5;}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:.83rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.5;}
+  th{background:var(--panel2); color:var(--text); font-weight:600;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin:14px 0;}
+  .card{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .card .n{font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+  .card h5{font-size:.9rem; margin:5px 0 4px;}
+  .card p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+
+  /* padding spiral */
+  .iter{display:flex; align-items:center; gap:10px; margin:6px 0;}
+  .ilab{width:74px; flex:none; font-size:.75rem; color:var(--dim); font-family:'Cascadia Code',monospace; text-align:right;}
+  .itrack{flex:1; height:22px; background:var(--code); border:1px solid var(--border); border-radius:6px; overflow:hidden;}
+  .ifill{height:100%; display:flex; align-items:center; padding-left:8px; font-size:.7rem; font-weight:700; color:#0b0d13;}
+  .ires{width:104px; flex:none; font-size:.73rem; text-align:right;}
+  .ires.bad{color:#f0a5a5;} .ires.good{color:#8fd6ac;}
+
+  /* drill */
+  .drill{border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin:10px 0; background:var(--panel2);}
+  .drill .stem{font-size:.88rem; line-height:1.55; margin-bottom:10px;}
+  .drill .obs{font-family:'Cascadia Code',monospace; font-size:.78rem; color:#f0b48c;
+    background:var(--code); border:1px solid var(--border); border-radius:7px; padding:8px 11px; margin:8px 0; line-height:1.55;}
+  .drill .opts{display:flex; gap:7px; flex-wrap:wrap;}
+  .drill .opts button{background:var(--code); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:7px 12px; font-size:.75rem; cursor:pointer; transition:all .15s;}
+  .drill .opts button:hover{border-color:var(--accent);}
+  .drill .opts button.right{border-color:var(--green); background:rgba(79,168,119,.15); color:#a7dcbf;}
+  .drill .opts button.wrong{border-color:var(--red); background:rgba(201,91,91,.12); color:#f0b9b9;}
+  .drill .why{display:none; margin-top:10px; font-size:.82rem; line-height:1.55; color:#d4d8e4;
+      border-left:3px solid var(--purple); padding-left:12px;}
+  .drill .why.open{display:block;} .drill .why b{color:#fff;}
+
+  /* builder */
+  .bwrap{display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;}
+  .bcol{flex:1; min-width:290px;}
+  .tog{display:grid; grid-template-columns:repeat(auto-fit,minmax(185px,1fr)); gap:8px; margin:10px 0;}
+  .tg{border:1px solid var(--border); border-radius:9px; padding:10px 12px; background:var(--panel2); cursor:pointer; transition:all .15s;}
+  .tg:hover{border-color:var(--accent);}
+  .tg.on{border-color:var(--accent); background:rgba(217,119,72,.1);}
+  .tg b{font-size:.82rem; display:block;}
+  .tg small{color:var(--dim); font-size:.72rem; display:block; margin-top:2px; line-height:1.4;}
+  .tg .box{display:inline-block; width:11px; height:11px; border:1px solid var(--border); border-radius:3px; margin-right:6px;}
+  .tg.on .box{background:var(--accent); border-color:var(--accent);}
+  .runs{border:1px solid var(--border); border-radius:10px; background:var(--code); padding:11px 13px;}
+  .run{display:flex; gap:9px; align-items:baseline; font-family:'Cascadia Code',monospace; font-size:.77rem;
+    padding:5px 0; border-bottom:1px dashed #232838;}
+  .run:last-child{border:none;}
+  .run .rn{color:#454b62; flex:none; width:3.4em;}
+  .run .rv{color:#d6dbea; word-break:break-word;}
+  .run.okv .rv{color:#8fd6ac;} .run.badv .rv{color:#f0a5a5;}
+  .routestat{margin-top:11px; padding:10px 13px; border-radius:9px; font-size:.82rem; line-height:1.55;}
+  .routestat.ok{background:rgba(79,168,119,.1); border:1px solid rgba(79,168,119,.35); color:#a7dcbf;}
+  .routestat.bad{background:rgba(201,91,91,.11); border:1px solid rgba(201,91,91,.4); color:#f0b9b9;}
+
+  .choice{display:block; width:100%; text-align:left; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); border-radius:10px; padding:12px 15px; margin:8px 0; font-size:.87rem;
+      cursor:pointer; line-height:1.55; transition:all .15s;}
+  .choice:hover{border-color:var(--accent);}
+  .choice.right{border-color:var(--green); background:rgba(79,168,119,.12);}
+  .choice.wrong{border-color:var(--red); background:rgba(201,91,91,.1);}
+  .choice .tag{font-weight:700; margin-right:8px; color:var(--dim);}
+  .fb{display:none; margin:6px 0 14px; padding:12px 15px; border-radius:10px; font-size:.85rem; line-height:1.6;}
+  .fb.open{display:block;}
+  .fb.right{background:rgba(79,168,119,.1); border-left:3px solid var(--green);}
+  .fb.wrong{background:rgba(201,91,91,.09); border-left:3px solid var(--red);}
+  .fb b{color:#fff;}
+
+  .nav{display:flex; justify-content:space-between; align-items:center; max-width:940px; width:100%; margin-top:16px; gap:10px;}
+  .nav button{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:11px 22px; font-size:.88rem; cursor:pointer; transition:all .15s; font-weight:500;}
+  .nav button:hover:not(:disabled){border-color:var(--accent);}
+  .nav button:disabled{opacity:.3; cursor:not-allowed;}
+  .nav button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .progress{color:var(--dim); font-size:.78rem; text-align:center;} .progress b{color:var(--text);}
+  .keys{margin-top:22px; color:var(--dim); font-size:.7rem; text-align:center; line-height:1.9;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.68rem;}
+  .foot{margin-top:8px; color:#5c6478; font-size:.72rem; text-align:center; line-height:1.7; max-width:700px;}
+  .foot a{color:var(--dim);}
+  .ck{list-style:none; padding-left:0;}
+  .ck li{display:flex; align-items:flex-start; gap:9px; margin:8px 0; cursor:pointer;}
+  .ck input{margin-top:3px; accent-color:var(--green); flex:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Prompt Engineering — <span>Visual Walkthrough</span></h1>
+  <div class="sub">CCDV-F · Domain 6 · Prompt Engineering (4.6%) + the Output Handling bridge (2.6%)</div>
+</header>
+
+<div class="rail" id="rail"></div>
+<main><div class="view" id="view"></div></main>
+
+<div class="nav">
+  <button id="prev">&#8592; Back</button>
+  <div class="progress">Step <b id="stepNo">1</b> / <b id="stepTot">7</b><br><span id="stepName"></span></div>
+  <button id="next" class="primary">Next &#8594;</button>
+</div>
+
+<div class="keys"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate &nbsp;·&nbsp; diagnose <em>before</em> you reveal on step 3</div>
+<div class="foot" id="foot"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function reveal(id,btn){
+  const el=$(id); el.classList.toggle("open");
+  const c=btn.querySelector(".chev"); if(c) c.style.transform=el.classList.contains("open")?"rotate(90deg)":"none";
+}
+
+let cur=0; const seen=new Set([0]);
+const drState={};
+const T={sys:false, xml:false, few:false, con:false};
+
+const STEPS=[
+ {name:"1 · Don't pad",      r:sPad},
+ {name:"2 · Four techniques",r:sTech},
+ {name:"3 · Diagnose",       r:sDiag},
+ {name:"4 · Build it",       r:sBuild},
+ {name:"5 · Stack or simplify",r:sStack},
+ {name:"6 · Request vs guarantee",r:sGuar},
+ {name:"7 · Recall",         r:sRecall}
+];
+
+/* ---------- 1 ---------- */
+function sPad(){
+ const its=[
+  ["v1", 14, 22, "still varies", false],
+  ["v2", 38, 34, "still varies", false],
+  ["v3", 71, 50, "still varies", false],
+  ["v4", 96, 68, "still varies", false],
+  ["v5", 140, 92, "still varies", false],
+  ["v6", 46, 32, "✓ consistent", true]
+ ];
+ const bars=its.map(i=>`<div class="iter"><div class="ilab">${i[0]}</div>
+   <div class="itrack"><div class="ifill" style="width:${i[2]}%; background:${i[4]?"linear-gradient(90deg,#4fa877,#3f8a61)":"linear-gradient(90deg,#c95b5b,#a94848)"}">${i[1]} words</div></div>
+   <div class="ires ${i[4]?"good":"bad"}">${i[3]}</div></div>`).join("");
+ return `<span class="badge diag">The mental model</span>
+ <h2>Five rewrites later, the output still varies</h2>
+ <div class="loc">D6 · ShipRight's support-ticket classifier. It worked in the console and broke against production tickets.</div>
+ <p class="lead">A prompt that works once in interactive use often breaks in production against untested inputs. <b>The fix is not more words</b> — it's identifying which <em>structural piece</em> is missing and adding that one piece.</p>
+ ${bars}
+ <div class="callout warn"><b>The tell:</b> a prompt that keeps getting <em>longer</em> with each pass rather than <em>more precise</em> means you're skipping the diagnosis step and just adding text. v6 is <b>shorter than v5</b> and works — because it added a missing piece instead of more emphasis.</div>
+ <div class="callout"><b>Rewording changes <em>how</em> you say something; it does not supply missing structure.</b>
+ <ul>
+  <li>If Claude is crossing the boundary between your instructions and your data, <em>clearer phrasing</em> won't fix it.</li>
+  <li>If the format keeps drifting, <em>"please format this correctly"</em> won't fix it either.</li>
+ </ul></div>
+ <div class="callout good"><b>The rule, in three beats:</b> <b>name the failure &rarr; add the one technique that matches it &rarr; re-run.</b> If it still fails, diagnose again — don't stack.</div>`;
+}
+
+/* ---------- 2 ---------- */
+function sTech(){
+ return `<span class="badge tech">The toolkit</span>
+ <h2>Four techniques, four different jobs</h2>
+ <div class="loc">Each fixes a distinct failure. Knowing which is which <em>is</em> the skill.</div>
+ <table>
+  <tr><th>Technique</th><th>What it does</th><th>Reach for it when</th></tr>
+  <tr><td><b>System prompt</b></td><td>Sets the behavioural contract — role, scope, format — that applies to <b>every</b> response regardless of the user turn</td><td>Content is off: scope drifts, tone shifts, or Claude answers a wider question — and <em>it worsens deeper into the conversation</em></td></tr>
+  <tr><td><b>XML tags</b></td><td>Marks unambiguous boundaries between instructions and input data, or between multiple inputs</td><td>The prompt <b>mixes inputs with instructions</b> — "debug this code using these docs"; without tags the code and the docs look identical to Claude</td></tr>
+  <tr><td><b>Few-shot examples</b></td><td><b>Shows</b> the exact pattern instead of describing it — one correct input→output pair pins down a shape a written instruction can't</td><td>The task is right but Claude <b>invents the structure</b> — it understood the job and produced a shape you never asked for</td></tr>
+  <tr><td><b>Output constraint</b></td><td>Controls the <b>form</b> of the response — fields, label set, stopping point — independent of its content</td><td>The result comes back in the <b>wrong shape</b>: a sentence where you expected a label, prose where you expected JSON</td></tr>
+ </table>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--blue)">XML detail</div><h5>Descriptive beats official</h5><p>Use names that match your content — <code class="inl">&lt;my_code&gt;</code>, <code class="inl">&lt;docs&gt;</code>. There are <b>no reserved tag names to learn</b>; the descriptive name is what makes the boundary clear.</p></div>
+  <div class="card"><div class="n" style="color:var(--purple)">System-prompt detail</div><h5>A persistent layer, not a field</h5><p>It carries the contract for the <b>whole session</b> — write it once. That scope is <em>why</em> it's the fix for drift: a per-turn instruction gets crowded out as the conversation grows.</p></div>
+ </div>
+ <div class="callout warn"><b>Corollary the exam tests:</b> rules that must hold across turns belong in the <b>system prompt</b>, <em>not</em> repeated in each user message. Repetition burns tokens <b>and still doesn't bind later turns</b> — so it's the expensive version of not fixing the problem.</div>`;
+}
+
+/* ---------- 3 ---------- */
+const DG=[
+ {stem:"The classifier is asked for a category and returns a full sentence.",
+  obs:'"This looks like a billing issue."',
+  a:"con", why:"<b>Output constraint.</b> The prompt never specified form, field names, or a stopping point, so Claude returns plausible <em>text</em> the parser was never built to accept. The content is right; only the <b>shape</b> is wrong."},
+ {stem:"Twelve turns into a session the assistant starts answering broader questions than it was scoped for, and the tone has drifted.",
+  obs:'turn 3: on-scope · turn 12: answering adjacent questions unprompted',
+  a:"sys", why:"<b>System prompt.</b> The giveaway is <em>worsening across turns</em> — nothing is holding role, scope, and format steady as the conversation runs on. A per-turn reminder gets crowded out; the system prompt applies to every response."},
+ {stem:"Asked to return a structured summary, it produces the right facts wrapped in a shape nobody specified.",
+  obs:'{"summary_text": "...", "extra_notes": [...], "confidence": "high"}',
+  a:"few", why:"<b>Few-shot examples.</b> The task was understood and the structure was <em>invented</em>. Claude can't infer an exact structure from a description alone — one correct input→output pair shows it what you meant."},
+ {stem:"A prompt says \"debug this code using these docs\" and pastes both in sequence. Claude starts treating comments in the docs as instructions.",
+  obs:'both blocks arrive as undifferentiated text',
+  a:"xml", why:"<b>XML tags.</b> Two inputs and a set of instructions are sharing one channel with nothing to separate them. Wrap each in a descriptively named tag — <code class='inl'>&lt;my_code&gt;</code>, <code class='inl'>&lt;docs&gt;</code> — so the boundaries are unambiguous."},
+ {stem:"It passes every test ticket, then mislabels one that arrives with an empty subject line.",
+  obs:'tested inputs: 40/40 · production variant: mislabelled',
+  a:"con", why:"<b>A constraint covering the variant.</b> The prompt handled the happy path; the edge case was never named. <em>Name the variant</em> — or add an example for it — to close the gap the test inputs never exposed. Note this is <b>not</b> a reason to reword the whole prompt."},
+ {stem:"After five rewrites the prompt is 140 words, still drifts, and each version is longer than the last.",
+  obs:'v1 14w → v5 140w · same failure every time',
+  a:"stop", why:"<b>Stop and diagnose the failure type.</b> This isn't a missing technique — it's a missing <em>diagnosis</em>. Growing length with an unchanged failure is the signal to name the failure mode first, then add exactly the one technique that matches."}
+];
+function sDiag(){
+ setTimeout(drawDG,20);
+ return `<span class="badge dmap">The heart of the domain</span>
+ <h2>The symptom names the missing piece</h2>
+ <div class="loc">Match the observation to the one technique that's absent. Commit before you click.</div>
+ <div id="dgDrills"></div>
+ <table>
+  <tr><th>What you observed</th><th>Missing piece</th></tr>
+  <tr><td>Wrong <b>shape</b> — sentence instead of a label, prose instead of JSON</td><td>Output constraint</td></tr>
+  <tr><td>Wrong <b>content / scope drift</b>, worsening across turns</td><td>System prompt (or a more specific one)</td></tr>
+  <tr><td>Correct task but <b>hallucinated structure</b></td><td>Few-shot examples</td></tr>
+  <tr><td>Clean on tested inputs, <b>breaks on a variant</b></td><td>A constraint covering that variant</td></tr>
+ </table>`;
+}
+function drawDG(){
+ const el=$("dgDrills"); if(!el) return;
+ const opts=[["sys","System prompt"],["xml","XML tags"],["few","Few-shot"],["con","Output constraint"],["stop","Stop — diagnose"]];
+ el.innerHTML=DG.map((d,i)=>{
+  const s=drState["dg"+i];
+  const cls=x=>s?(x===d.a?"right":(s===x?"wrong":"")):"";
+  return `<div class="drill"><div class="stem">${i+1}. ${d.stem}</div>
+   <div class="obs">${esc(d.obs)}</div>
+   <div class="opts">${opts.map(o=>`<button class="${cls(o[0])}" onclick="dgPick(${i},'${o[0]}')">${o[1]}</button>`).join("")}</div>
+   <div class="why ${s?"open":""}">${d.why}</div></div>`;
+ }).join("");
+}
+function dgPick(i,v){ drState["dg"+i]=v; drawDG(); }
+
+/* ---------- 4 ---------- */
+function sBuild(){
+ setTimeout(drawBuild,20);
+ return `<span class="badge work">Worked example</span>
+ <h2>Build the classifier, one technique at a time</h2>
+ <div class="loc">Same ticket, five runs. Toggle techniques and watch the output stabilise — or not.</div>
+ <div class="tog" id="bTog"></div>
+ <div class="bwrap">
+  <div class="bcol"><h4>The prompt</h4><div class="code" id="bPrompt"></div></div>
+  <div class="bcol"><h4>Five runs · same ticket</h4><div class="runs" id="bRuns"></div><div id="bStat"></div></div>
+ </div>
+ <div class="callout"><b>Three techniques doing distinct work</b> — which is why "just add more instructions" never gets here:
+ <ul>
+  <li><b>System prompt</b> — sets the output contract: exactly one label from a fixed set, nothing else.</li>
+  <li><b>XML tags</b> — mark where each example ends and the next begins, so Claude doesn't read the examples as part of the instruction.</li>
+  <li><b>Few-shot pairs</b> — show the exact casing and format rather than describing it.</li>
+ </ul>
+ Together they produce output consistent enough to <b>route programmatically</b>.</div>
+ <div class="callout note"><b>Try few-shot with XML off.</b> The examples stop being examples and start being content — which is the failure XML tags exist to prevent, and the reason they belong <em>with</em> few-shot rather than instead of it.</div>`;
+}
+const TOGS=[
+ ["sys","System prompt","role + fixed label set + \"return only the label\""],
+ ["xml","XML tags","delimit each example and the ticket"],
+ ["few","Few-shot pairs","two input→output examples"],
+ ["con","Output constraint","\"No other text.\" stopping rule"]
+];
+function drawBuild(){
+ const el=$("bTog"); if(!el) return;
+ el.innerHTML=TOGS.map(t=>`<div class="tg ${T[t[0]]?"on":""}" onclick="T['${t[0]}']=!T['${t[0]}'];drawBuild()">
+   <b><span class="box"></span>${t[1]}</b><small>${esc(t[2])}</small></div>`).join("");
+
+ // prompt text
+ let p="";
+ if(T.sys){
+   p+=`<span class="sys">System:</span> "You are a support classifier. Classify each ticket into exactly one of:\n  BILLING, TECHNICAL, ESCALATION.`;
+   p+= T.con ? ` <span class="hi">Return only the label. No other text.</span>"` : `"`;
+   p+="\n\n";
+ } else {
+   p+=`<span class="sys">System:</span> "You are a support classifier. Classify the ticket."\n\n`;
+ }
+ if(T.few){
+   if(T.xml){
+     p+=`<span class="tag">&lt;sample_input&gt;</span>My account shows two charges for April.<span class="tag">&lt;/sample_input&gt;</span>\n`;
+     p+=`<span class="tag">&lt;ideal_output&gt;</span>BILLING<span class="tag">&lt;/ideal_output&gt;</span>\n`;
+     p+=`<span class="tag">&lt;sample_input&gt;</span>The API keeps returning a 429 error.<span class="tag">&lt;/sample_input&gt;</span>\n`;
+     p+=`<span class="tag">&lt;ideal_output&gt;</span>TECHNICAL<span class="tag">&lt;/ideal_output&gt;</span>\n\n`;
+   } else {
+     p+=`My account shows two charges for April.\nBILLING\nThe API keeps returning a 429 error.\nTECHNICAL\n\n`;
+   }
+ }
+ p+=`<span class="usr">User:</span> `;
+ p+= T.xml ? `<span class="tag">&lt;ticket&gt;</span>I was charged twice for the same month.<span class="tag">&lt;/ticket&gt;</span>`
+           : `I was charged twice for the same month.`;
+ $("bPrompt").innerHTML=p;
+
+ // simulated runs
+ let runs, ok=false, msg="";
+ if(!T.sys && !T.few && !T.con){
+   runs=["Billing","billing","This looks like a billing issue.","BILLING","Probably billing — it's a double charge."];
+   msg=["bad","<b>&#10007; Router breaks.</b> The content is right every time; the <em>form</em> varies. A downstream router expecting one of a fixed label set can't consume this."];
+ } else if(T.few && !T.xml){
+   runs=["BILLING","BILLING\nTECHNICAL","BILLING","My account shows two charges for April. → BILLING","BILLING"];
+   msg=["bad","<b>&#10007; The examples bled into the answer.</b> With no boundaries, Claude reads the pairs as part of the input rather than as demonstrations — sometimes classifying an example, sometimes echoing one. This is the exact failure XML tags prevent."];
+ } else if(T.sys && T.few && (T.con||T.xml)){
+   runs=["BILLING","BILLING","BILLING","BILLING","BILLING"];
+   ok=true;
+   msg=["ok","<b>&#10003; Routable.</b> Fixed label set, consistent casing, no surrounding prose. Five identical runs is what \"consistent enough to route programmatically\" looks like."];
+ } else if(T.sys && !T.few){
+   runs=["BILLING","Billing","BILLING","billing","BILLING"];
+   msg=["bad","<b>&#10007; Closer — the label set holds, the casing doesn't.</b> The contract said <em>which</em> labels; nothing showed the exact form. This is the gap few-shot pairs close, and a description can't."];
+ } else {
+   runs=["BILLING","BILLING","Billing","BILLING","BILLING"];
+   msg=["bad","<b>&#10007; Nearly.</b> Without the system prompt holding the contract, the label set isn't pinned for every response — one drifts."];
+ }
+ $("bRuns").innerHTML=runs.map((r,i)=>{
+   const good = ok || (/^(BILLING|TECHNICAL|ESCALATION)$/.test(r));
+   return `<div class="run ${good?"okv":"badv"}"><span class="rn">run ${i+1}</span><span class="rv">${esc(r)}</span></div>`;
+ }).join("");
+ $("bStat").innerHTML=`<div class="routestat ${msg[0]}">${msg[1]}</div>`;
+}
+
+/* ---------- 5 ---------- */
+function sStack(){
+ return `<span class="badge tech">Proportion</span>
+ <h2>Stack, simplify, or stop and diagnose</h2>
+ <div class="loc">All four techniques on every prompt is its own failure mode.</div>
+ <table>
+  <tr><th>Situation</th><th>Guidance</th></tr>
+  <tr><td><b>Stack all four</b></td><td>Tasks with a clearly defined <b>output contract</b> and edge cases coverable by examples — stack all four against that contract.</td></tr>
+  <tr><td><b>Simplify</b></td><td>Don't add all four to a task that needs one. <em>"Summarise this paragraph"</em> needs neither few-shot examples nor an output schema.</td></tr>
+  <tr><td><b>Diagnose before adding more</b></td><td>If the prompt grows longer each iteration instead of more precise — if you've re-prompted five times and it's still wrong — <b>stop and diagnose the failure type</b> before adding text.</td></tr>
+ </table>
+ <div class="callout warn"><b>The distractor shape to recognise:</b> an option that responds to a specific, named failure by adding <em>several</em> techniques at once. It will often "work", and it's still the wrong answer — the skill being tested is matching one symptom to one missing piece, and a scattergun fix means the next failure has no diagnosis to build on.</div>
+ <div class="callout good"><b>The healthy iteration signature:</b> each pass makes the prompt <em>more precise</em>, and sometimes shorter. The v6 in step 1 was 46 words against v5's 140 — because it replaced five rounds of emphasis with one missing structural piece.</div>`;
+}
+
+/* ---------- 6 ---------- */
+function sGuar(){
+ return `<span class="badge guar">The handoff</span>
+ <h2>A prompt is a request. A schema is a guarantee.</h2>
+ <div class="loc">Where Prompt Engineering ends and Output Handling begins.</div>
+ <p class="lead">Everything in the previous five steps shapes output by <b>writing instructions and hoping Claude follows them</b>. That holds on the cases you tested and slips on an edge case you didn't — the exact failure the classifier walked through.</p>
+ <div class="callout"><b>Structured outputs close that gap for production code.</b> You hand the API a JSON schema and the model is constrained <em>at generation time</em>: as each token is generated, only tokens that keep the output valid against the schema are allowed. A schema-violating response <b>can't be produced in the first place</b>.<br><br>That moves output correctness from something you <em>verify after the fact</em> to something the API <b>rules out before it happens</b>.</div>
+ <table>
+  <tr><th>Mechanism</th><th>Parameter</th><th>Constrains</th></tr>
+  <tr><td><b>JSON outputs</b></td><td><code class="inl">output_config.format</code> (<code class="inl">type: "json_schema"</code>)</td><td>Claude's <b>final response text</b></td></tr>
+  <tr><td><b>Strict tool use</b></td><td><code class="inl">strict: true</code> on a tool definition</td><td>The <b>arguments Claude passes to your tools</b></td></tr>
+ </table>
+ <div class="callout warn"><b>But a guaranteed schema is not a guaranteed success.</b> Two outcomes still return non-conforming output, so production code checks <code class="inl">stop_reason</code> rather than assuming every response parses:
+ <ul>
+  <li><code class="inl">end_turn</code> — complete, schema-valid. <b>Parse it.</b></li>
+  <li><code class="inl">refusal</code> — the refusal text overrides the schema. <b>Handle as a refusal; don't parse.</b></li>
+  <li><code class="inl">max_tokens</code> — truncated mid-structure, JSON incomplete. <b>Raise <code class="inl">max_tokens</code> and retry.</b></li>
+ </ul></div>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--yellow)">Habit 1</div><h5>Enum casing isn't guaranteed</h5><p>Claude may return <code class="inl">"High"</code> for enum <code class="inl">"high"</code>. Compare case-insensitively, and <b>never define two enum values differing only in capitalisation</b>.</p></div>
+  <div class="card"><div class="n" style="color:var(--yellow)">Habit 2</div><h5>Not free, either way</h5><p>Structured outputs <b>add</b> input tokens (an injected format-describing prompt), and the first request on a new schema pays a grammar-compile latency (cached 24 h). <em>"Always slower"</em> and <em>"always cheaper"</em> are both wrong.</p></div>
+  <div class="card"><div class="n" style="color:var(--red)">Habit 3</div><h5>Validate what a schema can't</h5><p>Ranges, referential integrity, business rules. A schema pins <b>shape</b>, never <b>truth</b>.</p></div>
+ </div>
+ <div class="callout good"><b>Skepticism toward confident output is the whole skill.</b> Confident-sounding output is not validated output. Constrain what you can at the API layer, still check <code class="inl">stop_reason</code>, validate what the schema can't express — and never let a fluent response substitute for a checked one.<br><br><em>(Full API mechanics — costs, incompatibilities, the narrow keyword set &rarr; the <b>Application Design</b> walkthrough, step 5.)</em></div>`;
+}
+
+/* ---------- 7 ---------- */
+function sRecall(){
+ return `<span class="badge plain">Recap &amp; recall</span>
+ <h2>Name the failure, add one piece</h2>
+ <table>
+  <tr><th>Step</th><th>The single sentence</th></tr>
+  <tr><td><b>Mental model</b></td><td>Diagnose, don't pad. Name the failure → add the one matching technique → re-run. A prompt growing longer each pass is the tell you skipped the diagnosis.</td></tr>
+  <tr><td><b>System prompt</b></td><td>Fixes scope/tone drift that <em>worsens across turns</em>. A persistent layer, not a per-request field — rules that must hold across turns go here, not in every user message.</td></tr>
+  <tr><td><b>XML tags</b></td><td>Fix mixed inputs and instructions. Descriptive names; no reserved vocabulary to learn.</td></tr>
+  <tr><td><b>Few-shot</b></td><td>Fixes invented structure — shows a shape a description can't pin down.</td></tr>
+  <tr><td><b>Output constraint</b></td><td>Fixes wrong <em>form</em>: fields, label set, stopping point — independent of content.</td></tr>
+  <tr><td><b>Proportion</b></td><td>Stack all four only against a defined output contract. Don't bring four techniques to a one-technique problem.</td></tr>
+  <tr><td><b>The ceiling</b></td><td>A prompt is a request; <code class="inl">output_config.format</code> and <code class="inl">strict: true</code> are guarantees. Still check <code class="inl">stop_reason</code>.</td></tr>
+ </table>
+
+ <h3>Blueprint-style item &mdash; D6 · Prompt Engineering</h3>
+ <p class="lead">An extraction prompt returns the correct facts but wraps them in field names the team never specified, and the shape differs run to run. The prompt has been reworded four times, growing each time, with no change in behaviour. What is the appropriate next step? <b>Select ONE.</b></p>
+
+ <button class="choice" onclick="q('A',false)"><span class="tag">A</span>Move the extraction instructions into the system prompt so the format contract applies to every response rather than only the turn it appears in.</button>
+ <div class="fb wrong" id="qfbA"><b>Incorrect.</b> The system prompt is the fix for scope or tone drift that <em>worsens across turns</em>. Here the task is understood and the content is right from the first turn — the problem is an invented structure, not a slipping scope.</div>
+
+ <button class="choice" onclick="q('B',false)"><span class="tag">B</span>Reword the instruction to describe the required fields more explicitly and add an emphatic statement that the structure must not vary between runs.</button>
+ <div class="fb wrong" id="qfbB"><b>Incorrect — and it is the fifth rewrite.</b> Rewording changes how you say something; it doesn't supply missing structure. Four passes with unchanged behaviour is precisely the signal to stop adding text and diagnose the failure type.</div>
+
+ <button class="choice" onclick="q('C',true)"><span class="tag">C</span>Add a few-shot example showing one correct input and its exact output, since the task is right but the structure is being invented.</button>
+ <div class="fb right" id="qfbC"><b>Correct.</b> Correct task plus hallucinated structure maps to missing few-shot examples. Claude can't infer an exact structure from a description alone; one correct input→output pair pins down the shape that four rewrites failed to describe.</div>
+
+ <button class="choice" onclick="q('D',false)"><span class="tag">D</span>Apply all four techniques together — system prompt, XML tags, few-shot examples, and an output constraint — to eliminate every remaining source of variation at once.</button>
+ <div class="fb wrong" id="qfbD"><b>Incorrect, even though it would probably work.</b> Bringing four techniques to a named single failure is the scattergun fix — you learn nothing about which piece was missing, and the next failure has no diagnosis to build on. Stack all four against a defined output contract, not as a reflex.</div>
+
+ <h3>Cold-recall check</h3>
+ <ul class="ck">
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>four</b> techniques and the one failure each one fixes.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Give the symptom that specifically indicates a <b>system prompt</b> is missing.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Say why repeating a rule in every user message is worse than putting it in the system prompt.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> State the difference between a prompt request and an API guarantee.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>two</b> <code class="inl">stop_reason</code> values that defeat a schema.</li>
+ </ul>
+ <div class="callout good"><b>Where this connects:</b> XML tags as a <em>trust</em> boundary rather than a clarity one &rarr; the <b>Application Design</b> walkthrough · structured-output mechanics and limits &rarr; same, step 5 · what fills the window around your prompt &rarr; the <b>Context Engineering</b> walkthrough · criteria-based grading instead of exact-match tests &rarr; <b>D4</b>.</div>`;
+}
+function q(k,ok){
+ ["A","B","C","D"].forEach(x=>$("qfb"+x).classList.remove("open"));
+ $("qfb"+k).classList.add("open");
+ document.querySelectorAll(".choice").forEach(b=>b.classList.remove("right","wrong"));
+ event.currentTarget.classList.add(ok?"right":"wrong");
+}
+
+/* ---------- driver ---------- */
+function render(){
+ const s=STEPS[cur];
+ $("view").innerHTML=s.r();
+ $("view").scrollIntoView({behavior:"smooth",block:"nearest"});
+ $("stepNo").textContent=cur+1;
+ $("stepName").textContent=s.name;
+ $("prev").disabled=cur===0;
+ $("next").disabled=cur===STEPS.length-1;
+ $("next").textContent = cur===STEPS.length-2 ? "Recall →" : "Next →";
+ renderRail();
+}
+function renderRail(){
+ const r=$("rail"); r.innerHTML="";
+ STEPS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.textContent=s.name;
+  if(i===cur) b.className="active"; else if(seen.has(i)) b.className="done";
+  b.onclick=()=>goto(i);
+  r.appendChild(b);
+ });
+}
+function goto(i){ cur=Math.max(0,Math.min(STEPS.length-1,i)); seen.add(cur); render(); }
+function go(d){ goto(cur+d); }
+$("prev").onclick=()=>go(-1);
+$("next").onclick=()=>go(1);
+document.addEventListener("keydown",e=>{
+ if(e.target.tagName==="INPUT") return;
+ if(e.key==="ArrowRight") go(1); else if(e.key==="ArrowLeft") go(-1);
+});
+$("stepTot").textContent=STEPS.length;
+$("foot").innerHTML='Grounded in the class notes on system prompts, XML, few-shot and output constraints; API syntax cross-checked against the repo\'s structured-outputs file, verified 2026-07-18. The five runs on step 4 are an illustration of the failure modes, not recorded model output. Practice item is original, written to blueprint objectives — not live exam content.';
+render();
+</script>
+</body>
+</html>

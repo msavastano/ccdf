@@ -32,7 +32,8 @@
   .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
          padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
   .badge.scen{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
-  .badge.inc{background:rgba(201,91,91,.16); color:var(--red); border:1px solid rgba(201,91,91,.35);}
+  /* NB: not .inc — that is the card component class below */
+  .badge.incd{background:rgba(201,91,91,.16); color:var(--red); border:1px solid rgba(201,91,91,.35);}
   .badge.disc{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
   .badge.proc{background:rgba(79,168,119,.16); color:var(--green); border:1px solid rgba(79,168,119,.35);}
   .badge.plain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
@@ -295,7 +296,7 @@ const CODES=[
 ];
 function sRetry(){
  setTimeout(drawChips,20);
- return `<span class="badge inc">INC-101</span>
+ return `<span class="badge incd">INC-101</span>
  <h2>They added retries. Rate limiting got worse.</h2>
  <div class="loc">Sort every failure into one of two classes before you write a single line of handling.</div>
  <p class="lead">The one question that sorts them: <em>is the cause in my request, or in the moment?</em> Click each to check yourself.</p>
@@ -338,7 +339,7 @@ function sCache(){
  ];
  const r1='<span class="hl">{"input_schema":{...},"name":"lookup_order"}</span>';
  const r2='<span class="hl">{"name":"lookup_order","input_schema":{...}}</span>';
- return `<span class="badge inc">INC-102</span>
+ return `<span class="badge incd">INC-102</span>
  <h2>The cache stopped working. Nothing errored.</h2>
  <div class="loc">The only symptom was on the invoice — and in one usage field.</div>
  <div class="usage">

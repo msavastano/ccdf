@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F · D1 Agent Patterns — Orchestration and Memory</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232736; --code:#0b0d13;
+    --text:#e8eaf0; --dim:#9aa0b4; --accent:#d97748; --green:#4fa877; --red:#c95b5b;
+    --purple:#c98bdb; --blue:#5b9bd9; --yellow:#d9b45b; --teal:#4fb3a8; --border:#2e3345;
+  }
+  *{box-sizing:border-box; margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:22px 16px 60px;}
+  a{color:var(--accent);}
+  header{text-align:center; margin-bottom:16px;}
+  h1{font-size:1.15rem; font-weight:600; letter-spacing:.03em;}
+  h1 span{color:var(--accent);}
+  .sub{color:var(--dim); font-size:.8rem; margin-top:4px;}
+
+  .rail{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:960px; margin:10px auto 4px;}
+  .rail button{background:var(--panel); color:var(--dim); border:1px solid var(--border); border-radius:999px;
+       padding:5px 12px; font-size:.72rem; cursor:pointer; transition:all .15s; white-space:nowrap;}
+  .rail button:hover{border-color:var(--accent); color:var(--text);}
+  .rail button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .rail button.done{color:var(--text); border-color:#3c4256;}
+  .rail button.done::before{content:"\2713 "; color:var(--green);}
+
+  main{width:100%; max-width:940px;}
+  .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
+  .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+         padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
+  .badge.bhire{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  .badge.bmult{background:rgba(217,119,72,.16); color:var(--accent); border:1px solid rgba(217,119,72,.35);}
+  .badge.bfit{background:rgba(201,91,91,.16); color:var(--red); border:1px solid rgba(201,91,91,.35);}
+  .badge.bmem{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
+  .badge.btime{background:rgba(79,168,119,.16); color:var(--green); border:1px solid rgba(79,168,119,.35);}
+  .badge.bplain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
+  h2{font-size:1.35rem; font-weight:650; margin-bottom:4px; line-height:1.25;}
+  h3{font-size:.96rem; font-weight:650; margin:22px 0 8px; color:var(--text);}
+  h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; color:var(--dim); font-weight:600;}
+  .loc{color:var(--dim); font-size:.82rem; margin-bottom:14px;}
+  p{line-height:1.62; margin:9px 0; color:#d4d8e4; font-size:.92rem;}
+  p.lead{font-size:1rem; color:var(--text);}
+  strong{color:#fff;}
+  em{color:var(--accent); font-style:normal;}
+  code.inl{background:var(--code); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+        font-family:'Cascadia Code','Consolas',monospace; font-size:.82em; color:#cdd3e6;}
+  ul{margin:8px 0 8px 2px; padding-left:18px; line-height:1.6; color:#d4d8e4; font-size:.92rem;}
+  li{margin:5px 0;}
+
+  .codeblk{background:var(--code); border:1px solid var(--border); border-radius:10px; overflow-x:auto;
+        font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:.79rem; line-height:1.62;
+        margin:10px 0; padding:12px 14px; white-space:pre; color:#c6cbdb;}
+  .codeblk .cm{color:#5c6478; font-style:italic;}
+  .codeblk .kw{color:var(--purple);} .codeblk .fn{color:#7fb3e0;}
+
+  .callout{border-left:3px solid var(--accent); background:var(--panel2); border-radius:0 8px 8px 0;
+      padding:12px 16px; margin:14px 0; font-size:.88rem; line-height:1.6;}
+  .callout.warn{border-left-color:var(--red);}
+  .callout.good{border-left-color:var(--green);}
+  .callout.note{border-left-color:var(--blue);}
+  .callout b{color:#fff;}
+
+  .revwrap{margin:12px 0;}
+  .revbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+      padding:9px 16px; font-size:.83rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px;}
+  .revbtn:hover{border-color:var(--accent);}
+  .revbtn .chev{color:var(--accent); transition:transform .2s;}
+  .reveal{display:none; margin-top:12px; padding:16px 18px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel2); animation:fade .25s ease;}
+  .reveal.open{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .reveal .oneliner{font-size:.96rem; color:#fff; font-weight:600; line-height:1.5;}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:.83rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.5;}
+  th{background:var(--panel2); color:var(--text); font-weight:600;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin:14px 0;}
+  .card{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .card .n{font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+  .card h5{font-size:.9rem; margin:5px 0 4px;}
+  .card p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+
+  /* fan-out diagram */
+  .fan{margin:14px 0;}
+  .fanrow{display:flex; gap:8px; align-items:stretch; justify-content:center; flex-wrap:wrap; margin:7px 0;}
+  .node{border:1px solid var(--border); border-radius:10px; padding:9px 12px; background:var(--panel2); text-align:center; min-width:96px;}
+  .node.lead{border-color:rgba(201,139,219,.5); background:rgba(201,139,219,.1); min-width:170px;}
+  .node.wk{border-color:rgba(91,155,217,.4); background:rgba(91,155,217,.08);}
+  .node b{font-size:.78rem; display:block;} .node small{color:var(--dim); font-size:.68rem; display:block; margin-top:2px;}
+  .fanlbl{text-align:center; font-size:.72rem; color:var(--dim); margin:3px 0;}
+
+  /* calculator */
+  .calcw{display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;}
+  .ccol{flex:1; min-width:280px;}
+  .sl{margin:12px 0;}
+  .sl label{display:flex; justify-content:space-between; font-size:.79rem; color:var(--dim); margin-bottom:5px;}
+  .sl label b{color:var(--accent); font-family:'Cascadia Code',monospace;}
+  .sl input[type=range]{width:100%; accent-color:var(--accent); background:transparent;}
+  .seg{display:flex; gap:6px; margin:12px 0;}
+  .seg button{flex:1; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:8px;
+    padding:8px 8px; font-size:.75rem; cursor:pointer;}
+  .seg button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .readout{border:1px solid var(--border); border-radius:11px; background:var(--code); padding:14px 16px;}
+  .bigno{font-family:'Cascadia Code',monospace; font-size:1.45rem; font-weight:700; color:var(--accent); line-height:1.2;}
+  .bigsub{font-size:.74rem; color:var(--dim); margin-top:3px; line-height:1.45;}
+  .kv{display:flex; justify-content:space-between; gap:10px; font-family:'Cascadia Code',monospace;
+      font-size:.76rem; padding:5px 0; border-bottom:1px dashed #262b3b;}
+  .kv:last-child{border:none;} .kv span:first-child{color:var(--dim);}
+  .verdict{margin-top:12px; padding:11px 13px; border-radius:9px; font-size:.82rem; line-height:1.55;}
+  .verdict.worth{background:rgba(79,168,119,.11); border:1px solid rgba(79,168,119,.4); color:#a7dcbf;}
+  .verdict.waste{background:rgba(201,91,91,.12); border:1px solid rgba(201,91,91,.42); color:#f0b9b9;}
+
+  /* drill */
+  .drill{border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin:10px 0; background:var(--panel2);}
+  .drill .stem{font-size:.88rem; line-height:1.55; margin-bottom:10px;}
+  .drill .opts{display:flex; gap:7px; flex-wrap:wrap;}
+  .drill .opts button{background:var(--code); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:7px 12px; font-size:.75rem; cursor:pointer; transition:all .15s;}
+  .drill .opts button:hover{border-color:var(--accent);}
+  .drill .opts button.right{border-color:var(--green); background:rgba(79,168,119,.15); color:#a7dcbf;}
+  .drill .opts button.wrong{border-color:var(--red); background:rgba(201,91,91,.12); color:#f0b9b9;}
+  .drill .why{display:none; margin-top:10px; font-size:.82rem; line-height:1.55; color:#d4d8e4;
+      border-left:3px solid var(--purple); padding-left:12px;}
+  .drill .why.open{display:block;} .drill .why b{color:#fff;}
+
+  /* memory cards */
+  .mem{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; margin:14px 0;}
+  .mc{border:1px solid var(--border); border-radius:11px; padding:13px 15px; background:var(--panel2);
+    cursor:pointer; transition:all .15s;}
+  .mc:hover{border-color:var(--accent);}
+  .mc b{font-size:.89rem; display:block; margin-bottom:5px;}
+  .mc .p{font-size:.77rem; color:var(--dim); line-height:1.5;}
+  .mc .more{display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); font-size:.78rem; line-height:1.55;}
+  .mc.open .more{display:block;}
+  .mc.open{border-color:var(--accent); background:rgba(217,119,72,.07);}
+  .mc .lose{color:#f0a5a5;}
+  .mc .hint{font-size:.7rem; color:#5b6178; margin-top:8px;} .mc.open .hint{display:none;}
+
+  .choice{display:block; width:100%; text-align:left; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); border-radius:10px; padding:12px 15px; margin:8px 0; font-size:.87rem;
+      cursor:pointer; line-height:1.55; transition:all .15s;}
+  .choice:hover{border-color:var(--accent);}
+  .choice.right{border-color:var(--green); background:rgba(79,168,119,.12);}
+  .choice.wrong{border-color:var(--red); background:rgba(201,91,91,.1);}
+  .choice .tag{font-weight:700; margin-right:8px; color:var(--dim);}
+  .fb{display:none; margin:6px 0 14px; padding:12px 15px; border-radius:10px; font-size:.85rem; line-height:1.6;}
+  .fb.open{display:block;}
+  .fb.right{background:rgba(79,168,119,.1); border-left:3px solid var(--green);}
+  .fb.wrong{background:rgba(201,91,91,.09); border-left:3px solid var(--red);}
+  .fb b{color:#fff;}
+
+  .nav{display:flex; justify-content:space-between; align-items:center; max-width:940px; width:100%; margin-top:16px; gap:10px;}
+  .nav button{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:11px 22px; font-size:.88rem; cursor:pointer; transition:all .15s; font-weight:500;}
+  .nav button:hover:not(:disabled){border-color:var(--accent);}
+  .nav button:disabled{opacity:.3; cursor:not-allowed;}
+  .nav button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .progress{color:var(--dim); font-size:.78rem; text-align:center;} .progress b{color:var(--text);}
+  .keys{margin-top:22px; color:var(--dim); font-size:.7rem; text-align:center; line-height:1.9;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.68rem;}
+  .foot{margin-top:8px; color:#5c6478; font-size:.72rem; text-align:center; line-height:1.7; max-width:700px;}
+  .foot a{color:var(--dim);}
+  .ck{list-style:none; padding-left:0;}
+  .ck li{display:flex; align-items:flex-start; gap:9px; margin:8px 0; cursor:pointer;}
+  .ck input{margin-top:3px; accent-color:var(--green); flex:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent Patterns — <span>Orchestration and Memory</span></h1>
+  <div class="sub">CCDV-F · Domain 1 · Agent Patterns and Frameworks (4.9%) · orchestrator-worker, the 15× multiplier, and what survives a session</div>
+</header>
+
+<div class="rail" id="rail"></div>
+<main><div class="view" id="view"></div></main>
+
+<div class="nav">
+  <button id="prev">&#8592; Back</button>
+  <div class="progress">Step <b id="stepNo">1</b> / <b id="stepTot">7</b><br><span id="stepName"></span></div>
+  <button id="next" class="primary">Next &#8594;</button>
+</div>
+
+<div class="keys"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate &nbsp;·&nbsp; drag the workers on step 2 until the verdict flips</div>
+<div class="foot" id="foot"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function reveal(id,btn){
+  const el=$(id); el.classList.toggle("open");
+  const c=btn.querySelector(".chev"); if(c) c.style.transform=el.classList.contains("open")?"rotate(90deg)":"none";
+}
+const fmt=n=>Math.round(n).toLocaleString("en-US");
+
+let cur=0; const seen=new Set([0]);
+const drState={}; const memOpen=new Set();
+const O={workers:4, single:10000, split:"indep", tier:"same"};
+
+const STEPS=[
+ {name:"1 · Hiring a team", r:sHire},
+ {name:"2 · The multiplier",r:sMult},
+ {name:"3 · Fit or not",    r:sFit},
+ {name:"4 · Failure surface",r:sFail},
+ {name:"5 · Memory scope",  r:sMem},
+ {name:"6 · Design time",   r:sTime},
+ {name:"7 · Recall",        r:sRecall}
+];
+
+/* ---------- 1 ---------- */
+function sHire(){
+ return `<span class="badge bhire">The pattern</span>
+ <h2>Plan → fan out → synthesise</h2>
+ <div class="loc">D1 · Agent Patterns &nbsp;·&nbsp; a <b>lead agent</b> decomposes a task and delegates to <b>subagents running in parallel, each with its own context window</b>.</div>
+ <div class="fan">
+  <div class="fanrow"><div class="node lead"><b>Lead agent</b><small>decomposes the task</small></div></div>
+  <div class="fanlbl">&#9662; plan</div>
+  <div class="fanrow">
+    <div class="node wk"><b>Worker 1</b><small>own window</small></div>
+    <div class="node wk"><b>Worker 2</b><small>own window</small></div>
+    <div class="node wk"><b>Worker 3</b><small>own window</small></div>
+    <div class="node wk"><b>Worker 4</b><small>own window</small></div>
+  </div>
+  <div class="fanlbl">&#9662; each spends its own tokens</div>
+  <div class="fanrow"><div class="node lead"><b>Lead agent</b><small>compiles the results</small></div></div>
+ </div>
+ <div class="codeblk"><span class="kw">async def</span> <span class="fn">orchestrate</span>(task):
+    plan = <span class="kw">await</span> lead.plan(task)              <span class="cm"># lead agent decomposes</span>
+    results = <span class="kw">await</span> gather(*[                 <span class="cm"># subagents run in parallel</span>
+        worker.run(subtask) <span class="kw">for</span> subtask <span class="kw">in</span> plan.subtasks
+    ])                                        <span class="cm"># each spends its own tokens</span>
+    <span class="kw">return</span> <span class="kw">await</span> lead.synthesize(results)   <span class="cm"># lead compiles the answer</span></div>
+
+ <div class="callout good"><b>The right mental model is a hiring decision.</b> Five researchers finish a broad survey faster than one — <em>and you pay five salaries</em>. You hire a team only when the work genuinely splits into parts <b>nobody has to wait on</b>.</div>
+
+ <h3>What Anthropic reported</h3>
+ <table>
+  <tr><th>Finding</th><th>Number</th></tr>
+  <tr><td>Multi-agent (Opus 4 lead + Sonnet 4 subagents) vs. single-agent Opus 4 baseline</td><td>Substantial improvement on the internal research eval</td></tr>
+  <tr><td>Token cost vs. a normal chat interaction</td><td><b>~15×</b></td></tr>
+  <tr><td>What explains most of the performance variance</td><td><b>Token usage</b></td></tr>
+ </table>
+ <div class="callout note"><b>Read that last row carefully — it's the examinable one.</b> The architecture works <em>largely because it buys more parallel computation</em>, not because coordination is magic. Which means if the task has nothing to parallelise, the mechanism that makes it work isn't available to you. <em>(Internal research eval; treat the figures as directional and version-sensitive.)</em></div>`;
+}
+
+/* ---------- 2 ---------- */
+function sMult(){
+ setTimeout(drawCalc,20);
+ return `<span class="badge bmult">The arithmetic</span>
+ <h2>~15× the tokens, before it improves any answer</h2>
+ <div class="loc">The number is neither large nor small on its own. Its value depends entirely on whether the task <em>required</em> the extra agents.</div>
+ <div class="calcw">
+  <div class="ccol">
+   <div class="sl"><label>Subagents in the fan-out <b id="lW"></b></label>
+     <input type="range" id="sW" min="0" max="8" step="1" oninput="O.workers=+this.value;drawCalc()"></div>
+   <div class="sl"><label>What one agent would spend <b id="lS"></b></label>
+     <input type="range" id="sS" min="2000" max="40000" step="1000" oninput="O.single=+this.value;drawCalc()"></div>
+   <h4>Does the task actually split?</h4>
+   <div class="seg" id="segSplit"></div>
+   <h4>Model split</h4>
+   <div class="seg" id="segTier"></div>
+  </div>
+  <div class="ccol">
+   <div class="readout">
+    <div class="bigno" id="rTot"></div>
+    <div class="bigsub" id="rSub"></div>
+    <div style="margin-top:12px">
+     <div class="kv"><span>lead: plan + synthesis</span><span id="rLead"></span></div>
+     <div class="kv"><span>subagent contexts</span><span id="rWork"></span></div>
+     <div class="kv"><span>effective multiplier</span><span id="rMult"></span></div>
+    </div>
+    <div class="verdict" id="rVerd"></div>
+   </div>
+  </div>
+ </div>
+ <div class="callout"><b>The worked case from the notes:</b> a single agent answers a research question in <b>~10k tokens</b>. The orchestrator version spins up a lead plus four subagents, each reading its own slice of sources in its own context, then a synthesis pass — five contexts plus synthesis, <b>~15× the tokens, so ~150k for the same question.</b></div>
+ <div class="callout warn">⚠️ <b>The multiplier compounds when something misbehaves.</b> A runaway subagent or an oversized tool result can push well past the 15× baseline <em>before the request even completes</em> — so the figure is a floor, not a ceiling.</div>
+ <div class="callout good">💡 <b>The model split that blunts it:</b> run the <b>more capable model as the lead</b> and <b>cheaper models as the subagents</b>. You keep coordination quality where it matters without paying top-tier rates across every parallel context. Toggle it above.</div>`;
+}
+function drawCalc(){
+ if(!$("sW")) return;
+ $("sW").value=O.workers; $("sS").value=O.single;
+ $("lW").textContent=O.workers===0?"none (single agent)":O.workers;
+ $("lS").textContent=fmt(O.single)+" tok";
+ $("segSplit").innerHTML=`<button class="${O.split==="indep"?"on":""}" onclick="O.split='indep';drawCalc()">Independent parts</button>
+   <button class="${O.split==="coupled"?"on":""}" onclick="O.split='coupled';drawCalc()">Tightly coupled</button>`;
+ $("segTier").innerHTML=`<button class="${O.tier==="same"?"on":""}" onclick="O.tier='same';drawCalc()">Top tier throughout</button>
+   <button class="${O.tier==="split"?"on":""}" onclick="O.tier='split';drawCalc()">Capable lead + cheap workers</button>`;
+
+ const w=O.workers;
+ if(w===0){
+   $("rTot").textContent=fmt(O.single)+" tok";
+   $("rSub").innerHTML=`single agent · no fan-out`;
+   $("rLead").textContent="—"; $("rWork").textContent="—"; $("rMult").textContent="1.0×";
+   $("rVerd").className="verdict worth";
+   $("rVerd").innerHTML=`<b>Baseline.</b> One agent, one context. Everything below is measured against this.`;
+   return;
+ }
+ // Calibrated to the notes' worked case: lead + 4 subagents ≈ 15× a 1-agent baseline.
+ // A subagent exploring its own slice spends well above what the single agent spent
+ // answering economically, so each context is ~3× the baseline, and so is plan+synthesis.
+ const PER_CONTEXT=3;
+ const leadTok=O.single*PER_CONTEXT;         // plan + synthesis passes
+ const workTok=O.single*w*PER_CONTEXT;       // each worker, its own window
+ const weight = O.tier==="split" ? 0.45 : 1; // cheaper workers cost proportionally less
+ const total=leadTok + workTok*weight;
+ const mult=total/O.single;
+ $("rTot").textContent=fmt(total)+" tok-equiv";
+ $("rSub").innerHTML=`vs <b style="color:var(--dim)">${fmt(O.single)}</b> for one agent`;
+ $("rLead").textContent=fmt(leadTok);
+ $("rWork").textContent=fmt(workTok*weight)+(O.tier==="split"?"  (cheaper tier)":"");
+ $("rMult").textContent=mult.toFixed(1)+"×";
+
+ const v=$("rVerd");
+ if(O.split==="coupled"){
+   v.className="verdict waste";
+   v.innerHTML=`<b>&#10007; You bought nothing.</b> Tightly coupled work — coding is the canonical case — has each step depending on the previous one, so there is nothing to explore in parallel. You are paying <b>${mult.toFixed(1)}×</b> for computation the task can't use. <b>A single agent with good context handles this at a fraction of the cost.</b>`;
+ } else if(w>=3){
+   v.className="verdict worth";
+   v.innerHTML=`<b>&#10003; Defensible — if the parts are genuinely independent.</b> ${w} subagents explore simultaneously instead of sequentially, so wall-clock drops while tokens rise to <b>${mult.toFixed(1)}×</b>.${O.tier==="split"?" The cheaper-worker split is doing real work here — compare it against top-tier throughout.":" Try the capable-lead / cheap-worker split."}`;
+ } else {
+   v.className="verdict waste";
+   v.innerHTML=`<b>&#10007; Coordination overhead without the payoff.</b> At ${w} subagent${w===1?"":"s"} you pay the plan and synthesis passes but barely parallelise anything. Fan-out earns its cost through <em>breadth</em> — a couple of workers rarely clears the overhead.`;
+ }
+}
+
+/* ---------- 3 ---------- */
+const FT=[
+ {stem:"Survey how six different regulators treat a disclosure requirement, one jurisdiction per source.", a:"fan",
+  why:"<b>Fits.</b> Large task, genuinely <em>independent</em> parts, and the subagents can explore simultaneously instead of sequentially. This is the textbook case: research across many separate sources."},
+ {stem:"Refactor a payments module: rename an interface, update its callers, then fix the tests that break.", a:"single",
+  why:"<b>Doesn't fit.</b> <b>Tightly coupled work such as coding</b> — each step depends on the previous one and cannot be explored in parallel. A single agent with good context handles most work at a fraction of the cost."},
+ {stem:"Answer \"what's our refund window?\" — a single lookup, phrased like a research question.", a:"single",
+  why:"<b>Doesn't fit — and this is the expensive mistake.</b> If the \"research question\" was <em>a single lookup in costume</em>, you paid the ~15× multiplier for nothing. The stem's phrasing is the trap, not its content."},
+ {stem:"Read forty supplier contracts and extract the termination clause from each.", a:"fan",
+  why:"<b>Fits.</b> Forty independent extractions with nothing to wait on. Note the lead's synthesis job here is trivial — which is fine; the value is in the parallel reading, not the compiling."},
+ {stem:"Diagnose why a specific request failed, following the trace from the router to the tool call to the response.", a:"single",
+  why:"<b>Doesn't fit.</b> Each step of a diagnosis is chosen <em>because of</em> what the previous step revealed. That's the definition of coupled — you can't fan out over a path you haven't discovered yet."}
+];
+function sFit(){
+ setTimeout(drawFT,20);
+ return `<span class="badge bfit">The decision</span>
+ <h2>Fan out, or one agent with good context?</h2>
+ <div class="loc">One question decides it: <em>do the parts genuinely not have to wait on each other?</em></div>
+ <div id="ftDrills"></div>
+ <table>
+  <tr><td style="width:32%"><b>Handles well</b></td><td>Broad tasks with <b>genuinely independent</b> parts — parallel exploration cuts wall-clock on work that would otherwise run sequentially.</td></tr>
+  <tr><td><b>Adds cost</b></td><td><b>~15× tokens before improving any answer</b>, plus coordination latency to plan and compile, plus <b>one failure surface per subagent</b>.</td></tr>
+  <tr><td><b>Use instead</b></td><td>Tightly coupled work, or anything one agent handles with good context → <b>single agent</b>. Fan-out buys parallel computation; if there's nothing to parallelise, you bought nothing.</td></tr>
+ </table>`;
+}
+function drawFT(){
+ const el=$("ftDrills"); if(!el) return;
+ const opts=[["fan","Orchestrator-worker"],["single","Single agent"]];
+ el.innerHTML=FT.map((d,i)=>{
+  const s=drState["ft"+i];
+  const cls=x=>s?(x===d.a?"right":(s===x?"wrong":"")):"";
+  return `<div class="drill"><div class="stem">${i+1}. ${d.stem}</div>
+   <div class="opts">${opts.map(o=>`<button class="${cls(o[0])}" onclick="ftPick(${i},'${o[0]}')">${o[1]}</button>`).join("")}</div>
+   <div class="why ${s?"open":""}">${d.why}</div></div>`;
+ }).join("");
+}
+function ftPick(i,v){ drState["ft"+i]=v; drawFT(); }
+
+/* ---------- 4 ---------- */
+function sFail(){
+ return `<span class="badge bfit">The other multiplier</span>
+ <h2>Fan-out multiplies the failure surface too</h2>
+ <div class="loc">It does not replace failure handling — it duplicates the need for it.</div>
+ <p class="lead">Every subagent needs the <b>same</b> retriable-vs-terminal classification, backoff, and fallback discipline as a single agent — applied <b>independently</b>. A fan-out of five is five places that can rate-limit.</p>
+ <div class="callout warn"><b>The specific failure to recognise:</b> one subagent that hits a rate limit <b>with no backoff can stall the whole synthesis step</b> while the lead waits on a return that never comes. The lead isn't broken and the other four succeeded — the job still doesn't finish.</div>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--red)">Per worker</div><h5>Its own retry policy</h5><p>429 / 5xx / 529 retriable; 400 / 401 / 403 / 404 terminal. Per subagent, not once at the orchestrator.</p></div>
+  <div class="card"><div class="n" style="color:var(--yellow)">Per worker</div><h5>Its own exit condition</h5><p>A runaway subagent spends its whole context before the lead ever sees it — and pushes the multiplier past its baseline.</p></div>
+  <div class="card"><div class="n" style="color:var(--blue)">At the lead</div><h5>A bound on waiting</h5><p>The synthesis step needs to survive a worker that never returns — a timeout and a partial-result path, not an unbounded <code class="inl">gather</code>.</p></div>
+  <div class="card"><div class="n" style="color:var(--green)">Everywhere</div><h5>Instrumentation</h5><p>Per-call tokens, latency and error rate. With five parallel contexts, "why was that expensive?" is unanswerable without it.</p></div>
+ </div>
+ <div class="callout note"><b>The compounding to hold in mind:</b> the ~15× is measured on a run where <em>nothing went wrong</em>. Add a retry storm in one worker or an oversized tool result in another and the real number moves — which is why the cost case for fan-out should be argued against a p95, not a happy path.</div>`;
+}
+
+/* ---------- 5 ---------- */
+const MEM=[
+ {t:"In-context memory", p:"State lives in the active conversation; survives turns <em>within</em> one session.",
+  more:"<b>Cost:</b> zero retrieval overhead, but token cost climbs as the conversation grows — the full context is re-sent every turn.<br><br><b>Use when</b> sessions are short, all needed state fits the window, and nothing must survive a restart.<br><br><span class='lose'><b>You lose:</b> everything at session end. A new session or a clear command wipes it.</span>"},
+ {t:"External storage", p:"State written to a database, read back at session start or on demand.",
+  more:"<b>Cost:</b> retrieval latency on each call <em>plus</em> the read/write logic you build and own.<br><br><b>Use when</b> state must survive across sessions, move between users, or be shared across agent instances.<br><br><span class='lose'><b>You lose:</b> nothing on the persistence side — the cost shows up as latency and ongoing implementation complexity.</span>"},
+ {t:"Summarized memory", p:"A condensed version of prior conversation, generated and injected at the next session's start.",
+  more:"<b>Cost:</b> lower token cost than replaying full history, but the summarisation step drops detail.<br><br><b>Use when</b> a long-running conversational agent's full history would outgrow the context budget before it's done.<br><br><span class='lose'><b>You lose:</b> any detail the summariser didn't keep — the agent sees only what the summarisation prompt chose to preserve.</span>"},
+ {t:"Stateless", p:"Nothing persists; each session is independent.",
+  more:"<b>Cost:</b> none — nothing to store or retrieve.<br><br><b>Use when</b> the agent takes one job, finishes, and closes out, or every session is independent by design.<br><br><span class='lose'><b>You lose:</b> all prior context. A follow-up that depends on an earlier session has no way to reach it.</span>"}
+];
+function sMem(){
+ setTimeout(drawMem,20);
+ return `<span class="badge bmem">Memory scope</span>
+ <h2>What does the agent know when the next session starts?</h2>
+ <div class="loc">And what does it cost to carry that forward? Click each for cost and what you give up.</div>
+ <div class="mem" id="memBox"></div>
+ <div class="callout warn"><b>Get it wrong and you pay in one of two opposite directions.</b>
+ <ul>
+  <li><b>Too much state held in-context</b> inflates every API call — the model re-reads the full conversation every turn, so <em>the bill scales with session length</em>.</li>
+  <li><b>Too little state in persistent storage</b> strips the agent of cross-session memory — <em>anything not written down is gone the moment the conversation ends</em>.</li>
+ </ul></div>
+ <div class="callout good"><b>The decision rule, stated as two cases:</b><br>
+ An agent that helps <b>the same user across days</b> needs state carried between sessions → store summaries or full history <em>outside</em> the model's context window so the next session reads it back.<br><br>
+ An agent that takes <b>one job, finishes, and closes it out</b> has no prior session to recall → run it <b>stateless</b>.</div>
+ <div class="callout note"><b>Summarized memory has a dependency worth naming:</b> it works only with a <b>well-specified summariser prompt</b>. Without one, task-critical state gets dropped on <em>every</em> compression — the same failure the Context Engineering walkthrough drills at length.</div>`;
+}
+function drawMem(){
+ const el=$("memBox"); if(!el) return;
+ el.innerHTML=MEM.map((m,i)=>
+  `<div class="mc ${memOpen.has(i)?"open":""}" onclick="memTog(${i})">
+    <b>${m.t}</b><div class="p">${m.p}</div><div class="more">${m.more}</div><div class="hint">click for cost and tradeoff</div>
+  </div>`).join("");
+}
+function memTog(i){ if(memOpen.has(i)) memOpen.delete(i); else memOpen.add(i); drawMem(); }
+
+/* ---------- 6 ---------- */
+function sTime(){
+ return `<span class="badge btime">Timing</span>
+ <h2>Why design-time is cheap and refactor-time is dear</h2>
+ <div class="loc">Memory scope belongs in the <b>design phase, not a production refactor</b> — and the reason isn't difficulty.</div>
+ <p class="lead">The default path — store full history in the <code class="inl">messages</code> array and send it on every call — <b>works in the prototype and keeps working for a while.</b> That's what makes it dangerous.</p>
+ <table>
+  <tr><th>Then</th><th>What happens</th></tr>
+  <tr><td><b>Prototype</b></td><td>Works. Nobody measures token usage because sessions are short.</td></tr>
+  <tr><td><b>Growing</b></td><td>Token cost scales with every added turn; latency climbs as the window fills.</td></tr>
+  <tr><td><b>Eventually</b></td><td>A long session hits the hard limit and <b>the agent stops responding.</b></td></tr>
+ </table>
+ <div class="callout good">🔑 <b>The fix is mechanical</b> — pull conversation state into external storage, add back only what each turn needs. A few hundred lines and a database the team already has.<br><br><b>What it costs is timing.</b> The work lands under a deadline already in motion, and <em>every hour restructuring memory is an hour not spent on what the agent is supposed to do next</em>.</div>
+ <div class="callout warn"><b>The wrong approach, stated plainly:</b> holding all state in-context on the assumption the window will be big enough. Without caching or compaction, long sessions accumulate cost faster than teams expect <em>when they only measure early turns</em>. <b>Measure actual session token usage against the window limit before committing.</b></div>
+ <div class="revwrap">
+  <button class="revbtn" onclick="reveal('r6',this)"><span class="chev">&#9654;</span> The same shape, three times over</button>
+  <div class="reveal" id="r6">
+   <div class="oneliner">Memory scope, context budgeting, and requirements capture all share one property: cheap at design time, expensive under deadline.</div>
+   <p>Each is a decision that a prototype lets you defer for free, and each becomes structural once traffic arrives. That pattern is worth recognising in a stem — when an option says "we'll handle it when it becomes a problem," it is describing the expensive path.</p>
+  </div>
+ </div>`;
+}
+
+/* ---------- 7 ---------- */
+function sRecall(){
+ return `<span class="badge bplain">Recap &amp; recall</span>
+ <h2>Hire a team only when the work splits</h2>
+ <table>
+  <tr><th>Topic</th><th>The single sentence</th></tr>
+  <tr><td><b>The pattern</b></td><td>Lead decomposes → subagents run in parallel, each with its own window → lead synthesises. Plan, fan-out, synthesis.</td></tr>
+  <tr><td><b>The cost</b></td><td><b>~15× tokens</b> before improving any answer. Token usage explains most of the performance variance — it works by buying parallel computation.</td></tr>
+  <tr><td><b>Fits</b></td><td>Large tasks with <b>genuinely independent</b> parts — research across many separate sources.</td></tr>
+  <tr><td><b>Doesn't fit</b></td><td><b>Tightly coupled work such as coding</b>, where each step depends on the last. A single lookup in costume pays the multiplier for nothing.</td></tr>
+  <tr><td><b>Failure</b></td><td>Fan-out multiplies the failure surface; each subagent needs its own retry discipline. One rate-limited worker with no backoff stalls the whole synthesis.</td></tr>
+  <tr><td><b>Blunt it</b></td><td>Capable model as the <b>lead</b>, cheaper models as the <b>subagents</b>.</td></tr>
+  <tr><td><b>Memory</b></td><td>In-context · external · summarized · stateless. Choose at <b>design time</b> — the refactor is mechanical but lands under a deadline.</td></tr>
+ </table>
+
+ <h3>Blueprint-style item &mdash; D1 · Agent Patterns and Frameworks</h3>
+ <p class="lead">A team replaces a single coding agent with an orchestrator-worker architecture: a lead decomposes each ticket and four subagents work in parallel. Token spend rises sharply and completion quality falls slightly. What best explains this? <b>Select ONE.</b></p>
+
+ <button class="choice" onclick="q('A',false)"><span class="tag">A</span>The lead is running a model tier too small to decompose effectively; promoting the lead to a more capable model while keeping cheaper subagents would recover the lost quality.</button>
+ <div class="fb wrong" id="qfbA"><b>Incorrect.</b> The capable-lead / cheap-worker split is a real technique, but it <em>blunts the cost multiplier</em> — it doesn't make a coupled task parallelisable. Quality would still fall, and the tokens would still be spent.</div>
+
+ <button class="choice" onclick="q('B',true)"><span class="tag">B</span>Coding is tightly coupled — each step depends on the previous one — so there is nothing to explore in parallel and the fan-out buys token spend without buying computation the task can use.</button>
+ <div class="fb right" id="qfbB"><b>Correct.</b> The architecture works largely because it buys more parallel computation. Coding is the canonical case where that mechanism isn't available: each step depends on the last, so subagents can't explore simultaneously. A single agent with good context handles it at a fraction of the cost.</div>
+
+ <button class="choice" onclick="q('C',false)"><span class="tag">C</span>Four subagents is below the breadth at which fan-out becomes efficient, so the coordination overhead dominates; widening the fan-out would amortise the plan and synthesis passes.</button>
+ <div class="fb wrong" id="qfbC"><b>Incorrect, and it makes things worse.</b> Widening the fan-out on a task with no independent parts multiplies the spend against the same unavailable benefit. Breadth helps only once the work genuinely splits.</div>
+
+ <button class="choice" onclick="q('D',false)"><span class="tag">D</span>Each subagent carries its own context window, so shared state is being lost between them; passing the full conversation history to every subagent would restore the missing context.</button>
+ <div class="fb wrong" id="qfbD"><b>Incorrect.</b> Isolated windows are the point of the pattern, not a defect — and passing full history to every subagent inflates each context toward the ceiling while <em>still</em> not making the steps independent. It attacks the symptom and worsens the cost.</div>
+
+ <h3>Cold-recall check</h3>
+ <ul class="ck">
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>three</b> phases of orchestrator-worker and what each costs.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> State the multiplier, and what the reported findings say <em>explains</em> the improvement.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Give the canonical case where fan-out <b>doesn't</b> fit, and why.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Say how one rate-limited subagent can stall an entire run.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> List the <b>four</b> memory scopes and what each one loses.</li>
+ </ul>
+ <div class="callout good"><b>Where this connects:</b> the loop each agent runs and its exit conditions &rarr; the <b>Agent Construction</b> walkthrough · subagent handoffs as a context-budget strategy &rarr; the <b>Context Engineering</b> walkthrough · tier selection for lead vs workers &rarr; the <b>Cost &amp; Levers</b> walkthrough · retriable-vs-terminal per worker &rarr; the <b>SWE Foundations</b> walkthrough · summariser quality &rarr; Context Engineering, step 4.</div>`;
+}
+function q(k,ok){
+ ["A","B","C","D"].forEach(x=>$("qfb"+x).classList.remove("open"));
+ $("qfb"+k).classList.add("open");
+ document.querySelectorAll(".choice").forEach(b=>b.classList.remove("right","wrong"));
+ event.currentTarget.classList.add(ok?"right":"wrong");
+}
+
+/* ---------- driver ---------- */
+function render(){
+ const s=STEPS[cur];
+ $("view").innerHTML=s.r();
+ $("view").scrollIntoView({behavior:"smooth",block:"nearest"});
+ $("stepNo").textContent=cur+1;
+ $("stepName").textContent=s.name;
+ $("prev").disabled=cur===0;
+ $("next").disabled=cur===STEPS.length-1;
+ $("next").textContent = cur===STEPS.length-2 ? "Recall →" : "Next →";
+ renderRail();
+}
+function renderRail(){
+ const r=$("rail"); r.innerHTML="";
+ STEPS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.textContent=s.name;
+  if(i===cur) b.className="active"; else if(seen.has(i)) b.className="done";
+  b.onclick=()=>goto(i);
+  r.appendChild(b);
+ });
+}
+function goto(i){ cur=Math.max(0,Math.min(STEPS.length-1,i)); seen.add(cur); render(); }
+function go(d){ goto(cur+d); }
+$("prev").onclick=()=>go(-1);
+$("next").onclick=()=>go(1);
+document.addEventListener("keydown",e=>{
+ if(e.target.tagName==="INPUT") return;
+ if(e.key==="ArrowRight") go(1); else if(e.key==="ArrowLeft") go(-1);
+});
+$("stepTot").textContent=STEPS.length;
+$("foot").innerHTML='Grounded in the class module "Cost &amp; Orchestration" (2026-07-19) and the D1 agent-memory notes. The ~15× multiplier and the multi-agent eval result come from an internal Anthropic research eval — <b>directional and version-sensitive</b>. The step-2 calculator is a model of the arithmetic, not measured output. Practice item is original, written to blueprint objectives — not live exam content.';
+render();
+</script>
+</body>
+</html>
