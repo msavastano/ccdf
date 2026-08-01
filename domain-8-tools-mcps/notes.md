@@ -135,7 +135,68 @@ If you use the API MCP Connector, you control loading cost through an **`mcp_too
 
 ## Agentic Customization (4.1%)
 
-> This skill is broader than MCP-vs-manual (it also weighs **built-in Tools vs. custom Tools vs. Skills vs. MCPs**). The class notes below cover the **MCP vs. manual schema** axis. The **Skills loading-mechanics** angle — Skill vs. `CLAUDE.md` vs. in-context instructions, and why a Skill loads only on a description match — is covered in [Domain 1 · Agents → Skills — on-demand instruction loading](../domain-1-agents/notes.md). _Still to be added here: the full **built-in Tools vs. custom Tools vs. Skills vs. MCPs** selection tradeoff for a given use case — see also Domain 2._
+> This skill is broader than MCP-vs-manual. The **selection tradeoff across all mechanisms** is immediately below; the **MCP vs. manual schema** axis follows it. The **Skills loading-mechanics** angle — Skill vs. `CLAUDE.md` vs. in-context instructions — is covered in [Domain 1 · Agents → Skills — on-demand instruction loading](../domain-1-agents/notes.md).
+
+### Built-in vs. custom Tools vs. Skills vs. MCPs — the selection tradeoff
+
+_Verified against platform.claude.com 2026-07-31. The tool inventory and beta surfaces are version-sensitive — re-check at build time._
+
+Two questions sort every mechanism, and neither is "how hard is this to build":
+
+1. **Who writes the schema?** You · Anthropic · a third party.
+2. **Who executes the call?** Your code · Anthropic's infrastructure.
+
+A third question comes *before* both: **is the thing you're adding a capability at all?** If Claude is missing *access*, you need a tool. If Claude is missing *knowledge of how you want the job done*, you need a Skill — and no tool will help.
+
+| Mechanism | Schema by | Executed by | Reach for it when |
+|---|---|---|---|
+| **Server tools**<br>`web_search`, `web_fetch`, `code_execution`, `advisor`, `tool_search` | Anthropic | **Anthropic** | The capability is generic infrastructure you'd otherwise build and secure. No handler code in your app — results come back directly. |
+| **Anthropic-schema client tools**<br>`memory`, `bash`, `text_editor`, `computer_use` | Anthropic | **You** | The tool touches *your* machine (filesystem, shell, desktop), so execution can't live anywhere else — but the schema is already published and Claude is trained on it. |
+| **Custom tools** | You | You | The capability is yours (your database, your business rules), or routing precision matters more than saved effort. |
+| **MCP servers** | A third party | Your client / the connector | A maintained server already covers the service. Coverage over precision — then allowlist and tune. |
+| **Skills** | — *not a tool* — | — *not a tool* — | The gap is *how you want it done*, not access. Loads only on a description match. |
+
+🚨 **"Built-in" is not one category, and this is where items are set.** `web_search` runs on Anthropic's infrastructure and returns results directly. `bash` and `text_editor` are *also* Anthropic-defined — Anthropic publishes the schema and trains Claude on it — but **your application still executes them** and returns a `tool_result`. Same "built-in" label, opposite execution model. A stem that treats every Anthropic-provided tool as server-executed is wrong.
+
+> ⚠️ One exception to "server tools need no handler code": if Claude calls a server tool in the **same group of parallel tool calls** as one of your client tools, you are back in the handling path. See the Messages API's stop-reason/fallback behavior.
+
+**The declaration form is the tell:**
+
+```python
+# Server tool / Anthropic-schema client tool — a versioned `type`, no schema from you
+{"type": "web_search_20260209", "name": "web_search"}
+
+# Custom tool — you supply all three parts
+{"name": "lookup_order",
+ "description": "Retrieve the current status of one order by ID. Do not use for…",
+ "input_schema": {"type": "object", "properties": {...}, "required": ["order_id"]}}
+```
+
+🔑 **If you wrote an `input_schema`, you own the routing wording *and* the execution. If you passed a `type` string instead, Anthropic wrote both.**
+
+**A Skill is not a tool.** It grants no capability, emits no `tool_use` block, executes nothing, and returns nothing. It changes *how* Claude does something it could already do. The one-line test: **missing access → a tool; missing knowledge of your conventions → a Skill.** A scenario describing "the output is correct but not in our format" is never solved by registering a tool. (Loading mechanics — Skill vs. `CLAUDE.md` vs. in-context, and the subagent-inheritance rules — are in [D1 · Skills](../domain-1-agents/notes.md).)
+
+**Cost — each mechanism spends differently, and some of it before the first message:**
+
+| Cost | Where it lands |
+|---|---|
+| **Tool definitions occupy context** | Every registered definition, whether or not it's called. **MCP servers add their whole tool list even when unused** — connect several and the definitions spend budget before you say anything. |
+| **The tool-use system prompt** | Supplying *any* tools makes the API insert a system prompt enabling tool use. On **Opus 5** that's **286 tokens** for `tool_choice: auto`/`none` and **406** for `any`/`tool`; counts differ per model *(verified 2026-07-31)*. |
+| **Server-tool usage charges** | Client-side tools price like any other request. **Server tools may add usage-based charges on top of tokens** — web search bills per search performed. |
+| **Maintenance** | Custom schemas are yours forever, including every time the underlying service changes. MCP moves that burden to the server's maintainer. |
+
+**Reducing the context cost** — on the API MCP Connector, `defer_loading` delays loading a definition until the model needs it, and `enabled` exposes only selected tools (see the MCP Connector section above). When the tool list is genuinely large, the **`tool_search` server tool** lets Claude discover and load tools on demand instead of holding every definition in context.
+
+**Exam-style decision cues:**
+
+| Stem says | Answer is |
+|---|---|
+| "Search the web / run Python on a file / fetch a page" | **Server tool** — don't build and secure a sandbox that exists |
+| "Edit files in our repo / run shell commands / control a desktop" | **Anthropic-schema client tool** — schema provided, *your* code executes |
+| "Query our internal database / apply our pricing rules" | **Custom tool** — nobody else can write that schema |
+| "Integrate all of GitHub/Slack/Jira, maintained as their API changes" | **MCP server** — coverage, then allowlist down |
+| "Output is correct but not in our house format / follow our checklist" | **Skill** — instructions, not capability |
+| "We need scope control over which tools Claude sees" | **Not automatically hand-authoring** — the connector allowlists per server. Description quality is still a valid reason |
 
 ### MCP vs. manual schema authoring — decision framework
 

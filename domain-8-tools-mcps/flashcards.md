@@ -191,3 +191,52 @@ Format: **Q:** question / **A:** answer. Group by skill. Keep answers short enou
 
 **Q:** What makes enterprise integration *more* expensive for some teams?
 **A:** Unfamiliarity with OAuth flows or enterprise secrets management — these require coordination with security/IT, which the timeline must absorb.
+
+## Mechanism Selection — built-in vs. custom vs. Skills vs. MCPs
+
+_Added 2026-07-31; tool inventory verified against platform.claude.com the same day._
+
+**Q:** What two questions sort every tool mechanism?
+**A:** Who writes the schema (you / Anthropic / a third party), and who executes the call (your code / Anthropic's infrastructure).
+
+**Q:** What question comes *before* those two?
+**A:** Is this a capability at all? Missing access → a tool. Missing knowledge of how you want the job done → a Skill.
+
+**Q:** Why is "built-in" not one category?
+**A:** Server tools run on Anthropic's infrastructure; Anthropic-schema *client* tools are also Anthropic-defined but **your application executes them** and returns a `tool_result`. Same label, opposite execution model.
+
+**Q:** Name the server tools.
+**A:** `web_search`, `web_fetch`, `code_execution`, `advisor`, `tool_search` — plus the MCP connector. No handler code in your app.
+
+**Q:** Name the Anthropic-schema client tools.
+**A:** `memory`, `bash`, `text_editor`, `computer_use`. Anthropic publishes the schema and trains Claude on it; you execute.
+
+**Q:** Why does the Anthropic-schema client-tool lane exist at all?
+**A:** Those tools touch *your* filesystem, shell, or desktop — execution can't be anywhere else. You get a trained-on schema without authoring one, and keep execution under your own permissions.
+
+**Q:** What's the one exception to "server tools need no handler code"?
+**A:** If Claude calls a server tool in the same group of parallel tool calls as one of your client tools, you're back in the handling path.
+
+**Q:** How is a server tool declared versus a custom tool?
+**A:** Server/Anthropic-schema: a versioned `type` plus `name` (e.g. `{"type": "web_search_20260209", "name": "web_search"}`) — no `input_schema`. Custom: `name` + `description` + `input_schema`.
+
+**Q:** What does the presence of `input_schema` tell you?
+**A:** You wrote it → you own the routing wording *and* the execution. A `type` string instead → Anthropic wrote both.
+
+**Q:** One-line test separating a Skill from a tool?
+**A:** Missing access → tool. Missing knowledge of your conventions → Skill. "Output is correct but not in our format" is never fixed by registering a tool.
+
+**Q:** Three ways a mechanism costs you context before the first message?
+**A:** Tool definitions occupy the window whether called or not (MCP servers add their whole list even unused); the tool-use system prompt is inserted whenever any tools are supplied; and server tools can add usage-based charges on top of tokens.
+
+**Q:** How many tokens does the tool-use system prompt add on Opus 5?
+**A:** 286 for `tool_choice: auto` or `none`; 406 for `any` or `tool`. Counts differ per model (verified 2026-07-31).
+
+**Q:** Which server tool exists specifically for large tool lists?
+**A:** `tool_search` — Claude discovers and loads tools on demand instead of holding every definition in context.
+
+**Q:** Does "we need scope control" justify hand-authoring schemas?
+**A:** Not on its own — the API MCP Connector allowlists tools per server. Description quality still justifies it.
+
+**Q:** Stem says "integrate all of GitHub, maintained as their API changes" — which mechanism?
+**A:** MCP server. Coverage you don't want to author or maintain; then allowlist down and tune the few tools you actually route to.

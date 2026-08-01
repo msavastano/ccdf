@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F · D5 Fundamentals — Tokens, Context, and the SDK</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232736; --code:#0b0d13;
+    --text:#e8eaf0; --dim:#9aa0b4; --accent:#d97748; --green:#4fa877; --red:#c95b5b;
+    --purple:#c98bdb; --blue:#5b9bd9; --yellow:#d9b45b; --border:#2e3345;
+  }
+  *{box-sizing:border-box; margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:22px 16px 60px;}
+  a{color:var(--accent);}
+  header{text-align:center; margin-bottom:16px;}
+  h1{font-size:1.15rem; font-weight:600; letter-spacing:.03em;}
+  h1 span{color:var(--accent);}
+  .sub{color:var(--dim); font-size:.8rem; margin-top:4px;}
+
+  .rail{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:960px; margin:10px auto 4px;}
+  .rail button{background:var(--panel); color:var(--dim); border:1px solid var(--border); border-radius:999px;
+       padding:5px 12px; font-size:.72rem; cursor:pointer; transition:all .15s; white-space:nowrap;}
+  .rail button:hover{border-color:var(--accent); color:var(--text);}
+  .rail button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .rail button.done{color:var(--text); border-color:#3c4256;}
+  .rail button.done::before{content:"\2713 "; color:var(--green);}
+
+  main{width:100%; max-width:920px;}
+  .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
+  .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+         padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
+  .badge.unit{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
+  .badge.win{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  .badge.img{background:rgba(217,119,72,.16); color:var(--accent); border:1px solid rgba(217,119,72,.35);}
+  .badge.fail{background:rgba(201,91,91,.16); color:var(--red); border:1px solid rgba(201,91,91,.35);}
+  .badge.sdk{background:rgba(79,168,119,.16); color:var(--green); border:1px solid rgba(79,168,119,.35);}
+  .badge.plain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
+  h2{font-size:1.35rem; font-weight:650; margin-bottom:4px; line-height:1.25;}
+  h3{font-size:.96rem; font-weight:650; margin:22px 0 8px; color:var(--text);}
+  h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; color:var(--dim); font-weight:600;}
+  .loc{color:var(--dim); font-size:.82rem; margin-bottom:14px;}
+  p{line-height:1.62; margin:9px 0; color:#d4d8e4; font-size:.92rem;}
+  p.lead{font-size:1rem; color:var(--text);}
+  strong{color:#fff;}
+  em{color:var(--accent); font-style:normal;}
+  code.inl{background:var(--code); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+        font-family:'Cascadia Code','Consolas',monospace; font-size:.82em; color:#cdd3e6;}
+  ul{margin:8px 0 8px 2px; padding-left:18px; line-height:1.6; color:#d4d8e4; font-size:.92rem;}
+  li{margin:5px 0;}
+
+  .code{background:var(--code); border:1px solid var(--border); border-radius:10px; overflow-x:auto;
+        font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:.8rem; line-height:1.62; margin:10px 0;}
+  .ln{display:flex; white-space:pre; min-width:max-content;}
+  .ln .gut{width:2.6em; text-align:right; padding:0 12px 0 10px; color:#454b62; user-select:none; flex:none;}
+  .ln .src{padding-right:16px; flex:1;}
+  .ln.bug{background:rgba(201,91,91,.14);}  .ln.bug .gut{color:var(--red); font-weight:700;}
+  .ln.add{background:rgba(79,168,119,.13);} .ln.add .gut{color:var(--green);}
+  .ln.ctx{background:rgba(217,119,72,.07);}
+  .t-kw{color:var(--purple);} .t-str{color:#8fbf87;} .t-com{color:#5c6478; font-style:italic;}
+  .t-num{color:#d99a5b;} .t-key{color:#7fb3e0;} .t-lit{color:var(--purple);}
+  .tagline{font-size:.7rem; color:var(--red); margin-left:8px; font-weight:600; letter-spacing:.04em;}
+  .tagline.add{color:var(--green);}
+
+  .revwrap{margin:12px 0;}
+  .revbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+      padding:9px 16px; font-size:.83rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px;}
+  .revbtn:hover{border-color:var(--accent);}
+  .revbtn .chev{color:var(--accent); transition:transform .2s;}
+  .reveal{display:none; margin-top:12px; padding:16px 18px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel2); animation:fade .25s ease;}
+  .reveal.open{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .reveal .oneliner{font-size:.96rem; color:#fff; font-weight:600; line-height:1.5;}
+
+  .callout{border-left:3px solid var(--accent); background:var(--panel2); border-radius:0 8px 8px 0;
+      padding:12px 16px; margin:14px 0; font-size:.88rem; line-height:1.6;}
+  .callout.warn{border-left-color:var(--red);}
+  .callout.good{border-left-color:var(--green);}
+  .callout.note{border-left-color:var(--blue);}
+  .callout b{color:#fff;}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:.83rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.5;}
+  th{background:var(--panel2); color:var(--text); font-weight:600;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; margin:14px 0;}
+  .card{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .card .n{font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+  .card h5{font-size:.9rem; margin:5px 0 4px;}
+  .card p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+
+  /* token chips */
+  .chips{display:flex; flex-wrap:wrap; gap:3px; margin:10px 0; line-height:1;}
+  .tk{font-family:'Cascadia Code',monospace; font-size:.8rem; padding:5px 4px; border-radius:4px;
+      background:rgba(201,139,219,.14); border:1px solid rgba(201,139,219,.3); color:#e2cdf0; white-space:pre;}
+  .tk:nth-child(even){background:rgba(91,155,217,.14); border-color:rgba(91,155,217,.3); color:#c9dcf0;}
+  .segsel{display:flex; gap:7px; flex-wrap:wrap; margin:12px 0;}
+  .segsel button{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:7px 13px; font-size:.79rem; cursor:pointer;}
+  .segsel button:hover{border-color:var(--accent);}
+  .segsel button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .tkcount{font-family:'Cascadia Code',monospace; font-size:.82rem; color:var(--dim); margin-top:6px;}
+  .tkcount b{color:var(--accent);}
+
+  /* comparison bars */
+  .cmpbars{margin:12px 0;}
+  .cbrow{display:flex; align-items:center; gap:10px; margin:7px 0;}
+  .cblab{width:150px; flex:none; font-size:.79rem; color:var(--dim); text-align:right;}
+  .cbtrack{flex:1; height:24px; background:var(--code); border:1px solid var(--border); border-radius:6px; overflow:hidden;}
+  .cbfill{height:100%; display:flex; align-items:center; padding-left:9px; font-size:.72rem; font-weight:700; color:#0b0d13;}
+
+  /* window builder */
+  .wbuild{display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:8px; margin:12px 0;}
+  .wc{border:1px solid var(--border); border-radius:9px; padding:10px 12px; background:var(--panel2); cursor:pointer; transition:all .15s;}
+  .wc:hover{border-color:var(--accent);}
+  .wc.on{border-color:var(--accent); background:rgba(217,119,72,.1);}
+  .wc b{font-size:.82rem; display:block;}
+  .wc small{color:var(--dim); font-size:.72rem; display:block; margin-top:3px; line-height:1.4;}
+  .wc .tk2{font-family:'Cascadia Code',monospace; font-size:.75rem; color:#f0b48c; float:right;}
+  .wc .box{display:inline-block; width:11px; height:11px; border:1px solid var(--border); border-radius:3px; margin-right:6px; vertical-align:baseline;}
+  .wc.on .box{background:var(--accent); border-color:var(--accent);}
+  .winbar{display:flex; height:34px; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin:10px 0 4px; background:var(--code);}
+  .winbar div{display:flex; align-items:center; justify-content:center; font-size:.66rem; color:#0b0d13; font-weight:700; overflow:hidden; white-space:nowrap;}
+  .winmeta{display:flex; justify-content:space-between; font-size:.76rem; color:var(--dim); margin-bottom:10px;}
+  .winmeta b{color:var(--text);}
+  .cachetog{display:flex; align-items:center; gap:10px; margin:12px 0; padding:11px 14px; border-radius:9px;
+    border:1px solid var(--border); background:var(--panel2); cursor:pointer;}
+  .cachetog.on{border-color:var(--green); background:rgba(79,168,119,.1);}
+  .cachetog .sw{width:34px; height:19px; border-radius:999px; background:#333849; position:relative; flex:none; transition:all .2s;}
+  .cachetog.on .sw{background:var(--green);}
+  .cachetog .sw::after{content:""; position:absolute; top:2px; left:2px; width:15px; height:15px; border-radius:50%;
+    background:#fff; transition:all .2s;}
+  .cachetog.on .sw::after{left:17px;}
+  .cachetog span{font-size:.83rem; line-height:1.5;}
+
+  /* patch calculator */
+  .patchwrap{display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;}
+  .patchcol{flex:1; min-width:260px;}
+  .presets{display:flex; gap:7px; flex-wrap:wrap; margin:10px 0;}
+  .presets button{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:7px 12px; font-size:.76rem; cursor:pointer; font-family:'Cascadia Code',monospace;}
+  .presets button:hover{border-color:var(--accent);}
+  .presets button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .tiersel{display:flex; gap:7px; margin:10px 0;}
+  .tiersel button{flex:1; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:8px 10px; font-size:.76rem; cursor:pointer;}
+  .tiersel button.on{background:var(--blue); border-color:var(--blue); color:#fff;}
+  .calc{border:1px solid var(--border); border-radius:10px; background:var(--code); padding:12px 14px;
+    font-family:'Cascadia Code',monospace; font-size:.79rem; line-height:1.75;}
+  .calc .k{color:var(--dim);} .calc .v{color:#f0b48c;} .calc .big{color:var(--accent); font-size:1.05rem; font-weight:700;}
+  .calc .note{color:var(--yellow); font-size:.73rem; display:block; margin-top:6px; line-height:1.5;}
+  .gridwrap{border:1px solid var(--border); border-radius:10px; padding:10px; background:var(--panel2); text-align:center;}
+  .gridwrap svg{max-width:100%; height:auto;}
+  .gridcap{font-size:.72rem; color:var(--dim); margin-top:7px; line-height:1.45;}
+
+  /* drill */
+  .drill{border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin:10px 0; background:var(--panel2);}
+  .drill .stem{font-size:.88rem; line-height:1.55; margin-bottom:10px;}
+  .drill .opts{display:flex; gap:8px; flex-wrap:wrap;}
+  .drill .opts button{background:var(--code); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:8px 13px; font-size:.76rem; cursor:pointer; transition:all .15s; font-family:'Cascadia Code',monospace;}
+  .drill .opts button:hover{border-color:var(--accent);}
+  .drill .opts button.right{border-color:var(--green); background:rgba(79,168,119,.15); color:#a7dcbf;}
+  .drill .opts button.wrong{border-color:var(--red); background:rgba(201,91,91,.12); color:#f0b9b9;}
+  .drill .why{display:none; margin-top:10px; font-size:.82rem; line-height:1.55; color:#d4d8e4;
+      border-left:3px solid var(--purple); padding-left:12px;}
+  .drill .why.open{display:block;} .drill .why b{color:#fff;}
+
+  /* rot curve */
+  .rot{border:1px solid var(--border); border-radius:10px; background:var(--panel2); padding:12px; text-align:center;}
+  .rot svg{max-width:100%; height:auto;}
+
+  .choice{display:block; width:100%; text-align:left; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); border-radius:10px; padding:12px 15px; margin:8px 0; font-size:.87rem;
+      cursor:pointer; line-height:1.55; transition:all .15s;}
+  .choice:hover{border-color:var(--accent);}
+  .choice.right{border-color:var(--green); background:rgba(79,168,119,.12);}
+  .choice.wrong{border-color:var(--red); background:rgba(201,91,91,.1);}
+  .choice .tag{font-weight:700; margin-right:8px; color:var(--dim);}
+  .fb{display:none; margin:6px 0 14px; padding:12px 15px; border-radius:10px; font-size:.85rem; line-height:1.6;}
+  .fb.open{display:block;}
+  .fb.right{background:rgba(79,168,119,.1); border-left:3px solid var(--green);}
+  .fb.wrong{background:rgba(201,91,91,.09); border-left:3px solid var(--red);}
+  .fb b{color:#fff;}
+
+  .nav{display:flex; justify-content:space-between; align-items:center; max-width:920px; width:100%; margin-top:16px; gap:10px;}
+  .nav button{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:11px 22px; font-size:.88rem; cursor:pointer; transition:all .15s; font-weight:500;}
+  .nav button:hover:not(:disabled){border-color:var(--accent);}
+  .nav button:disabled{opacity:.3; cursor:not-allowed;}
+  .nav button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .progress{color:var(--dim); font-size:.78rem; text-align:center;} .progress b{color:var(--text);}
+  .keys{margin-top:22px; color:var(--dim); font-size:.7rem; text-align:center; line-height:1.9;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.68rem;}
+  .foot{margin-top:8px; color:#5c6478; font-size:.72rem; text-align:center; line-height:1.7; max-width:680px;}
+  .foot a{color:var(--dim);}
+  .ck{list-style:none; padding-left:0;}
+  .ck li{display:flex; align-items:flex-start; gap:9px; margin:8px 0; cursor:pointer;}
+  .ck input{margin-top:3px; accent-color:var(--green); flex:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Tokens, Context, and the SDK — <span>Visual Walkthrough</span></h1>
+  <div class="sub">CCDV-F · Domain 5 · LLM Fundamentals (5.2%) + Technical Fundamentals (6.1%) · 11.3% combined</div>
+</header>
+
+<div class="rail" id="rail"></div>
+<main><div class="view" id="view"></div></main>
+
+<div class="nav">
+  <button id="prev">&#8592; Back</button>
+  <div class="progress">Step <b id="stepNo">1</b> / <b id="stepTot">8</b><br><span id="stepName"></span></div>
+  <button id="next" class="primary">Next &#8594;</button>
+</div>
+
+<div class="keys"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate &nbsp;·&nbsp; commit to an answer <em>before</em> you click to reveal</div>
+<div class="foot" id="foot"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+const KW=/^\b(?:def|return|if|elif|else|for|while|in|with|as|not|and|or|is|True|False|None|raise|import|from|class|lambda|try|except|break|continue|await|async)\b/;
+function pyHi(line){
+  let i=0,out="";
+  while(i<line.length){
+    const rest=line.slice(i); let m;
+    if(rest[0]==="#"){ out+='<span class="t-com">'+esc(rest)+'</span>'; break; }
+    if((m=rest.match(/^"(?:[^"\\]|\\.)*"|^'(?:[^'\\]|\\.)*'/))){ out+='<span class="t-str">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(KW))){ out+='<span class="t-kw">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(/^\b\d+\b/))){ out+='<span class="t-num">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    out+=esc(line[i]); i++;
+  }
+  return out;
+}
+function code(lines){
+  let h='<div class="code">';
+  for(const l of lines){
+    const cls=l.mark?" "+l.mark:"";
+    const tag=l.tag?'<span class="tagline'+(l.mark==="add"?" add":"")+'">'+l.tag+'</span>':"";
+    h+='<div class="ln'+cls+'"><span class="gut">'+(l.n||"")+'</span><span class="src">'+pyHi(l.t)+tag+'</span></div>';
+  }
+  return h+'</div>';
+}
+function P(arr){ return arr.map((t,i)=>({n:i+1,t:t.s!==undefined?t.s:t,mark:t.m,tag:t.g})); }
+function reveal(id,btn){
+  const el=$(id); el.classList.toggle("open");
+  const c=btn.querySelector(".chev"); if(c) c.style.transform=el.classList.contains("open")?"rotate(90deg)":"none";
+}
+const fmt=n=>n.toLocaleString("en-US");
+
+let cur=0; const seen=new Set([0]);
+const drState={};
+let segIdx=0;
+const winOn=new Set([0,1,2,3,4,5]);
+let cacheOn=false;
+let preset=1, tier=0;
+
+const STEPS=[
+ {name:"1 · The unit",      r:sTokens},
+ {name:"2 · In the window", r:sWindow},
+ {name:"3 · The photos",    r:sImages},
+ {name:"4 · Three overflows",r:sOverflow},
+ {name:"5 · Context rot",   r:sRot},
+ {name:"6 · Non-determinism",r:sSampling},
+ {name:"7 · The SDK",       r:sSDK},
+ {name:"8 · Recall",        r:sRecall}
+];
+
+/* ---------- 1 ---------- */
+const SEGS=[
+ {label:"Plain English",
+  chips:["Ref","und"," the"," dam","aged"," par","cel"," under"," policy"," clause"," 4","."],
+  note:"Whitespace rides along with the word that follows it. Common words are one token; less common ones split."},
+ {label:"Code",
+  chips:["def"," reconc","ile","_order","(","order","_id",":"," str",")"," ->"," dict",":"],
+  note:"Identifiers shatter. <code class='inl'>reconcile_order</code> is one concept and several tokens — which is why code-heavy prompts cost more per character than prose."},
+ {label:"Non-English",
+  chips:["Er","stat","tung"," der"," besch","äd","igten"," Sen","dung"],
+  note:"Splits harder again. A budget calibrated on English prose will be wrong for the same content in German, and wronger still for scripts further from the training distribution."}
+];
+function sTokens(){
+ setTimeout(drawSeg,20);
+ return `<span class="badge unit">The unit</span>
+ <h2>ShipRight upgraded the model. Three things broke.</h2>
+ <div class="loc">D5 · LLM Fundamentals &nbsp;·&nbsp; the damage-claim pipeline: customer photo + order history + policy &rarr; a drafted claim decision</div>
+ <p class="lead">The team moved from Sonnet 4.6 to Sonnet 5. No prompt changed, no code changed. Within a day: outputs started truncating mid-sentence, the bill rose, and a nightly job began failing on inputs it had processed for months. All three trace to one thing nobody re-measured.</p>
+
+ <h3>A token is not a word, and not a character</h3>
+ <div class="segsel" id="segSel"></div>
+ <div class="chips" id="segChips"></div>
+ <div class="tkcount" id="segNote"></div>
+ <p style="color:#5b6178; font-size:.76rem; margin-top:10px"><b>Illustrative segmentation only.</b> Real boundaries come from the model's own tokenizer — the point here is the <em>shape</em>: sub-word fragments, not words.</p>
+
+ <div class="callout warn"><b>Tokenization is model-specific, and counts are not portable.</b> The same text tokenizes differently across model generations — <b>Sonnet 5 produces roughly 30% more tokens than Sonnet 4.6</b> for identical input, and Opus 4.7's tokenizer runs about 1×–1.35× Opus 4.6's. A count measured on one model is not a count on another. <em>(Verified 2026-07-27.)</em></div>
+
+ <h3>Which is exactly what broke</h3>
+ <div class="cmpbars">
+  <div class="cbrow"><div class="cblab">Sonnet 4.6</div><div class="cbtrack"><div class="cbfill" style="width:62%; background:linear-gradient(90deg,#5b9bd9,#4a86bf)">prompt fits · output fits</div></div></div>
+  <div class="cbrow"><div class="cblab">Sonnet 5, same text</div><div class="cbtrack"><div class="cbfill" style="width:81%; background:linear-gradient(90deg,#d97748,#c95b5b)">~30% more tokens · max_tokens now truncates</div></div></div>
+ </div>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--red)">Consequence 1</div><h5>Re-baseline on a model change</h5><p>Token budgets, <code class="inl">max_tokens</code>, compaction triggers, and cost dashboards calibrated on the old model can all be wrong on the new one — <b>including truncating output that used to fit</b>. Don't apply a blanket multiplier. Re-measure.</p></div>
+  <div class="card"><div class="n" style="color:var(--yellow)">Consequence 2</div><h5>Per-token price ≠ per-request price</h5><p>A cheaper model that needs more tokens for the same job can cost more. Compare <b>cost per completed task</b>, never the rate card alone.</p></div>
+  <div class="card"><div class="n" style="color:var(--red)">Consequence 3</div><h5>Never a third-party tokenizer</h5><p><code class="inl">tiktoken</code> is OpenAI's. It undercounts Claude tokens by <b>~15–20% on prose</b>, and much more on code or non-English. A pre-flight gate built on it silently under-reports.</p></div>
+ </div>
+
+ <div class="callout good"><b>The only correct measurement is <code class="inl">count_tokens</code>, called with the same model ID you'll run inference on.</b> It takes the same request body as a Messages call and returns the input count <em>without running inference</em> — which makes it a pre-flight gate you can put in front of any request.</div>
+ ${code(P([
+ {s:'# Pre-flight: measure with the model you are about to call, not a proxy for it.'},
+ {s:'n = client.messages.count_tokens(model=MODEL, system=system,'},
+ {s:'                                 tools=tools, messages=history)', m:"add", g:"NO INFERENCE RUN"},
+ {s:'if n.input_tokens + MAX_OUT > WINDOW:'},
+ {s:'    history = compact(history)   # act before the request, not after the 400'},
+ ]))}`;
+}
+function drawSeg(){
+ const sel=$("segSel"); if(!sel) return;
+ sel.innerHTML=SEGS.map((s,i)=>`<button class="${i===segIdx?"on":""}" onclick="segPick(${i})">${s.label}</button>`).join("");
+ const s=SEGS[segIdx];
+ $("segChips").innerHTML=s.chips.map(c=>`<span class="tk">${esc(c)}</span>`).join("");
+ $("segNote").innerHTML=`<b>${s.chips.length}</b> fragments from ${s.chips.join("").length} characters &nbsp;·&nbsp; ${s.note}`;
+}
+function segPick(i){ segIdx=i; drawSeg(); }
+
+/* ---------- 2 ---------- */
+const WPARTS=[
+ {n:"System prompt", t:2400, s:"The claims policy and tone rules.", c:"#c98bdb"},
+ {n:"Tool definitions", t:1850, s:"Four schemas — counted <em>before</em> any tool is called.", c:"#5b9bd9"},
+ {n:"Conversation", t:12400, s:"14 turns, including every tool result.", c:"#4fa877"},
+ {n:"Claim photos ×6", t:8514, s:"Images are content blocks. Step 3 does the arithmetic.", c:"#d97748"},
+ {n:"Policy PDF (40pp)", t:32000, s:"Documents count the same way images do.", c:"#d9b45b"},
+ {n:"Output + thinking", t:12000, s:"What Claude generates this turn — <em>thinking tokens included</em>.", c:"#c95b5b"}
+];
+const WINDOW=200000;
+function sWindow(){
+ setTimeout(drawWin,20);
+ return `<span class="badge win">Capacity</span>
+ <h2>What's actually in the window</h2>
+ <div class="loc">The context window is everything the model can reference when generating a response — <b>including the response itself</b>.</div>
+ <p>The team estimated their usage as "the conversation, about 12K." Toggle the parts they forgot:</p>
+ <div class="wbuild" id="wBuild"></div>
+ <div class="winbar" id="wBar"></div>
+ <div class="winmeta" id="wMeta"></div>
+ <div class="cachetog" id="cTog" onclick="cacheOn=!cacheOn;drawWin()">
+   <div class="sw"></div><span id="cTxt"></span>
+ </div>
+
+ <div class="callout warn"><b>Cached tokens still occupy the window.</b> Prompt caching changes what you <em>pay</em> for those tokens, not whether they take up space. "We enabled caching, so context isn't a problem" is a wrong answer — and the toggle above shows why: the price moves, the bar does not.</div>
+
+ <h3>Current sizes <span style="color:var(--dim); font-weight:400; font-size:.82rem">(verified 2026-07-27 — version-sensitive)</span></h3>
+ <table>
+  <tr><th>Window</th><th>Models</th><th>Max output / request</th></tr>
+  <tr><td><b>1M tokens</b></td><td>Fable 5, Opus 5, Opus 4.8 / 4.7 / 4.6, Sonnet 5, Sonnet 4.6 — the <b>default</b>: no beta header, standard pricing</td><td>128K</td></tr>
+  <tr><td><b>200K tokens</b></td><td>Haiku 4.5, Sonnet 4.5</td><td>64K (Haiku 4.5)</td></tr>
+ </table>
+ <div class="callout note"><b>A limit that isn't measured in tokens:</b> one request holds up to <b>600 images or PDF pages</b> (100 on 200K-context models). Large document sets can hit <em>request size limits before the token limit</em> — a different failure with a different fix.</div>`;
+}
+function drawWin(){
+ const b=$("wBuild"); if(!b) return;
+ b.innerHTML=WPARTS.map((p,i)=>
+  `<div class="wc ${winOn.has(i)?"on":""}" onclick="wTog(${i})">
+    <span class="tk2">${fmt(p.t)}</span><b><span class="box"></span>${p.n}</b><small>${p.s}</small></div>`).join("");
+ const total=[...winOn].reduce((a,i)=>a+WPARTS[i].t,0);
+ const bar=$("wBar");
+ bar.innerHTML = WPARTS.map((p,i)=> winOn.has(i)
+   ? `<div style="width:${(p.t/WINDOW*100)}%; background:${p.c}" title="${p.n}">${p.t/WINDOW>0.055?fmt(p.t):""}</div>` : "").join("")
+   + `<div style="flex:1; background:transparent"></div>`;
+ $("wMeta").innerHTML=`<span><b>${fmt(total)}</b> of ${fmt(WINDOW)} tokens &nbsp;·&nbsp; ${(total/WINDOW*100).toFixed(1)}% of the window</span>
+   <span>team's estimate: <b>12,400</b> (${(12400/WINDOW*100).toFixed(1)}%)</span>`;
+ const ct=$("cTog"); ct.classList.toggle("on",cacheOn);
+ $("cTxt").innerHTML = cacheOn
+   ? `<b>Prompt caching ON.</b> The stable prefix now reads at <b>0.1×</b> — you are paying a tenth for those tokens. <b>The bar did not move.</b>`
+   : `<b>Prompt caching OFF.</b> Click to enable it and watch what changes — and what doesn't.`;
+}
+function wTog(i){ if(winOn.has(i)) winOn.delete(i); else winOn.add(i); drawWin(); }
+
+/* ---------- 3 ---------- */
+const PRESETS=[
+ {l:"400 × 300", w:400, h:300},
+ {l:"1024 × 768", w:1024, h:768},
+ {l:"1600 × 1200", w:1600, h:1200},
+ {l:"3024 × 4032", w:3024, h:4032}
+];
+const TIERS=[
+ {l:"Standard tier", edge:1568, max:1568},
+ {l:"Newest tier (Opus 4.7+)", edge:2576, max:4784}
+];
+function sImages(){
+ setTimeout(drawPatch,20);
+ return `<span class="badge img">Multimodal</span>
+ <h2>Every photo spends budget before Claude reads a character</h2>
+ <div class="loc">Claude views images in <b>28 × 28-pixel patches</b> — one visual token per patch.</div>
+ <div style="text-align:center; font-family:'Cascadia Code',monospace; font-size:1rem; color:var(--accent); margin:14px 0; padding:12px; background:var(--code); border:1px solid var(--border); border-radius:10px">
+   tokens = &lceil; width / 28 &rceil; &times; &lceil; height / 28 &rceil;
+ </div>
+ <div class="patchwrap">
+  <div class="patchcol">
+   <h4>Pick a source image</h4>
+   <div class="presets" id="pSel"></div>
+   <h4>Model tier</h4>
+   <div class="tiersel" id="tSel"></div>
+   <div class="calc" id="pCalc"></div>
+  </div>
+  <div class="patchcol">
+   <div class="gridwrap" id="pGrid"></div>
+  </div>
+ </div>
+
+ <div class="callout warn"><b>Each tier has a max long-edge <em>and</em> a max visual-token limit.</b> An image over either is <b>downscaled first</b> — so the formula runs on the <em>scaled</em> dimensions, not the ones you uploaded. Try the 3024 × 4032 phone photo on each tier. <em>(Limits verified 2026-07-18; confirm on the Vision page at build time.)</em></div>
+
+ <h3>Three ways to send it — choose by reuse, not by convenience</h3>
+ <table>
+  <tr><th>Method</th><th>Overhead</th><th>Best when</th></tr>
+  <tr><td><b>Inline base64</b></td><td>Full bytes on <em>every</em> request</td><td>One-off image, simple pipeline, no reuse.</td></tr>
+  <tr><td><b>URL reference</b></td><td>You host it; no re-encoding</td><td>The asset is already hosted somewhere reachable.</td></tr>
+  <tr><td><b>Files API</b></td><td>One upload, then just a <code class="inl">file_id</code> — <b>≈ zero payload</b> afterwards</td><td>The same asset across many requests or turns. The <code class="inl">file_id</code> <b>carries no payload weight as history grows</b>. Beta; not on Bedrock or Vertex — verify your platform.</td></tr>
+ </table>
+ <div class="callout note"><b>PDFs use a <code class="inl">document</code> block, not <code class="inl">image</code></b> — same <code class="inl">source</code> pattern, <code class="inl">media_type: "application/pdf"</code>. There is <b>no required <code class="inl">name</code> field</b>; <code class="inl">title</code> and <code class="inl">context</code> are both optional. Token cost and Files-API reuse work identically.</div>
+ <div class="callout"><b>The design-time rule:</b> measure image cost on <em>production-scale</em> inputs before you build. The fix for an over-budget pipeline is usually a ten-minute resize step — discovering that after deploy costs far more.</div>`;
+}
+function drawPatch(){
+ const ps=$("pSel"); if(!ps) return;
+ ps.innerHTML=PRESETS.map((p,i)=>`<button class="${i===preset?"on":""}" onclick="preset=${i};drawPatch()">${p.l}</button>`).join("");
+ $("tSel").innerHTML=TIERS.map((t,i)=>`<button class="${i===tier?"on":""}" onclick="tier=${i};drawPatch()">${t.l}</button>`).join("");
+
+ const p=PRESETS[preset], T=TIERS[tier];
+ const raw=Math.ceil(p.w/28)*Math.ceil(p.h/28);
+ let w=p.w, h=p.h, scaled=false, capped=false;
+ if(Math.max(w,h)>T.edge){ const f=T.edge/Math.max(w,h); w=Math.round(w*f); h=Math.round(h*f); scaled=true; }
+ let tok=Math.ceil(w/28)*Math.ceil(h/28);
+ if(tok>T.max){ tok=T.max; capped=true; }
+
+ let c=`<div><span class="k">submitted</span> &nbsp;<span class="v">${p.w} × ${p.h}</span></div>`;
+ c+=`<div><span class="k">raw formula</span> &nbsp;<span class="v">⌈${p.w}/28⌉ × ⌈${p.h}/28⌉ = ${fmt(raw)}</span></div>`;
+ if(scaled) c+=`<div><span class="k">long edge > ${T.edge} → downscaled to</span> &nbsp;<span class="v">${w} × ${h}</span></div>`;
+ c+=`<div><span class="k">visual tokens</span> &nbsp;<span class="big">${fmt(tok)}</span></div>`;
+ if(scaled||capped) c+=`<span class="note">⚠ Downscaled before counting${capped?` and again to reach the ${fmt(T.max)}-token ceiling`:""} — the formula runs on the <b>scaled</b> dimensions, so uploading bigger buys you nothing past the cap.</span>`;
+ c+=`<span class="note" style="color:var(--dim)">Ten images at this size ≈ ${fmt(tok*10)} tokens — comparable to a long, detailed system prompt, spent before any of your text is read.</span>`;
+ $("pCalc").innerHTML=c;
+
+ // illustrative coarse grid
+ const cols=14, rows=Math.max(4,Math.min(20,Math.round(14*(h/w))));
+ const cw=18, W=cols*cw, H=rows*cw;
+ let svg=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="patch grid">`;
+ svg+=`<rect x="0" y="0" width="${W}" height="${H}" fill="#12151f"/>`;
+ for(let r=0;r<rows;r++) for(let cI=0;cI<cols;cI++){
+   const on = (r===1&&cI===2);
+   svg+=`<rect x="${cI*cw}" y="${r*cw}" width="${cw}" height="${cw}" fill="${on?"#d97748":"none"}" stroke="${on?"#f0b48c":"#2e3345"}" stroke-width="1"/>`;
+ }
+ svg+=`</svg>`;
+ $("pGrid").innerHTML=svg+`<div class="gridcap"><b style="color:var(--accent)">■</b> one 28 × 28-pixel patch = one visual token.<br>Grid drawn coarse for legibility — the real image at ${w} × ${h} is <b>${fmt(Math.ceil(w/28))} × ${fmt(Math.ceil(h/28))}</b> patches.</div>`;
+}
+
+/* ---------- 4 ---------- */
+const OF=[
+ {stem:"The nightly job sends a conversation whose input alone is larger than the model's window. What comes back?",
+  a:"400", why:"<b><code class='inl'>400 invalid_request_error</code> — \"prompt is too long.\"</b> Every model, and <b>nothing ran</b> — you are not billed for inference that never happened. Fix by compacting or splitting the conversation."},
+ {stem:"Input fits, but input + <code class='inl'>max_tokens</code> together exceed the window. The request is <em>accepted</em> and generation begins. How does it end?",
+  a:"mcwe", why:"<b><code class='inl'>stop_reason: \"model_context_window_exceeded\"</code></b> (Claude 4.5+). The request was valid, generation started, and it ran out of <em>window</em> mid-answer. Fix by compacting or splitting — <em>not</em> by raising <code class='inl'>max_tokens</code>, which would make it worse."},
+ {stem:"The window is nowhere near full, but the answer stops mid-sentence at exactly the length you allowed.",
+  a:"maxt", why:"<b><code class='inl'>stop_reason: \"max_tokens\"</code></b> — you hit your <em>own</em> requested output cap. Fix by raising <code class='inl'>max_tokens</code>. This is the one the Sonnet 5 upgrade caused: same prompt, ~30% more tokens, a cap that used to be generous."}
+];
+function sOverflow(){
+ setTimeout(drawOF,20);
+ return `<span class="badge fail">Overflow</span>
+ <h2>Three different "too long", three different fixes</h2>
+ <div class="loc">The exam separates these deliberately, because the wrong diagnosis leads to the opposite fix.</div>
+ <div id="ofDrills"></div>
+ <table>
+  <tr><th>Signal</th><th>What ran out</th><th>Fix</th></tr>
+  <tr><td><code class="inl">400</code> prompt too long</td><td>The window, before anything started</td><td>Compact or split the conversation</td></tr>
+  <tr><td><code class="inl">model_context_window_exceeded</code></td><td>The window, mid-generation</td><td>Compact or split — <b>not</b> a bigger <code class="inl">max_tokens</code></td></tr>
+  <tr><td><code class="inl">max_tokens</code></td><td>Your own output cap</td><td>Raise <code class="inl">max_tokens</code></td></tr>
+ </table>
+ <div class="callout warn"><b>Distinguishing the middle row from the bottom row is the whole item.</b> Both truncate an answer mid-sentence and look identical to a user. One says <em>you asked for too little output</em>; the other says <em>there is no room left</em>. Raise <code class="inl">max_tokens</code> on the wrong one and you convert a truncated answer into a rejected request.</div>`;
+}
+function drawOF(){
+ const el=$("ofDrills"); if(!el) return;
+ el.innerHTML=OF.map((d,i)=>{
+  const s=drState["of"+i];
+  const cls=x=>s?(x===d.a?"right":(s===x?"wrong":"")):"";
+  return `<div class="drill"><div class="stem">${i+1}. ${d.stem}</div>
+   <div class="opts">
+    <button class="${cls('400')}" onclick="ofPick(${i},'400')">400 prompt too long</button>
+    <button class="${cls('mcwe')}" onclick="ofPick(${i},'mcwe')">model_context_window_exceeded</button>
+    <button class="${cls('maxt')}" onclick="ofPick(${i},'maxt')">max_tokens</button>
+   </div>
+   <div class="why ${s?"open":""}">${d.why}</div></div>`;
+ }).join("");
+}
+function ofPick(i,v){ drState["of"+i]=v; drawOF(); }
+
+/* ---------- 5 ---------- */
+function sRot(){
+ const pts=[[0,18],[60,20],[120,26],[180,40],[240,62],[300,88],[360,118]];
+ const path=pts.map((p,i)=>(i?"L":"M")+p[0]+" "+p[1]).join(" ");
+ return `<span class="badge win">Curation</span>
+ <h2>It fits now. The answers got worse anyway.</h2>
+ <div class="loc">The team moved to a 1M-context model, stopped pruning, and quality fell.</div>
+ <div class="rot">
+  <svg viewBox="0 0 380 150" width="380" height="150" role="img" aria-label="accuracy degrading as context grows">
+   <line x1="30" y1="130" x2="370" y2="130" stroke="#2e3345" stroke-width="1"/>
+   <line x1="30" y1="10" x2="30" y2="130" stroke="#2e3345" stroke-width="1"/>
+   <g transform="translate(30,0)">
+     <path d="${path}" fill="none" stroke="#c95b5b" stroke-width="2.5"/>
+   </g>
+   <text x="8" y="18" fill="#9aa0b4" font-size="9" font-family="monospace">err</text>
+   <text x="300" y="145" fill="#9aa0b4" font-size="9" font-family="monospace">tokens in window →</text>
+  </svg>
+  <div class="gridcap"><b>Context rot</b> — as token count grows, accuracy and recall <em>degrade</em>. Shape is illustrative; the direction is the point.</div>
+ </div>
+ <div class="callout warn"><b>Bigger is not automatically better.</b> Curating what's in the window matters as much as how much room is left — which is why the fix for a bloated agent is <b>context engineering, not a bigger model</b>. A stem offering "move to the 1M-context model" as the remedy for degraded recall is offering the thing that caused it.</div>
+
+ <h3>Context awareness — which models pace themselves</h3>
+ <p>Some models are handed their <b>remaining token budget automatically by the API</b>, so they pace a long task against real remaining space. It is automatic; you never send those tags.</p>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--green)">Receives it automatically</div><h5>Sonnet 5 · Sonnet 4.6 · Sonnet 4.5 · Haiku 4.5</h5><p>The model knows how much room is left and paces accordingly. Nothing for you to send.</p></div>
+  <div class="card"><div class="n" style="color:var(--yellow)">Does not</div><h5>Opus 4.7 and later Opus · Fable 5 · Mythos 5</h5><p>Give these an explicit budget with <b>task budgets</b> (beta) instead. <em>Verified 2026-07-27.</em></p></div>
+ </div>
+ <div class="callout note"><b>Why this pairs with rot:</b> a model that knows its remaining budget will compress and prioritise on its own. One that doesn't will happily keep elaborating into a window you are simultaneously filling.</div>`;
+}
+
+/* ---------- 6 ---------- */
+function sSampling(){
+ return `<span class="badge fail">Variance</span>
+ <h2>And the same request still returns different answers</h2>
+ <div class="loc">Not a bug, not a misconfiguration — a property of how the model generates.</div>
+ <p class="lead">The model produces a <b>probability distribution</b> over next tokens and <b>samples</b> from it. That sampling step is why identical requests can return different outputs.</p>
+
+ <div class="callout warn"><b>On the newest models, <code class="inl">temperature</code>, <code class="inl">top_p</code>, and <code class="inl">top_k</code> are removed and return a <code class="inl">400</code>.</b> Fable 5, Opus 5, Opus 4.8, and Opus 4.7 reject them outright; Sonnet 5 rejects non-default values. <b>Steer behaviour with prompting instead.</b> <em>(Verified 2026-07-27 — check the model's docs at build time.)</em></div>
+ ${code(P([
+ {s:'# Carried over from an older integration, unchanged:'},
+ {s:'client.messages.create(model="claude-opus-5", temperature=0, ...)', m:"bug", g:"400 — PARAM REMOVED"},
+ {s:''},
+ {s:'# And even where it was accepted, it never promised what people assumed:'},
+ {s:'#   temperature = 0 reduced variance. It never eliminated it.', m:"ctx"},
+ ]))}
+ <div class="callout warn"><b><code class="inl">temperature = 0</code> never guaranteed identical output on any model.</b> Any design that depends on byte-identical responses is built on a false premise — regardless of which model it runs on.</div>
+
+ <h3>What follows for engineering</h3>
+ <table>
+  <tr><th>Implication</th><th>What to do</th></tr>
+  <tr><td>Tests can't assert exact string equality</td><td>Grade against <b>criteria</b> — schema validity, required facts present, constraints honoured.</td></tr>
+  <tr><td>One passing run isn't evidence</td><td>Run the eval set. A single sample tells you almost nothing about the distribution.</td></tr>
+  <tr><td>Output shape must be enforced, not hoped for</td><td><b>Structured outputs</b> constrain the response to a schema; defensive parsing handles the rest.</td></tr>
+  <tr><td>Reproducibility comes from pinning, not sampling</td><td>Pin the model <b>version</b>. An unpinned alias adds a <em>second</em> source of variation on top of sampling.</td></tr>
+ </table>
+ <div class="callout note"><b>Tie it back to step 1:</b> the pinned version is also what stops a tokenizer change arriving unannounced. One control, two failure modes closed.</div>`;
+}
+
+/* ---------- 7 ---------- */
+function sSDK(){
+ return `<span class="badge sdk">Technical Fundamentals</span>
+ <h2>Underneath all of it: one endpoint</h2>
+ <div class="loc">D5 · Technical Fundamentals &nbsp;·&nbsp; the SDK is a convenience layer over an HTTP call you could make yourself</div>
+ <div style="text-align:center; font-family:'Cascadia Code',monospace; font-size:1rem; color:var(--accent); margin:14px 0; padding:14px; background:var(--code); border:1px solid var(--border); border-radius:10px">
+   POST /v1/messages
+ </div>
+ <p>Tools, streaming, vision, thinking, caching, structured outputs — <b>all parameters on that one request</b>, not separate APIs. The official SDKs build the JSON body, set headers, and parse the response. A raw <code class="inl">curl</code> sending the same body gets the same result.</p>
+ <div class="callout warn"><b>Why this framing is examinable:</b> a stem claiming "the SDK doesn't support X" is <em>almost always wrong</em>. If the REST API supports it, the SDK does — and if a binding is missing, raw HTTP is the escape hatch, not a blocker.</div>
+
+ <h3>What the SDK adds over hand-rolled HTTP</h3>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--blue)">Auth</div><h5>Resolved from the environment</h5><p><code class="inl">ANTHROPIC_API_KEY</code>, then an auth token, then a stored login profile — a zero-arg client works without you passing a key.</p></div>
+  <div class="card"><div class="n" style="color:var(--blue)">Retries</div><h5>Connection errors, 408, 409, 429, 5xx</h5><p>Exponential backoff, <b>default 2 retries</b>. Configure with <code class="inl">max_retries</code>; <code class="inl">0</code> disables.</p></div>
+  <div class="card"><div class="n" style="color:var(--blue)">Streaming</div><h5>Accumulates SSE into a message</h5><p>You get one complete message object without handling individual events.</p></div>
+  <div class="card"><div class="n" style="color:var(--blue)">Typed errors</div><h5>One class per status</h5><p>Branch on exception type rather than string-matching messages. Plus timeouts and auto-pagination.</p></div>
+ </div>
+ <div class="callout"><b>The classic wrong answer</b> is writing a custom retry loop the SDK already provides — or worse, one that retries <code class="inl">400</code>s. Reach for custom retry logic only when you need behaviour beyond the built-in policy.</div>
+
+ <h3>Two timeout traps</h3>
+ <table>
+  <tr><th>Trap</th><th>Detail</th></tr>
+  <tr><td><b>Units differ by SDK</b></td><td>Python and Ruby take <b>seconds</b>; TypeScript takes <b>milliseconds</b>; Go and Java take a <code class="inl">Duration</code>; C# a <code class="inl">TimeSpan</code>. A <code class="inl">60</code> meant as seconds is <b>60 milliseconds</b> in TypeScript — a pattern copied across languages silently changes meaning.</td></tr>
+  <tr><td><b>Timeouts are retried</b></td><td>Worst-case wall-clock is <code class="inl">timeout × (max_retries + 1)</code>, <b>not</b> <code class="inl">timeout</code>. Default request timeout is <b>10 minutes</b> — size upstream deadlines against the product, not the single value.</td></tr>
+ </table>
+
+ <h3>The contrast the blueprint is pointing at: SSE, not websockets</h3>
+ <table>
+  <tr><th></th><th>SSE — what the API uses</th><th>Websockets — what it doesn't</th></tr>
+  <tr><td><b>Direction</b></td><td><b>Server → client only</b>, one direction</td><td>Full-duplex, both directions</td></tr>
+  <tr><td><b>Transport</b></td><td>An ordinary HTTP response, held open</td><td>A separate protocol after an HTTP upgrade</td></tr>
+  <tr><td><b>Fit</b></td><td>A response streaming back token by token</td><td>Interactive bidirectional sessions</td></tr>
+ </table>
+ <div class="callout good"><b>The fit is the reason.</b> A Messages request is <em>one request, one streamed response</em>. Nothing needs to travel client→server mid-response, so a full-duplex channel would buy nothing and cost infrastructure complexity. The Claude API does not expose a websocket transport for the Messages API.</div>
+ <div class="callout note"><b>Streaming is sometimes mandatory, not optional.</b> Large <code class="inl">max_tokens</code> on a non-streaming request risks exceeding HTTP timeouts, and <b>the SDKs refuse those requests</b> rather than let the connection drop. Use <code class="inl">.get_final_message()</code> / <code class="inl">.finalMessage()</code> to get the timeout protection while still receiving one complete message object.</div>
+
+ <div class="revwrap">
+  <button class="revbtn" onclick="reveal('r7',this)"><span class="chev">&#9654;</span> When to skip the SDK entirely</button>
+  <div class="reveal" id="r7">
+   <div class="oneliner">Raw HTTP when the language has no official SDK, the project is a shell/cURL pipeline, or REST is explicitly requested.</div>
+   <p><b>Never mix the two in one codebase</b> — you end up maintaining two different retry policies, two auth paths, and two error models against the same endpoint.</p>
+   <p style="color:var(--dim)">Deliberately not re-covered here: error families and the batch-vs-realtime decision live in the <b>SWE Foundations</b> and <b>API Mechanics</b> walkthroughs.</p>
+  </div>
+ </div>`;
+}
+
+/* ---------- 8 ---------- */
+function sRecall(){
+ return `<span class="badge plain">Recap &amp; recall</span>
+ <h2>Measure, then fit, then call</h2>
+ <table>
+  <tr><th>Step</th><th>The single sentence</th></tr>
+  <tr><td><b>Tokens</b></td><td>Sub-word fragments, <b>model-specific</b> — Sonnet 5 ≈ 30% more than Sonnet 4.6. Re-baseline on a model change; never a third-party tokenizer; measure with <code class="inl">count_tokens</code> on the model you'll call.</td></tr>
+  <tr><td><b>The window</b></td><td>System prompt + every message (tool results, images, documents) + tool definitions + the output <em>including thinking</em>. Cached tokens still occupy it.</td></tr>
+  <tr><td><b>Images</b></td><td><code class="inl">⌈w/28⌉ × ⌈h/28⌉</code>, computed on the <b>downscaled</b> dimensions. Files API for anything reused across turns.</td></tr>
+  <tr><td><b>Overflow</b></td><td><code class="inl">400</code> (nothing ran) vs <code class="inl">model_context_window_exceeded</code> (no room left) vs <code class="inl">max_tokens</code> (your own cap). Opposite fixes.</td></tr>
+  <tr><td><b>Context rot</b></td><td>Accuracy degrades as the window fills. The fix is context engineering, not a bigger model.</td></tr>
+  <tr><td><b>Sampling</b></td><td>Non-determinism is inherent. <code class="inl">temperature</code> is removed on the newest models (<code class="inl">400</code>), and <code class="inl">0</code> never guaranteed identical output anyway.</td></tr>
+  <tr><td><b>The SDK</b></td><td>A wrapper over <code class="inl">POST /v1/messages</code>. "The SDK doesn't support X" is almost always wrong. Timeout units differ per language; worst case is <code class="inl">timeout × (max_retries + 1)</code>. Streaming is SSE, never websockets.</td></tr>
+ </table>
+
+ <h3>Blueprint-style item &mdash; D5 · LLM Fundamentals</h3>
+ <p class="lead">After migrating a summarisation service from Sonnet 4.6 to Sonnet 5 with no other changes, a team sees summaries truncating mid-sentence. Their pre-flight check, which uses <code class="inl">tiktoken</code> to estimate size, reports every request as well within budget. What best explains this and what should they do? <b>Select ONE.</b></p>
+
+ <button class="choice" onclick="q('A',false)"><span class="tag">A</span>The 1M-token context window is being exhausted by the longer inputs; move the service to a larger-context model and re-run the failing documents through it.</button>
+ <div class="fb wrong" id="qfbA"><b>Incorrect.</b> Running out of <em>window</em> produces a <code class="inl">400</code> or <code class="inl">model_context_window_exceeded</code> — not a clean truncation at the output cap. It also prescribes a bigger window, which invites context rot without addressing the cause.</div>
+
+ <button class="choice" onclick="q('B',true)"><span class="tag">B</span>Sonnet 5 tokenizes the same text into more tokens, so the unchanged <code class="inl">max_tokens</code> now cuts summaries short; re-measure with <code class="inl">count_tokens</code> on Sonnet 5 and re-baseline the budget.</button>
+ <div class="fb right" id="qfbB"><b>Correct.</b> Tokenization is model-specific — Sonnet 5 produces roughly 30% more tokens than Sonnet 4.6 for identical input, so a <code class="inl">max_tokens</code> that was generous is now tight. Re-baselining against a measurement taken <em>on the new model</em> is the fix.</div>
+
+ <button class="choice" onclick="q('C',false)"><span class="tag">C</span>Sampling variance increased on the newer model; set <code class="inl">temperature</code> to 0 so generation stops behaving unpredictably and produces consistent summary lengths.</button>
+ <div class="fb wrong" id="qfbC"><b>Incorrect twice over.</b> Sampling doesn't truncate at a fixed cap, and Sonnet 5 rejects non-default <code class="inl">temperature</code> values — this would replace truncated output with a <code class="inl">400</code>.</div>
+
+ <button class="choice" onclick="q('D',false)"><span class="tag">D</span>The pre-flight estimate is the whole problem; correct the <code class="inl">tiktoken</code> figures with a fixed multiplier derived from a sample of requests, then keep the existing budget.</button>
+ <div class="fb wrong" id="qfbD"><b>Incorrect.</b> It identifies a real defect — <code class="inl">tiktoken</code> is OpenAI's and undercounts Claude tokens — then prescribes exactly the wrong remedy. Guidance is to <em>re-measure</em>, not apply a blanket multiplier, and keeping the existing budget leaves the truncation in place.</div>
+
+ <h3>Cold-recall check</h3>
+ <ul class="ck">
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>four</b> things that count toward the context window, including the one people forget.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Write the image-token formula and say <em>which</em> dimensions it runs on.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Distinguish <code class="inl">model_context_window_exceeded</code> from <code class="inl">max_tokens</code>, and give the fix for each.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Say what caching does and does not change about the window.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> State why the API uses SSE rather than websockets.</li>
+ </ul>
+ <div class="callout good"><b>Where this connects:</b> the SSE event sequence itself &rarr; the <b>API Mechanics</b> walkthrough · error families and retries &rarr; <b>SWE Foundations</b> · curating the window &rarr; <b>D6</b> context engineering · pinning the model version &rarr; <b>D2</b> deployment and versioning · criteria-based grading &rarr; <b>D4</b>.</div>`;
+}
+function q(k,ok){
+ ["A","B","C","D"].forEach(x=>$("qfb"+x).classList.remove("open"));
+ $("qfb"+k).classList.add("open");
+ document.querySelectorAll(".choice").forEach(b=>b.classList.remove("right","wrong"));
+ event.currentTarget.classList.add(ok?"right":"wrong");
+}
+
+/* ---------- driver ---------- */
+function render(){
+ const s=STEPS[cur];
+ $("view").innerHTML=s.r();
+ $("view").scrollIntoView({behavior:"smooth",block:"nearest"});
+ $("stepNo").textContent=cur+1;
+ $("stepName").textContent=s.name;
+ $("prev").disabled=cur===0;
+ $("next").disabled=cur===STEPS.length-1;
+ $("next").textContent = cur===STEPS.length-2 ? "Recall →" : "Next →";
+ renderRail();
+}
+function renderRail(){
+ const r=$("rail"); r.innerHTML="";
+ STEPS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.textContent=s.name;
+  if(i===cur) b.className="active"; else if(seen.has(i)) b.className="done";
+  b.onclick=()=>goto(i);
+  r.appendChild(b);
+ });
+}
+function goto(i){ cur=Math.max(0,Math.min(STEPS.length-1,i)); seen.add(cur); render(); }
+function go(d){ goto(cur+d); }
+$("prev").onclick=()=>go(-1);
+$("next").onclick=()=>go(1);
+document.addEventListener("keydown",e=>{
+ if(e.target.tagName==="INPUT") return;
+ if(e.key==="ArrowRight") go(1); else if(e.key==="ArrowLeft") go(-1);
+});
+$("stepTot").textContent=STEPS.length;
+$("foot").innerHTML='Grounded in <a href="https://docs.claude.com/en/docs/build-with-claude/context-windows">context windows</a>, <a href="https://docs.claude.com/en/docs/build-with-claude/token-counting">token counting</a>, <a href="https://docs.claude.com/en/docs/build-with-claude/vision">vision</a> and <a href="https://docs.claude.com/en/api/client-sdks">client SDKs</a> docs · window sizes, tokenizer ratios and sampling-parameter support verified 2026-07-27; image tier limits 2026-07-18 — all version-sensitive, re-verify at build time. Token segmentation shown is illustrative. Practice item is original, written to blueprint objectives — not live exam content.';
+render();
+</script>
+</body>
+</html>

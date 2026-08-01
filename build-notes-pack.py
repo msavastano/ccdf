@@ -40,6 +40,107 @@ DOMAIN_META = {
 
 FOLDER_BY_CODE = {code: folder for folder, (code, _, _) in DOMAIN_META.items()}
 
+# Standalone visual walkthroughs that pair with a notes section. Each entry is
+# keyed by domain code plus a substring of the level-2 heading it belongs to, so
+# a heading can be reworded (or its weight updated) without breaking the link.
+# The first matching heading in that domain wins; an entry whose heading or file
+# is missing is a build error, so a renamed section can't silently drop its link.
+WALKTHROUGHS = [
+    {
+        "domain": "D1",
+        "match": "Agent Construction with Claude",
+        "file": "agent-construction-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — workflow-vs-agent sorter, the three wiring paths, "
+                 "a steppable agent loop, exit conditions, HITL placement, compliance routing.",
+    },
+    {
+        "domain": "D2",
+        "match": "Claude API Mechanics",
+        "file": "api-mechanics-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "10 steps — steppable SSE event tape, the partial-block rule, "
+                 "stop_reason fork, error triage, cache and batch economics.",
+    },
+    {
+        "domain": "D2",
+        "match": "Claude Application Design",
+        "file": "app-design-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "7 steps — trust-channel classifier, prompt-injection construction, "
+                 "schema mechanism drill, schema limits, context budget.",
+    },
+    {
+        "domain": "D2",
+        "match": "Software Engineering Foundations",
+        "file": "swe-foundations-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — status-code triage, cache key ordering, "
+                 "concurrency vs. streaming vs. batching drill, AI-review triage.",
+    },
+    # One walkthrough, two skills: it links from both D5 headings. Entries
+    # sharing a file are grouped into a single cover card.
+    {
+        "domain": "D5",
+        "match": "LLM Fundamentals",
+        "file": "fundamentals-tokens-context-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — token segmentation, a context-window builder, the 28×28 image-patch "
+                 "calculator, the three overflow failures, context rot, sampling, the SDK wrapper.",
+    },
+    {
+        "domain": "D5",
+        "match": "Technical Fundamentals",
+        "file": "fundamentals-tokens-context-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — token segmentation, a context-window builder, the 28×28 image-patch "
+                 "calculator, the three overflow failures, context rot, sampling, the SDK wrapper.",
+    },
+    {
+        "domain": "D5",
+        "match": "Model Selection and Tradeoffs",
+        "file": "cost-management-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — per-step spend, the reliability floor, an interactive cache/batch "
+                 "cost calculator with break-even, tier selection, routing, TTL choice.",
+    },
+    {
+        "domain": "D5",
+        "match": "Cost and Token Management",
+        "file": "cost-management-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — per-step spend, the reliability floor, an interactive cache/batch "
+                 "cost calculator with break-even, tier selection, routing, TTL choice.",
+    },
+    {
+        "domain": "D6",
+        "match": "Context Engineering",
+        "file": "context-engineering-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — a dev-vs-prod session filling the window live, the four budget "
+                 "strategies, a summariser that loses state, the three RAG break points.",
+    },
+    {
+        "domain": "D8",
+        "match": "Agentic Customization",
+        "file": "tool-mechanism-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — the five mechanism lanes by who writes the schema and who executes, "
+                 "a sorting drill, why a Skill isn't a tool, description routing, context cost.",
+    },
+    {
+        "domain": "D8",
+        "match": "Tool Implementation",
+        "file": "tool-mechanism-walkthrough.html",
+        "label": "Visual walkthrough",
+        "blurb": "8 steps — the five mechanism lanes by who writes the schema and who executes, "
+                 "a sorting drill, why a Skill isn't a tool, description routing, context cost.",
+    },
+]
+
+# Indices of WALKTHROUGHS already bound to a heading during this build.
+_MATCHED = set()
+
 # ---------------------------------------------------------------------------
 # Inline rendering
 # ---------------------------------------------------------------------------
@@ -148,7 +249,7 @@ class Ctx:
         self.toc = []
         self.seen_slugs = {}
 
-    def anchor(self, raw_title, level):
+    def anchor(self, raw_title, level, walkthrough=None):
         base = slugify(raw_title) or "section"
         n = self.seen_slugs.get(base, 0)
         self.seen_slugs[base] = n + 1
@@ -156,8 +257,37 @@ class Ctx:
             base = f"{base}-{n}"
         anchor = f"{self.code.lower()}-{base}"
         if level in (2, 3):
-            self.toc.append({"level": level, "title": plain_text(raw_title), "id": anchor})
+            self.toc.append({
+                "level": level,
+                "title": plain_text(raw_title),
+                "id": anchor,
+                "walkthrough": bool(walkthrough),
+            })
         return anchor
+
+    def walkthrough(self, raw_title, level):
+        """The visual walkthrough registered for this heading, if any."""
+        if level != 2:
+            return None
+        text = plain_text(raw_title).lower()
+        for n, w in enumerate(WALKTHROUGHS):
+            if n in _MATCHED or w["domain"] != self.code:
+                continue
+            if w["match"].lower() in text:
+                _MATCHED.add(n)
+                return w
+        return None
+
+
+def walkthrough_pill(w):
+    """The badge that rides on a section heading when a visual exists for it."""
+    if not w:
+        return ""
+    return (
+        f'<a class="vw" href="{html.escape(w["file"], quote=True)}" target="_blank" rel="noopener"'
+        f' title="{html.escape(w["blurb"], quote=True)}">'
+        f'<span class="vw-ico">&#9654;</span>{html.escape(w["label"])}</a>'
+    )
 
 
 def split_row(line):
@@ -278,7 +408,8 @@ def render_blocks(lines, ctx):
         if head:
             level = len(head.group(1))
             title = head.group(2)
-            anchor = ctx.anchor(title, level)
+            walk = ctx.walkthrough(title, level)
+            anchor = ctx.anchor(title, level, walk)
             body = inline(title, ctx.code, ctx.errors, ctx.filename)
             if level == 1:
                 out.append(f'<h2 class="doc-title" id="{anchor}">{body}</h2>')
@@ -286,7 +417,7 @@ def render_blocks(lines, ctx):
                 out.append(
                     f'<h{level} id="{anchor}">'
                     f'<a class="anchor" href="#{anchor}" aria-label="Link to this section">#</a>'
-                    f"{body}</h{level}>"
+                    f"{body}{walkthrough_pill(walk)}</h{level}>"
                 )
             i += 1
             continue
@@ -470,9 +601,30 @@ h3{font-size:20px; letter-spacing:-.01em; margin:34px 0 10px; padding-top:4px}
 h4{font-size:16.5px; margin:26px 0 8px}
 h5{font-size:14.5px; margin:20px 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
 h6{font-size:14px; margin:18px 0 6px}
-h3,h4,h5,h6{scroll-margin-top:calc(var(--hdr,62px) + 14px); position:relative}
+/* h2 belongs here too: `##` renders as <h2>, so without it a level-2 sidebar
+   entry scrolls the heading under the sticky header and its .anchor positions
+   against the section instead of the heading. */
+h2,h3,h4,h5,h6{scroll-margin-top:calc(var(--hdr,62px) + 14px); position:relative}
 .anchor{position:absolute; left:-18px; color:var(--line); font-weight:400; opacity:0; padding-right:6px}
-h3:hover .anchor,h4:hover .anchor{opacity:1; text-decoration:none}
+h2:hover .anchor,h3:hover .anchor,h4:hover .anchor{opacity:1; text-decoration:none}
+
+/* ---------- visual-walkthrough links ---------- */
+.vw{display:inline-flex; align-items:center; gap:5px; margin-left:10px; vertical-align:middle;
+  font-size:11.5px; font-weight:650; letter-spacing:.01em; white-space:nowrap;
+  color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent);
+  border-radius:999px; padding:2px 10px}
+.vw:hover{background:var(--accent); color:#fff; text-decoration:none}
+.vw-ico{font-size:8.5px; line-height:1}
+.vw-dot{color:var(--accent); font-size:8px; margin-left:6px; vertical-align:middle}
+.vwh{font-size:15px; margin:26px 0 4px}
+.vwp{font-size:13px; color:var(--muted); margin:0 0 12px}
+.vws{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px}
+.vwcard{display:block; border:1px solid var(--line); border-radius:10px; padding:11px 13px;
+  background:var(--bg); color:var(--ink)}
+.vwcard:hover{border-color:var(--accent); text-decoration:none}
+.vwcard b{display:block; font-size:13.5px; margin-bottom:3px}
+.vwcard b .vw-ico{color:var(--accent); margin-right:5px}
+.vwcard span{display:block; font-size:12px; color:var(--muted); line-height:1.45}
 p{margin:0 0 13px}
 ul,ol{margin:0 0 14px; padding-left:22px}
 li{margin:4px 0}
@@ -521,7 +673,12 @@ mark{background:var(--mark); color:inherit; border-radius:2px; padding:0 1px}
 @media print{
   :root{--bg:#fff; --panel:#fff; --ink:#000; --muted:#444; --line:#ccc; --accent:#000;
         --accent-soft:#fff; --code-bg:#f4f4f4; --quote-bg:#f8f8f8; --shadow:none}
-  header.top,nav.side,.jump,.anchor,#progress,.keys{display:none !important}
+  header.top,nav.side,.jump,.anchor,#progress,.keys,.vw-dot{display:none !important}
+  /* keep the walkthrough pointers on paper, as plain text with their filename */
+  .vw{border:0; background:none; color:#000; padding:0; font-weight:600}
+  .vw::after{content:" (" attr(href) ")"; font-weight:400}
+  .vw-ico{display:none}
+  .vwcard{break-inside:avoid}
   .wrap{display:block}
   main{max-width:none; padding:0}
   section.domain{break-before:page; border-top:0}
@@ -770,6 +927,31 @@ JS = """
 """
 
 
+def build_walkthrough_strip():
+    """Cover-page index of the visual walkthroughs, so they're discoverable
+    without scrolling to the sections they hang off."""
+    if not WALKTHROUGHS:
+        return ""
+    # A walkthrough may cover more than one skill and so appear under several
+    # headings; group those into one card rather than repeating it.
+    grouped = {}
+    for w in WALKTHROUGHS:
+        entry = grouped.setdefault(w["file"], {"titles": [], "blurb": w["blurb"]})
+        entry["titles"].append(f'{w["domain"]} · {w["match"]}')
+    cards = "".join(
+        f'<a class="vwcard" href="{html.escape(f, quote=True)}" target="_blank" rel="noopener">'
+        f'<b><span class="vw-ico">&#9654;</span>{html.escape(" + ".join(g["titles"]))}</b>'
+        f'<span>{html.escape(g["blurb"])}</span></a>'
+        for f, g in grouped.items()
+    )
+    return (
+        '<h3 class="vwh">Visual walkthroughs</h3>'
+        '<p class="vwp">Scenario-driven, steppable companions to the sections marked '
+        '<span class="vw-dot">&#9654;</span> in the sidebar. Separate files — each opens in a new tab.</p>'
+        f'<div class="vws">{cards}</div>'
+    )
+
+
 def build_cover(domains, generated):
     rows = []
     total_words = sum(d["words"] for d in domains)
@@ -803,6 +985,7 @@ def build_cover(domains, generated):
     <th></th><th>Domain</th><th style="text-align:right">Weight</th><th></th>
     <th style="text-align:right">Size</th><th style="text-align:right">Read</th>
   </tr></thead><tbody>{''.join(rows)}</tbody></table></div>
+  {build_walkthrough_strip()}
 </div>"""
 
 
@@ -812,8 +995,13 @@ def build_sidebar(domains):
         items = []
         for entry in d["toc"]:
             cls = "lvl2" if entry["level"] == 2 else "lvl3"
+            mark = (
+                '<span class="vw-dot" title="Has a visual walkthrough">&#9654;</span>'
+                if entry["walkthrough"] else ""
+            )
             items.append(
-                f'<li class="{cls}"><a href="#{entry["id"]}">{html.escape(entry["title"])}</a></li>'
+                f'<li class="{cls}"><a href="#{entry["id"]}">'
+                f'{html.escape(entry["title"])}{mark}</a></li>'
             )
         out.append(
             f'<div class="dom" data-code="{d["code"]}">'
@@ -843,6 +1031,7 @@ def build_body(domains):
 def main():
     errors = []
     domains = []
+    _MATCHED.clear()
     for folder, (code, name, weight) in DOMAIN_META.items():
         d = render_domain(folder, code, name, weight, errors)
         if d:
@@ -850,6 +1039,16 @@ def main():
 
     for d in domains:
         print(f"  {d['code']}: {d['words']:,} words, {len(d['toc'])} TOC entries")
+
+    for n, w in enumerate(WALKTHROUGHS):
+        if not (ROOT / w["file"]).exists():
+            errors.append(f"walkthrough file missing: {w['file']}")
+        if n not in _MATCHED:
+            errors.append(
+                f"walkthrough {w['file']} matched no {w['domain']} heading "
+                f"containing {w['match']!r} — was the section renamed?"
+            )
+    print(f"  walkthroughs linked: {len(_MATCHED)}/{len(WALKTHROUGHS)}")
 
     if errors:
         print(f"\n{len(errors)} problem(s) — notes-pack.html NOT written:", file=sys.stderr)

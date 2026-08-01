@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F · D5 Cost, Tiers, and the Levers That Move the Bill</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232736; --code:#0b0d13;
+    --text:#e8eaf0; --dim:#9aa0b4; --accent:#d97748; --green:#4fa877; --red:#c95b5b;
+    --purple:#c98bdb; --blue:#5b9bd9; --yellow:#d9b45b; --teal:#4fb3a8; --border:#2e3345;
+  }
+  *{box-sizing:border-box; margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:22px 16px 60px;}
+  a{color:var(--accent);}
+  header{text-align:center; margin-bottom:16px;}
+  h1{font-size:1.15rem; font-weight:600; letter-spacing:.03em;}
+  h1 span{color:var(--accent);}
+  .sub{color:var(--dim); font-size:.8rem; margin-top:4px;}
+
+  .rail{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:960px; margin:10px auto 4px;}
+  .rail button{background:var(--panel); color:var(--dim); border:1px solid var(--border); border-radius:999px;
+       padding:5px 12px; font-size:.72rem; cursor:pointer; transition:all .15s; white-space:nowrap;}
+  .rail button:hover{border-color:var(--accent); color:var(--text);}
+  .rail button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .rail button.done{color:var(--text); border-color:#3c4256;}
+  .rail button.done::before{content:"\2713 "; color:var(--green);}
+
+  main{width:100%; max-width:940px;}
+  .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
+  .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+         padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
+  .badge.obs{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  .badge.floor{background:rgba(201,91,91,.16); color:var(--red); border:1px solid rgba(201,91,91,.35);}
+  .badge.calc{background:rgba(217,119,72,.16); color:var(--accent); border:1px solid rgba(217,119,72,.35);}
+  .badge.tier{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
+  .badge.cost{background:rgba(79,168,119,.16); color:var(--green); border:1px solid rgba(79,168,119,.35);}
+  .badge.plain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
+  h2{font-size:1.35rem; font-weight:650; margin-bottom:4px; line-height:1.25;}
+  h3{font-size:.96rem; font-weight:650; margin:22px 0 8px; color:var(--text);}
+  h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; color:var(--dim); font-weight:600;}
+  .loc{color:var(--dim); font-size:.82rem; margin-bottom:14px;}
+  p{line-height:1.62; margin:9px 0; color:#d4d8e4; font-size:.92rem;}
+  p.lead{font-size:1rem; color:var(--text);}
+  strong{color:#fff;}
+  em{color:var(--accent); font-style:normal;}
+  code.inl{background:var(--code); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+        font-family:'Cascadia Code','Consolas',monospace; font-size:.82em; color:#cdd3e6;}
+  ul{margin:8px 0 8px 2px; padding-left:18px; line-height:1.6; color:#d4d8e4; font-size:.92rem;}
+  li{margin:5px 0;}
+
+  .code{background:var(--code); border:1px solid var(--border); border-radius:10px; overflow-x:auto;
+        font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:.8rem; line-height:1.62; margin:10px 0;}
+  .ln{display:flex; white-space:pre; min-width:max-content;}
+  .ln .gut{width:2.6em; text-align:right; padding:0 12px 0 10px; color:#454b62; user-select:none; flex:none;}
+  .ln .src{padding-right:16px; flex:1;}
+  .ln.add{background:rgba(79,168,119,.13);} .ln.add .gut{color:var(--green);}
+  .ln.ctx{background:rgba(217,119,72,.07);}
+  .t-kw{color:var(--purple);} .t-str{color:#8fbf87;} .t-com{color:#5c6478; font-style:italic;}
+  .t-num{color:#d99a5b;}
+  .tagline{font-size:.7rem; color:var(--red); margin-left:8px; font-weight:600;}
+  .tagline.add{color:var(--green);}
+
+  .revwrap{margin:12px 0;}
+  .revbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+      padding:9px 16px; font-size:.83rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px;}
+  .revbtn:hover{border-color:var(--accent);}
+  .revbtn .chev{color:var(--accent); transition:transform .2s;}
+  .reveal{display:none; margin-top:12px; padding:16px 18px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel2); animation:fade .25s ease;}
+  .reveal.open{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .reveal .oneliner{font-size:.96rem; color:#fff; font-weight:600; line-height:1.5;}
+
+  .callout{border-left:3px solid var(--accent); background:var(--panel2); border-radius:0 8px 8px 0;
+      padding:12px 16px; margin:14px 0; font-size:.88rem; line-height:1.6;}
+  .callout.warn{border-left-color:var(--red);}
+  .callout.good{border-left-color:var(--green);}
+  .callout.note{border-left-color:var(--blue);}
+  .callout b{color:#fff;}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:.83rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.5;}
+  th{background:var(--panel2); color:var(--text); font-weight:600;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; margin:14px 0;}
+  .card{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .card .n{font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+  .card h5{font-size:.9rem; margin:5px 0 4px;}
+  .card p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+
+  /* step-cost bars */
+  .sbrow{display:flex; align-items:center; gap:10px; margin:6px 0;}
+  .sblab{width:180px; flex:none; font-size:.79rem; color:var(--dim); text-align:right;}
+  .sbtrack{flex:1; height:22px; background:var(--code); border:1px solid var(--border); border-radius:6px; overflow:hidden;}
+  .sbfill{height:100%; display:flex; align-items:center; padding-left:8px; font-size:.7rem; font-weight:700; color:#0b0d13;}
+
+  /* calculator */
+  .calcwrap{display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;}
+  .cctl{flex:1; min-width:290px;}
+  .cout{flex:1; min-width:270px;}
+  .sl{margin:12px 0;}
+  .sl label{display:flex; justify-content:space-between; font-size:.79rem; color:var(--dim); margin-bottom:5px;}
+  .sl label b{color:var(--accent); font-family:'Cascadia Code',monospace;}
+  .sl input[type=range]{width:100%; accent-color:var(--accent); background:transparent;}
+  .seg{display:flex; gap:6px; margin:12px 0;}
+  .seg button{flex:1; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:8px;
+    padding:8px 8px; font-size:.75rem; cursor:pointer;}
+  .seg button:hover{border-color:var(--accent);}
+  .seg button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .seg.g button.on{background:var(--green); border-color:var(--green);}
+  .readout{border:1px solid var(--border); border-radius:11px; background:var(--code); padding:14px 16px;}
+  .bigno{font-family:'Cascadia Code',monospace; font-size:1.5rem; font-weight:700; color:var(--accent); line-height:1.2;}
+  .bigsub{font-size:.74rem; color:var(--dim); margin-top:3px; line-height:1.45;}
+  .kv{display:flex; justify-content:space-between; gap:10px; font-family:'Cascadia Code',monospace;
+      font-size:.76rem; padding:5px 0; border-bottom:1px dashed #262b3b;}
+  .kv:last-child{border:none;} .kv span:first-child{color:var(--dim);}
+  .verdict{margin-top:12px; padding:11px 13px; border-radius:9px; font-size:.81rem; line-height:1.55;}
+  .verdict.win{background:rgba(79,168,119,.12); border:1px solid rgba(79,168,119,.4); color:#a7dcbf;}
+  .verdict.loss{background:rgba(201,91,91,.12); border:1px solid rgba(201,91,91,.42); color:#f0b9b9;}
+  .verdict.flat{background:rgba(217,180,91,.1); border:1px solid rgba(217,180,91,.4); color:#e2cd94;}
+  .beline{font-size:.76rem; color:var(--dim); margin-top:9px; line-height:1.5;}
+  .beline b{color:var(--yellow);}
+
+  /* floor */
+  .fl{border:1px solid var(--border); border-radius:11px; padding:13px 15px; margin:9px 0; background:var(--panel2);}
+  .fl b{font-size:.87rem; display:block; margin-bottom:5px;}
+  .fl .v{font-size:.8rem; line-height:1.55; color:var(--dim);}
+  .fl.ok{border-color:rgba(79,168,119,.4); background:rgba(79,168,119,.08);}
+  .fl.no{border-color:rgba(201,91,91,.42); background:rgba(201,91,91,.08);}
+
+  /* drill */
+  .drill{border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin:10px 0; background:var(--panel2);}
+  .drill .stem{font-size:.88rem; line-height:1.55; margin-bottom:10px;}
+  .drill .opts{display:flex; gap:7px; flex-wrap:wrap;}
+  .drill .opts button{background:var(--code); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:7px 12px; font-size:.75rem; cursor:pointer; transition:all .15s;}
+  .drill .opts button:hover{border-color:var(--accent);}
+  .drill .opts button.right{border-color:var(--green); background:rgba(79,168,119,.15); color:#a7dcbf;}
+  .drill .opts button.wrong{border-color:var(--red); background:rgba(201,91,91,.12); color:#f0b9b9;}
+  .drill .why{display:none; margin-top:10px; font-size:.82rem; line-height:1.55; color:#d4d8e4;
+      border-left:3px solid var(--purple); padding-left:12px;}
+  .drill .why.open{display:block;} .drill .why b{color:#fff;}
+
+  /* tiers */
+  .tiers{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; margin:14px 0;}
+  .ti{border:1px solid var(--border); border-radius:11px; padding:12px 14px; background:var(--panel2);}
+  .ti b{font-size:.9rem; display:block; margin-bottom:4px;}
+  .ti p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+  .ti.def{border-color:var(--green); background:rgba(79,168,119,.09);}
+  .ti .tag{display:inline-block; font-size:.64rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    padding:2px 8px; border-radius:999px; margin-bottom:6px; background:rgba(79,168,119,.2); color:#8fd6ac;
+    border:1px solid rgba(79,168,119,.45);}
+
+  .choice{display:block; width:100%; text-align:left; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); border-radius:10px; padding:12px 15px; margin:8px 0; font-size:.87rem;
+      cursor:pointer; line-height:1.55; transition:all .15s;}
+  .choice:hover{border-color:var(--accent);}
+  .choice.right{border-color:var(--green); background:rgba(79,168,119,.12);}
+  .choice.wrong{border-color:var(--red); background:rgba(201,91,91,.1);}
+  .choice .tag{font-weight:700; margin-right:8px; color:var(--dim);}
+  .fb{display:none; margin:6px 0 14px; padding:12px 15px; border-radius:10px; font-size:.85rem; line-height:1.6;}
+  .fb.open{display:block;}
+  .fb.right{background:rgba(79,168,119,.1); border-left:3px solid var(--green);}
+  .fb.wrong{background:rgba(201,91,91,.09); border-left:3px solid var(--red);}
+  .fb b{color:#fff;}
+
+  .nav{display:flex; justify-content:space-between; align-items:center; max-width:940px; width:100%; margin-top:16px; gap:10px;}
+  .nav button{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:11px 22px; font-size:.88rem; cursor:pointer; transition:all .15s; font-weight:500;}
+  .nav button:hover:not(:disabled){border-color:var(--accent);}
+  .nav button:disabled{opacity:.3; cursor:not-allowed;}
+  .nav button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .progress{color:var(--dim); font-size:.78rem; text-align:center;} .progress b{color:var(--text);}
+  .keys{margin-top:22px; color:var(--dim); font-size:.7rem; text-align:center; line-height:1.9;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.68rem;}
+  .foot{margin-top:8px; color:#5c6478; font-size:.72rem; text-align:center; line-height:1.7; max-width:700px;}
+  .foot a{color:var(--dim);}
+  .ck{list-style:none; padding-left:0;}
+  .ck li{display:flex; align-items:flex-start; gap:9px; margin:8px 0; cursor:pointer;}
+  .ck input{margin-top:3px; accent-color:var(--green); flex:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Cost, Tiers, and the Levers — <span>Visual Walkthrough</span></h1>
+  <div class="sub">CCDV-F · Domain 5 · Model Selection and Tradeoffs (2.7%) + Cost and Token Management (2.8%)</div>
+</header>
+
+<div class="rail" id="rail"></div>
+<main><div class="view" id="view"></div></main>
+
+<div class="nav">
+  <button id="prev">&#8592; Back</button>
+  <div class="progress">Step <b id="stepNo">1</b> / <b id="stepTot">8</b><br><span id="stepName"></span></div>
+  <button id="next" class="primary">Next &#8594;</button>
+</div>
+
+<div class="keys"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate &nbsp;·&nbsp; drag the sliders on step 3 until the verdict flips</div>
+<div class="foot" id="foot"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+const KW=/^\b(?:def|return|if|elif|else|for|while|in|with|as|not|and|or|is|True|False|None|raise|import|from|class|lambda|try|except)\b/;
+function pyHi(line){
+  let i=0,out="";
+  while(i<line.length){
+    const rest=line.slice(i); let m;
+    if(rest[0]==="#"){ out+='<span class="t-com">'+esc(rest)+'</span>'; break; }
+    if((m=rest.match(/^"(?:[^"\\]|\\.)*"|^'(?:[^'\\]|\\.)*'/))){ out+='<span class="t-str">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(KW))){ out+='<span class="t-kw">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(/^\b\d+(?:\.\d+)?\b/))){ out+='<span class="t-num">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    out+=esc(line[i]); i++;
+  }
+  return out;
+}
+function code(lines){
+  let h='<div class="code">';
+  for(const l of lines){
+    const cls=l.mark?" "+l.mark:"";
+    const tag=l.tag?'<span class="tagline'+(l.mark==="add"?" add":"")+'">'+l.tag+'</span>':"";
+    h+='<div class="ln'+cls+'"><span class="gut">'+(l.n||"")+'</span><span class="src">'+pyHi(l.t)+tag+'</span></div>';
+  }
+  return h+'</div>';
+}
+function P(arr){ return arr.map((t,i)=>({n:i+1,t:t.s!==undefined?t.s:t,mark:t.m,tag:t.g})); }
+function reveal(id,btn){
+  const el=$(id); el.classList.toggle("open");
+  const c=btn.querySelector(".chev"); if(c) c.style.transform=el.classList.contains("open")?"rotate(90deg)":"none";
+}
+const fmt=n=>Math.round(n).toLocaleString("en-US");
+const fmtM=n=> n>=1e9 ? (n/1e9).toFixed(2)+"B" : n>=1e6 ? (n/1e6).toFixed(1)+"M" : fmt(n);
+
+let cur=0; const seen=new Set([0]);
+const drState={};
+
+/* calculator state */
+const C={ reqs:40000, prefix:6000, varin:900, out:700, cacheMode:1, hit:0.85, batch:false, outMult:5 };
+const WRITE_MULT=[0,1.25,2];   // index by cacheMode: 0=off,1=5min,2=1hour
+
+const STEPS=[
+ {name:"1 · Where it goes",  r:sObserve},
+ {name:"2 · The floor",      r:sFloor},
+ {name:"3 · The calculator", r:sCalc},
+ {name:"4 · The tier",       r:sTier},
+ {name:"5 · Routing",        r:sRouting},
+ {name:"6 · Cache rules",    r:sCache},
+ {name:"7 · Batch",          r:sBatch},
+ {name:"8 · Recall",         r:sRecall}
+];
+
+/* ---------- 1 ---------- */
+function sObserve(){
+ const steps=[["Classify the ticket",3,"#5b9bd9"],["Retrieve policy",5,"#4fb3a8"],
+   ["Draft the claim decision",88,"#c95b5b"],["Format the reply",2,"#c98bdb"],["Log the outcome",2,"#4fa877"]];
+ const bars=steps.map(s=>`<div class="sbrow"><div class="sblab">${s[0]}</div>
+   <div class="sbtrack"><div class="sbfill" style="width:${s[1]}%; background:${s[2]}">${s[1]}%</div></div></div>`).join("");
+ return `<span class="badge obs">Instrument first</span>
+ <h2>Finance wants the assistant's bill halved</h2>
+ <div class="loc">D5 · ShipRight's damage-claim pipeline &nbsp;·&nbsp; five steps per claim, one monthly invoice, no idea which step costs what</div>
+ <p class="lead">The instinct is to start optimising. The discipline is to <b>identify the lever before tuning it</b> — that's what separates optimisation from guesswork.</p>
+
+ <h3>Instrument three metrics on every call</h3>
+ <table>
+  <tr><th>Metric</th><th>Captured from</th></tr>
+  <tr><td><b>Token usage</b> — input and output <em>separately</em></td><td><code class="inl">response.usage</code> — the API already returns it</td></tr>
+  <tr><td><b>Latency</b></td><td>Wall-clock around the call</td></tr>
+  <tr><td><b>Error rate</b></td><td>Per call <em>and</em> per dependency</td></tr>
+ </table>
+ ${code(P([
+ {s:'import time'},
+ {s:'def instrumented_call(make_call, step_name):'},
+ {s:'    start = time.perf_counter()'},
+ {s:'    resp = make_call()                       # raises on any API error'},
+ {s:'    latency_ms = (time.perf_counter() - start) * 1000'},
+ {s:'    log_metric(step=step_name,'},
+ {s:'               input_tokens=resp.usage.input_tokens,'},
+ {s:'               output_tokens=resp.usage.output_tokens,'},
+ {s:'               latency_ms=latency_ms)', m:"add", g:"per step, per request type"},
+ {s:'    return resp'},
+ ]))}
+
+ <h3>What one week of that logging showed</h3>
+ ${bars}
+ <div class="callout"><b>A flow that looks uniformly expensive usually has one step doing ~90% of the spend.</b> That step is where every optimisation dollar goes — and the other four are a distraction no matter how much they could theoretically be trimmed.</div>
+ <div class="callout warn"><b>Instrument from the start, not after the first surprise bill.</b> Without per-call logging, a cost spike admits only one question: <em>why is the bill high?</em> With it: <em>which step, on which request type, is responsible</em> — and the answer is a row you can sort, not a guess. In code it's a thin wrapper; cheap on day one, expensive to retrofit under incident pressure.</div>
+ <div class="callout note"><b>The same holds for latency, and the slow step is rarely the one you expected.</b> Note also what instrumentation is <em>not</em>: it's <b>diagnostic, not corrective</b>. It tells you which lever — the next six steps are what to pull.</div>`;
+}
+
+/* ---------- 2 ---------- */
+function sFloor(){
+ return `<span class="badge floor">Order of operations</span>
+ <h2>Set the reliability floor before you touch cost</h2>
+ <div class="loc">Cost is half the budget. Reliability is the other half, and it is the half that doesn't shout.</div>
+ <div class="callout good"><b>A concrete floor:</b> <em>a user-facing claim decision must complete within 4 seconds, and may retry a failed dependency up to 3 times.</em> Every cost change now has to clear that bar before it ships.</div>
+
+ <div class="fl ok"><b>&#10003; Switch the drafting step to a smaller, cheaper model</b>
+  <div class="v">Acceptable <em>if</em> it still fits the 4-second ceiling and doesn't raise the error rate enough to burn the retry budget. Both are measurable, so this is a decision, not a hope.</div></div>
+ <div class="fl no"><b>&#10007; Cut retries from 3 to 2 on the slow policy-lookup dependency</b>
+  <div class="v">Not acceptable if it pushes the failure rate past the floor. That isn't a cost saving — it's trading lower spend for more failed requests, paid by the customer.</div></div>
+
+ <div class="callout warn"><b>Order matters because the two pressures are not equally loud.</b> A high bill shows on a dashboard <em>daily</em> and generates constant pressure. A reliability problem shows as occasional failures, easy to dismiss as noise — until they accumulate into an incident. <b>Optimise cost first and the louder pressure wins; you find the floor only after crossing it.</b> Set the floor first and reliability becomes the fixed constraint, with cost optimised underneath it.</div>
+
+ <div class="callout note"><b>What makes a floor enforceable:</b> the eval set. A <b>pinned baseline score</b> states the minimum acceptable reliability in a <em>checkable</em> form, so any cost-saving change that drops below baseline <b>fails the gate before it ships</b>. Without that, "we cut costs and nothing broke" is an assertion, not a measurement.</div>
+ <div class="callout warn"><b>The cheapest configuration is rarely the most reliable.</b> Cutting beneath the floor replaces a <em>visible expense</em> with <em>silent failures</em> — usually the worse trade, because a slightly higher bill is far easier to defend than a system that doesn't work.</div>`;
+}
+
+/* ---------- 3 ---------- */
+function sCalc(){
+ setTimeout(drawCalc,20);
+ return `<span class="badge calc">The centrepiece</span>
+ <h2>The two levers that work <em>inside</em> one model</h2>
+ <div class="loc">Caching and batching. Drag until the verdict flips — the break-even is the point of the whole exercise.</div>
+ <div class="callout note"><b>Read in <em>billed input-token equivalents</em> (BTE), not dollars.</b> One ordinary input token = 1 BTE. That's deliberate: the <b>multipliers</b> are what you reason with and they're stable; the rate card is what you look up. Absolute prices are version-sensitive — check them for your model at build time.</div>
+ <div class="calcwrap">
+  <div class="cctl">
+   <div class="sl"><label>Requests per day <b id="lReqs"></b></label>
+     <input type="range" id="sReqs" min="1000" max="200000" step="1000" oninput="C.reqs=+this.value;drawCalc()"></div>
+   <div class="sl"><label>Stable prefix — system + tools <b id="lPrefix"></b></label>
+     <input type="range" id="sPrefix" min="0" max="20000" step="250" oninput="C.prefix=+this.value;drawCalc()"></div>
+   <div class="sl"><label>Variable input per request <b id="lVarin"></b></label>
+     <input type="range" id="sVarin" min="100" max="6000" step="100" oninput="C.varin=+this.value;drawCalc()"></div>
+   <div class="sl"><label>Output per request <b id="lOut"></b></label>
+     <input type="range" id="sOut" min="100" max="4000" step="100" oninput="C.out=+this.value;drawCalc()"></div>
+
+   <h4>Caching</h4>
+   <div class="seg" id="segCache"></div>
+   <div class="sl"><label>Cache hit rate <b id="lHit"></b></label>
+     <input type="range" id="sHit" min="0" max="100" step="1" oninput="C.hit=+this.value/100;drawCalc()"></div>
+
+   <h4>Delivery</h4>
+   <div class="seg g" id="segBatch"></div>
+
+   <div class="sl" style="margin-top:16px"><label>Output : input price ratio <b id="lOM"></b></label>
+     <input type="range" id="sOM" min="2" max="10" step="1" oninput="C.outMult=+this.value;drawCalc()">
+     <div style="font-size:.72rem; color:#5b6178; line-height:1.45">Output is priced several times higher than input. Look up the real ratio for your model — it's not a constant.</div></div>
+  </div>
+
+  <div class="cout">
+   <div class="readout">
+    <div class="bigno" id="rTotal"></div>
+    <div class="bigsub" id="rSub"></div>
+    <div style="margin-top:12px">
+     <div class="kv"><span>prefix — cache writes</span><span id="rW"></span></div>
+     <div class="kv"><span>prefix — cache reads</span><span id="rR"></span></div>
+     <div class="kv"><span>variable input</span><span id="rV"></span></div>
+     <div class="kv"><span>output</span><span id="rO"></span></div>
+     <div class="kv"><span>batch discount</span><span id="rB"></span></div>
+    </div>
+    <div class="verdict" id="rVerdict"></div>
+    <div class="beline" id="rBE"></div>
+   </div>
+  </div>
+ </div>
+
+ <h3>The multipliers the arithmetic runs on</h3>
+ <table>
+  <tr><th>Token class</th><th>Priced at (× base input)</th></tr>
+  <tr><td>Ordinary input</td><td><b>1×</b></td></tr>
+  <tr><td>Cache <b>write</b>, 5-min TTL</td><td><b>1.25×</b></td></tr>
+  <tr><td>Cache <b>write</b>, 1-hour TTL</td><td><b>2×</b></td></tr>
+  <tr><td>Cache <b>read</b></td><td><b>0.1×</b></td></tr>
+  <tr><td>Batch (input <em>and</em> output)</td><td><b>0.5×</b>, stacking with the above</td></tr>
+ </table>
+ <p style="color:var(--dim); font-size:.79rem">Multipliers verified 2026-07-19; batch discount previously verified 2026-07-12. Version-pinned — re-check at build time.</p>`;
+}
+function drawCalc(){
+ if(!$("sReqs")) return;
+ $("sReqs").value=C.reqs; $("sPrefix").value=C.prefix; $("sVarin").value=C.varin;
+ $("sOut").value=C.out; $("sHit").value=Math.round(C.hit*100); $("sOM").value=C.outMult;
+ $("lReqs").textContent=fmt(C.reqs)+" /day";
+ $("lPrefix").textContent=fmt(C.prefix)+" tok";
+ $("lVarin").textContent=fmt(C.varin)+" tok";
+ $("lOut").textContent=fmt(C.out)+" tok";
+ $("lHit").textContent=Math.round(C.hit*100)+"%";
+ $("lOM").textContent=C.outMult+"×";
+
+ const modes=["Off","5-min TTL","1-hour TTL"];
+ $("segCache").innerHTML=modes.map((m,i)=>`<button class="${C.cacheMode===i?"on":""}" onclick="C.cacheMode=${i};drawCalc()">${m}</button>`).join("");
+ $("segBatch").innerHTML=`<button class="${C.batch?"":"on"}" onclick="C.batch=false;drawCalc()">Realtime</button>
+   <button class="${C.batch?"on":""}" onclick="C.batch=true;drawCalc()">Batch (0.5×)</button>`;
+
+ const wm=WRITE_MULT[C.cacheMode];
+ const hit = C.cacheMode===0 ? 0 : C.hit;
+ const writes=C.reqs*(1-hit), reads=C.reqs*hit;
+ const prefixCost = C.cacheMode===0
+   ? C.reqs*C.prefix*1
+   : writes*C.prefix*wm + reads*C.prefix*0.1;
+ const varCost=C.reqs*C.varin*1;
+ const outCost=C.reqs*C.out*C.outMult;
+ let total=prefixCost+varCost+outCost;
+ const preBatch=total;
+ if(C.batch) total*=0.5;
+
+ // baseline: no caching, no batch
+ const base=C.reqs*C.prefix + varCost + outCost;
+ const pct=(1-total/base)*100;
+
+ $("rTotal").textContent=fmtM(total)+" BTE/day";
+ $("rSub").innerHTML = `baseline without caching or batching: <b style="color:var(--dim)">${fmtM(base)}</b> &nbsp;·&nbsp; ` +
+   (pct>=0 ? `<span style="color:#8fd6ac">${pct.toFixed(1)}% cheaper</span>` : `<span style="color:#f0a5a5">${(-pct).toFixed(1)}% MORE expensive</span>`);
+ $("rW").textContent = C.cacheMode===0 ? "—" : fmtM(writes*C.prefix*wm)+`  (${fmt(writes)} × ${wm}×)`;
+ $("rR").textContent = C.cacheMode===0 ? "—" : fmtM(reads*C.prefix*0.1)+`  (${fmt(reads)} × 0.1×)`;
+ $("rV").textContent = fmtM(varCost);
+ $("rO").textContent = fmtM(outCost)+`  (${C.outMult}×)`;
+ $("rB").textContent = C.batch ? "−"+fmtM(preBatch*0.5) : "not applied";
+
+ // cache-only verdict: compare prefix handling against sending it uncached
+ const uncachedPrefix=C.reqs*C.prefix;
+ const v=$("rVerdict");
+ if(C.cacheMode===0){
+   v.className="verdict flat";
+   v.innerHTML=`<b>Caching off.</b> The stable prefix is reprocessed at full price on every one of ${fmt(C.reqs)} requests.`;
+ } else if(prefixCost<uncachedPrefix){
+   v.className="verdict win";
+   v.innerHTML=`<b>&#10003; Caching pays.</b> The prefix costs ${fmtM(prefixCost)} instead of ${fmtM(uncachedPrefix)} — reads outnumber writes by enough to cover the write premium.`;
+ } else {
+   v.className="verdict loss";
+   v.innerHTML=`<b>&#10007; Caching is a net loss here.</b> The prefix costs ${fmtM(prefixCost)} versus ${fmtM(uncachedPrefix)} uncached. You're paying the ${wm}× write premium more often than you're collecting the 0.1× read.`;
+ }
+ const be=(wm-1)/(wm-0.1)*100;
+ $("rBE").innerHTML=`Break-even hit rate at <b>${modes[C.cacheMode===0?1:C.cacheMode]}</b>: <b>${be.toFixed(1)}%</b>. ` +
+   `Solve <code class="inl">${wm}(1−h) + 0.1h = 1</code> — below that, caching costs more than not caching.` +
+   (C.prefix===0 ? ` <span style="color:#f0a5a5">Prefix is 0 — nothing to cache.</span>` : "");
+}
+
+/* ---------- 4 ---------- */
+function sTier(){
+ return `<span class="badge tier">The baseline</span>
+ <h2>Neither lever can rescue the wrong tier</h2>
+ <div class="loc">The distinction the exam leans on, stated plainly.</div>
+ <div class="callout"><b>Cost management optimises spend <em>within</em> a model. Model selection sets the <em>baseline</em> that optimisation works from.</b> Caching and token trimming cannot rescue a workload running on the wrong tier — which is why the calculator you just used deliberately left the tier out of its arithmetic.</div>
+
+ <div class="tiers">
+  <div class="ti"><b>Haiku</b><p>Speed and cost efficiency on tasks that fit its capability envelope.</p></div>
+  <div class="ti def"><span class="tag">Start here</span><b>Sonnet</b><p>The balanced default for most production workloads.</p></div>
+  <div class="ti"><b>Opus</b><p>Demanding work <em>above</em> the Sonnet envelope.</p></div>
+  <div class="ti"><b>Fable</b><p>Most capable — complex reasoning, advanced coding, research synthesis, sophisticated agentic workflows.</p></div>
+ </div>
+ <p style="color:var(--dim); font-size:.79rem">Current identifiers verified 2026-07-18: Fable 5, Opus 4.8, Sonnet 5, Haiku 4.5. The lineup changes — re-verify at build time.</p>
+
+ <h3>The decision rule</h3>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--green)">Default</div><h5>Start at Sonnet</h5><p>Not as a compromise — as the position you move <em>from</em>, in either direction, on evidence.</p></div>
+  <div class="card"><div class="n" style="color:var(--purple)">Up to Opus</div><h5>Only when an eval shows Sonnet missing the bar</h5><p>On the hardest cases your traffic <em>actually contains</em>, and where the cost of a wrong answer is high.</p></div>
+  <div class="card"><div class="n" style="color:var(--blue)">Down to Haiku</div><h5>Only when an eval shows the regression is acceptable</h5><p>For your task — <b>not merely to save money</b>. The eval is the instrument in this direction too.</p></div>
+ </div>
+ <div class="callout warn"><b>Every model move is a measured decision backed by an eval, in both directions.</b> "Switch to Haiku to cut costs" with no eval is wrong; so is "jump to Opus to be safe" without evidence Sonnet fell short. 🚨 Reaching for the most capable model by default is <b>the most common and most expensive model-selection mistake in production</b> — and a likely "what went wrong here" stem.</div>
+
+ <h3>Two refinements that break the naive intuition</h3>
+ <table>
+  <tr><th>Refinement</th><th>Why it matters</th></tr>
+  <tr><td><b>"Up a tier is slower and dearer" — <em>usually</em></b></td><td>A higher tier can finish <b>faster and cheaper</b> if it reaches a conclusion in <em>fewer tokens</em>. A cheap model that flails, retries, or over-explains costs more end to end. <b>Compare cost per completed task, not per token.</b></td></tr>
+  <tr><td><b>Price in the cost of a mistake</b></td><td>Saving a few dollars a day isn't sound if the quality drop writes bad data to a system of record, gives a customer a wrong answer, or forces an agent run to be redone. <b>Error cost is part of the calculation.</b></td></tr>
+ </table>
+ <div class="callout note"><b>Two separate axes, often conflated:</b> <em>which tier to run</em> is independent of <em>whether to turn on extended thinking</em>. A mechanical task on Sonnet with a tight prompt often beats a reflexive jump to Opus.</div>
+ <div class="callout good"><b>Why this is even practical:</b> the same prompt runs on any tier, so model choice is a <b>per-workload lever, not an architecture commitment</b>. Switching is cheap — which is exactly why there's no excuse for guessing.</div>`;
+}
+
+/* ---------- 5 ---------- */
+const RT=[
+ {stem:"Traffic is a mix: 80% simple status questions, 20% multi-document claim adjudications that Sonnet sometimes fails.", a:"route",
+  why:"<b>Route.</b> There is real variance in request difficulty and a cheap signal (task type) to read it from. You pay for the more capable model only on the 20% that need it."},
+ {stem:"Every request is the same shape: classify one ticket into one of six categories, at one quality bar.", a:"pin",
+  why:"<b>Pin a single model.</b> Homogeneous traffic means the classifier's cost and failure modes buy nothing. 🚨 Routing is <em>not</em> a default best practice — it's justified by variance in request difficulty."},
+ {stem:"Cost is over budget and the team proposes routing everything to Haiku, keeping Sonnet only as a fallback on errors.", a:"neither",
+  why:"<b>Neither — this isn't a routing decision.</b> It's a tier change dressed as one, with no eval behind it, and error-triggered fallback doesn't detect <em>quality</em> regressions. Run the eval on Haiku for the bulk of traffic first; if it holds the bar, that's a measured step down, not a router."}
+];
+function sRouting(){
+ setTimeout(drawRT,20);
+ return `<span class="badge tier">Per-request</span>
+ <h2>One default model, plus an override</h2>
+ <div class="loc">A system doesn't have to use one model for everything — but it usually should.</div>
+ <p class="lead">The common production pattern: route the bulk of traffic to a balanced default, and send specific request types up or down based on a <b>cheap signal read from the request</b> — task type, input length, or a difficulty classification.</p>
+ <div class="callout"><b>Same idea as routing for retrieval, applied to model choice:</b> you pay for the more capable model <em>only on the requests that need it</em>.</div>
+ <div id="rtDrills"></div>
+ <table>
+  <tr><td style="width:32%"><b>Handles well</b></td><td>Matching each workload to the <b>cheapest model that meets its quality bar</b>, measured on an eval rather than assumed.</td></tr>
+  <tr><td><b>Adds complexity</b></td><td>A <b>classification step</b> and a <b>second model path</b> to maintain — both of which can fail.</td></tr>
+  <tr><td><b>Skip it when</b></td><td><b>Uniform traffic at one quality bar</b> → pin a single model and skip the router.</td></tr>
+ </table>`;
+}
+function drawRT(){
+ const el=$("rtDrills"); if(!el) return;
+ el.innerHTML=RT.map((d,i)=>{
+  const s=drState["rt"+i];
+  const cls=x=>s?(x===d.a?"right":(s===x?"wrong":"")):"";
+  return `<div class="drill"><div class="stem">${i+1}. ${d.stem}</div>
+   <div class="opts">
+    <button class="${cls('route')}" onclick="rtPick(${i},'route')">Route: default + override</button>
+    <button class="${cls('pin')}" onclick="rtPick(${i},'pin')">Pin one model</button>
+    <button class="${cls('neither')}" onclick="rtPick(${i},'neither')">Neither — wrong question</button>
+   </div>
+   <div class="why ${s?"open":""}">${d.why}</div></div>`;
+ }).join("");
+}
+function rtPick(i,v){ drState["rt"+i]=v; drawRT(); }
+
+/* ---------- 6 ---------- */
+function sCache(){
+ return `<span class="badge cost">Conditions</span>
+ <h2>Three conditions, all required</h2>
+ <div class="loc">Miss any one and the breakpoint you set does nothing — or costs you.</div>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--blue)">1 · Identical content</div><h5>Exact prefix match</h5><p>Adding a single word like "please" before the breakpoint invalidates it and forces a full reprocess. Anything reflecting live state never produces a hit.</p></div>
+  <div class="card"><div class="n" style="color:var(--accent)">2 · Recurrence inside the TTL</div><h5>Reused often enough</h5><p>A prefix reused several times a minute pays off; one reused hourly does not under the 5-minute default.</p></div>
+  <div class="card"><div class="n" style="color:var(--yellow)">3 · Above the minimum length</div><h5>And it fails silently</h5><p>~1,024 tokens for most current models, higher on Haiku tiers. Below it, <b>nothing is cached and no error is raised</b>.</p></div>
+ </div>
+ <div class="callout warn"><b>Caching is opt-in per request — there is no global setting.</b> A breakpoint must be marked (<code class="inl">cache_control</code>, <code class="inl">type: "ephemeral"</code>, up to four) or nothing is cached at all.</div>
+
+ <h3>Choosing a TTL by workload shape</h3>
+ <table>
+  <tr><th>Workload</th><th>TTL</th><th>Why</th></tr>
+  <tr><td><b>Back-and-forth</b> — requests every few minutes</td><td><b>5-min default</b></td><td>Each read <b>resets the clock</b>, so an active conversation keeps the cache alive for free.</td></tr>
+  <tr><td><b>Long gaps</b> — e.g. an agent pausing between steps</td><td><b>1-hour</b> (<code class="inl">ttl: "1h"</code>, opt-in)</td><td>The 5-minute window would expire before the next request arrives.</td></tr>
+ </table>
+ <div class="callout warn">🚨 <b>The failure mode to recognise:</b> if the window expires before the next request, you pay the <b>write cost again with no read benefit</b> — strictly worse than not caching. <b>Match TTL to the actual gap between requests, not to how important the content feels.</b></div>
+
+ <h3>What to cache, and where the breakpoint goes</h3>
+ <ul>
+  <li><b>Cache the parts that rarely change:</b> a long system prompt, a large tool-definition set, a reference document you query repeatedly.</li>
+  <li><b>Processing order is fixed — tools → system → messages.</b> A breakpoint <em>after the tools</em> caches the definitions while keeping messages dynamic.</li>
+  <li><b>Never place a breakpoint after content carrying timestamps or per-request data.</b> One changed character before the cache point invalidates everything.</li>
+  <li><b>Automatic mode</b> takes a single flag at the top level and manages breakpoints as the conversation grows — the recommended starting point. <b>Explicit mode</b> caches up to and including a marked block. Either way, content <em>after</em> the last breakpoint is processed normally.</li>
+ </ul>
+ <div class="callout note"><b>The one consistency tradeoff.</b> Caching assumes the cached prefix is still <em>correct</em> later. If the prefix carries data that can change, the cache holds a possibly stale version for as long as it lives — a consistency window your use case must tolerate. A fixed system prompt and a stable tool schema have nothing to go stale, which is precisely why they're the safe, high-value targets.</div>`;
+}
+
+/* ---------- 7 ---------- */
+function sBatch(){
+ return `<span class="badge cost">The other lever</span>
+ <h2>Batching, and the one question that decides it</h2>
+ <div class="loc">Not volume. Not cost. <em>Is anybody waiting?</em></div>
+ <p class="lead">Some work needs no immediate answer: an overnight classification run, a backfill over a large dataset, a scheduled report. For any <b>non-urgent, high-volume</b> task, the batch discount is the deciding lever — and the trade is explicitly <b>latency for cost</b>.</p>
+
+ <div class="callout warn"><b>Streaming and batching never compete for the same request.</b> Streaming optimises how fast a response <em>feels</em> to a user in the loop; batching optimises the bill for work no user is waiting on. <b>A request is either user-facing or it isn't — that single fact decides which lever applies.</b> An option offering to "stream the batch job for responsiveness" is incoherent, not clever.</div>
+
+ <div class="callout good">💡 <b>Batching and caching compound.</b> A scheduled job reusing the same long system prompt across many requests gets the <b>batch discount on each request</b> <em>and</em> the <b>cache read price on the repeated prefix inside it</b>. Recognising that both apply to one workload is a likely exam stem — flip both switches on the step&nbsp;3 calculator and watch the two discounts multiply rather than choose between each other.</div>
+
+ <div class="callout"><b>⚠️ Recurring distractor: a loop of synchronous calls is not batching.</b> Full price, full latency, and now with your own concurrency limits to manage. The Batch API is a different endpoint with different economics.</div>
+
+ <h3>The full lever table — know which one a stem is pointing at</h3>
+ <table>
+  <tr><th>Lever</th><th>How it moves cost or latency</th></tr>
+  <tr><td><b>Model selection</b></td><td>Reserve the most capable tier for steps that need it. Sets the price/speed <b>floor</b> everything else works within.</td></tr>
+  <tr><td><b>Prompt &amp; context size</b></td><td>Fewer tokens in = less to process on <em>every</em> call.</td></tr>
+  <tr><td><b>Number of tool calls</b></td><td>Each round trip is a full request <em>plus</em> a tool result back into the window — over-tooling multiplies both.</td></tr>
+  <tr><td><b>Prompt caching</b></td><td>Reuses processing on a stable prefix — reads at 0.1×.</td></tr>
+  <tr><td><b>Streamed vs. batched</b></td><td>Streaming improves <em>perceived</em> latency; batching trades latency for a lower bill.</td></tr>
+ </table>
+ <div class="revwrap">
+  <button class="revbtn" onclick="reveal('r7',this)"><span class="chev">&#9654;</span> Back to ShipRight — what actually shipped</button>
+  <div class="reveal" id="r7">
+   <div class="oneliner">The 88% step was the drafting call, and three things moved it.</div>
+   <ul>
+    <li><b>A cache breakpoint after the tool definitions</b>, with the claims policy in a stable system prompt — the prefix stopped being reprocessed 40,000 times a day.</li>
+    <li><b>The nightly backlog reclassification moved to the Batch API</b> — nobody was waiting on it, and the discount stacked with the cache reads on the same shared prefix.</li>
+    <li><b>The tier stayed on Sonnet</b>, because the eval showed Haiku dropping below the quality bar on adjudications — a measured decision <em>not</em> to take the cheaper option.</li>
+   </ul>
+   <p>The customer-facing path kept streaming, kept its 3 retries, and kept its 4-second ceiling. <b>Cost came down underneath a floor that never moved.</b></p>
+  </div>
+ </div>`;
+}
+
+/* ---------- 8 ---------- */
+function sRecall(){
+ return `<span class="badge plain">Recap &amp; recall</span>
+ <h2>Instrument · floor · levers</h2>
+ <table>
+  <tr><th>Step</th><th>The single sentence</th></tr>
+  <tr><td><b>Observability</b></td><td>Log tokens, latency, and error rate per call. One step usually carries ~90% of spend — instrumentation is diagnostic, the lever table is corrective.</td></tr>
+  <tr><td><b>Reliability floor</b></td><td>Set it first and optimise cost underneath. Cost pressure is loud and daily; reliability failures are quiet until they're an incident.</td></tr>
+  <tr><td><b>Caching economics</b></td><td>Write 1.25× (5-min) or 2× (1-h), read 0.1×. <b>Reads must outnumber writes</b> — break-even is ~21.7% hit rate at 5-min, ~52.6% at 1-hour.</td></tr>
+  <tr><td><b>Three conditions</b></td><td>Identical content · recurrence inside the TTL · above the model's minimum length. The length failure is <b>silent</b>.</td></tr>
+  <tr><td><b>Tier</b></td><td>Start at Sonnet; move on an <b>eval</b>, in <em>both</em> directions. Optimisation can't rescue the wrong baseline.</td></tr>
+  <tr><td><b>Routing</b></td><td>Justified by <b>variance in request difficulty</b>, not by default. Uniform traffic → pin one model.</td></tr>
+  <tr><td><b>Batch</b></td><td>Decided by "is anybody waiting?" Stacks with caching. A loop of synchronous calls is not batching.</td></tr>
+ </table>
+
+ <h3>Blueprint-style item &mdash; D5 · Cost and Token Management</h3>
+ <p class="lead">A team enables prompt caching with the 1-hour TTL on a 9,000-token system prompt, marking a breakpoint after it. The workload is a scheduled job that fires roughly four times an hour, and the prompt is identical every time. Costs go <em>up</em>. What is the most likely explanation? <b>Select ONE.</b></p>
+
+ <button class="choice" onclick="q('A',false)"><span class="tag">A</span>The prompt sits below the minimum cacheable length, so nothing was ever cached and the team is now paying to send an uncached prefix on every scheduled run.</button>
+ <div class="fb wrong" id="qfbA"><b>Incorrect.</b> 9,000 tokens is comfortably above the ~1,024-token minimum for most current models. Had it been below, the outcome would be no change rather than an increase — the failure is silent, not expensive.</div>
+
+ <button class="choice" onclick="q('B',false)"><span class="tag">B</span>The 1-hour TTL holds a stale copy of the prefix, so each run reprocesses it to guarantee correctness and pays the write premium a second time.</button>
+ <div class="fb wrong" id="qfbB"><b>Incorrect.</b> Staleness is a real consistency tradeoff, but a cache never reprocesses itself for correctness — and a fixed system prompt has nothing to go stale. This confuses the consistency window with the pricing mechanism.</div>
+
+ <button class="choice" onclick="q('C',true)"><span class="tag">C</span>At four runs an hour the hit rate sits below the 1-hour tier's break-even, so the 2× write premium is being paid more often than the 0.1× read is collected.</button>
+ <div class="fb right" id="qfbC"><b>Correct.</b> A 2× write needs reads to outnumber writes substantially — break-even is around a 52.6% hit rate. Four widely spaced runs an hour don't clear it, so the premium dominates. The economics only work when reads outnumber writes; a prefix written once and read once is a loss.</div>
+
+ <button class="choice" onclick="q('D',false)"><span class="tag">D</span>The breakpoint was placed after the system prompt rather than after the tool definitions, so the cached region excludes the tools and captures only part of the stable prefix.</button>
+ <div class="fb wrong" id="qfbD"><b>Incorrect.</b> The order is tools → system → messages, so a breakpoint after the system prompt caches the tools <em>too</em>. Caching a larger stable region wouldn't raise cost — and this describes a placement that is already correct.</div>
+
+ <h3>Cold-recall check</h3>
+ <ul class="ck">
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Give the four cache multipliers and the batch discount from memory.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> State why caching can <em>raise</em> cost, and roughly where each TTL breaks even.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>three</b> conditions caching needs, and which one fails silently.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Say what justifies routing — and what makes it the wrong choice.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Explain why the reliability floor is set before cost is optimised.</li>
+ </ul>
+ <div class="callout good"><b>Where this connects:</b> cache prefix mechanics &rarr; the <b>API Mechanics</b> walkthrough · what counts toward the window &rarr; the <b>Tokens &amp; Context</b> walkthrough · the eval that gates every model move &rarr; <b>D4</b> · what enters the window in the first place &rarr; <b>D6</b> context engineering · tool-call count as a lever &rarr; <b>D1</b> over-tooling.</div>`;
+}
+function q(k,ok){
+ ["A","B","C","D"].forEach(x=>$("qfb"+x).classList.remove("open"));
+ $("qfb"+k).classList.add("open");
+ document.querySelectorAll(".choice").forEach(b=>b.classList.remove("right","wrong"));
+ event.currentTarget.classList.add(ok?"right":"wrong");
+}
+
+/* ---------- driver ---------- */
+function render(){
+ const s=STEPS[cur];
+ $("view").innerHTML=s.r();
+ $("view").scrollIntoView({behavior:"smooth",block:"nearest"});
+ $("stepNo").textContent=cur+1;
+ $("stepName").textContent=s.name;
+ $("prev").disabled=cur===0;
+ $("next").disabled=cur===STEPS.length-1;
+ $("next").textContent = cur===STEPS.length-2 ? "Recall →" : "Next →";
+ renderRail();
+}
+function renderRail(){
+ const r=$("rail"); r.innerHTML="";
+ STEPS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.textContent=s.name;
+  if(i===cur) b.className="active"; else if(seen.has(i)) b.className="done";
+  b.onclick=()=>goto(i);
+  r.appendChild(b);
+ });
+}
+function goto(i){ cur=Math.max(0,Math.min(STEPS.length-1,i)); seen.add(cur); render(); }
+function go(d){ goto(cur+d); }
+$("prev").onclick=()=>go(-1);
+$("next").onclick=()=>go(1);
+document.addEventListener("keydown",e=>{
+ if(e.target.tagName==="INPUT") return;
+ if(e.key==="ArrowRight") go(1); else if(e.key==="ArrowLeft") go(-1);
+});
+$("stepTot").textContent=STEPS.length;
+$("foot").innerHTML='Cache multipliers and the lever table verified 2026-07-19; batch discount 2026-07-12; model lineup 2026-07-18 — all version-pinned, re-verify at build time. The calculator reports <b>billed input-token equivalents</b>, not currency: absolute prices change, the multipliers are what you reason with. Practice item is original, written to blueprint objectives — not live exam content.';
+render();
+</script>
+</body>
+</html>

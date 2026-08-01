@@ -21,12 +21,31 @@ and what to name the project. After that the link is remembered in
 from __future__ import annotations
 
 import argparse
+import fnmatch
+import importlib.util
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent
+
+
+def notes_assets() -> list[Path]:
+    """Sibling pages the notes pack links to.
+
+    Read straight out of build-notes-pack.py's WALKTHROUGHS registry so the two
+    lists cannot drift — adding a walkthrough there is enough to have it
+    deployed here. Importing the build script is side-effect free; it only
+    builds under `if __name__ == "__main__"`.
+    """
+    builder = ROOT / "build-notes-pack.py"
+    spec = importlib.util.spec_from_file_location("_build_notes_pack", builder)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    # A walkthrough covering two skills is registered twice; stage it once.
+    names = dict.fromkeys(w["file"] for w in module.WALKTHROUGHS)
+    return [ROOT / name for name in names]
 
 TARGETS = {
     "hub": {
@@ -40,6 +59,9 @@ TARGETS = {
         "stage": ROOT / "deploy" / "notes-pack",
         "builder": ROOT / "build-notes-pack.py",
         "label": "Notes Pack",
+        # Copied beside index.html so the notes pack's relative links resolve
+        # the same way deployed as they do from the repo root.
+        "assets": notes_assets,
     },
 }
 
@@ -55,6 +77,31 @@ def vercel_cmd() -> str:
         "Install it with:  npm i -g vercel\n"
         "Then sign in with: vercel login"
     )
+
+
+def not_uploadable(stage_dir: Path, names: list[str]) -> list[str]:
+    """Which of `names` .vercelignore would keep out of the upload.
+
+    The stage folders use an allowlist (`/*`, then `!name` lines), so a file can
+    sit in the staged folder and still never reach Vercel. That failure is
+    invisible — the deploy reports success and the page 404s — so the stage step
+    checks for it rather than trusting that copying was enough.
+
+    Only allowlist-style files are checked; a plain denylist has nothing to
+    verify here and returns no complaints.
+    """
+    ignore = stage_dir / ".vercelignore"
+    if not ignore.exists():
+        return []
+    lines = [
+        line.strip()
+        for line in ignore.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    if not any(line in ("/*", "*") for line in lines):
+        return []
+    allowed = [line[1:] for line in lines if line.startswith("!")]
+    return [n for n in names if not any(fnmatch.fnmatch(n, p) for p in allowed)]
 
 
 def build(target: dict) -> None:
@@ -83,6 +130,33 @@ def stage(target: dict) -> Path:
         f"Staged {source.name} -> {dest.relative_to(ROOT).as_posix()} "
         f"({dest.stat().st_size:,} bytes)"
     )
+
+    assets = target.get("assets") or []
+    if callable(assets):
+        assets = assets()
+    for asset in assets:
+        if not asset.exists():
+            sys.exit(
+                f"{asset.name} is linked from {source.name} but was not found. "
+                f"Deploying without it would publish a broken link."
+            )
+        asset_dest = stage_dir / asset.name
+        shutil.copyfile(asset, asset_dest)
+        print(
+            f"Staged {asset.name} -> {asset_dest.relative_to(ROOT).as_posix()} "
+            f"({asset_dest.stat().st_size:,} bytes)"
+        )
+
+    blocked = not_uploadable(stage_dir, ["index.html"] + [a.name for a in assets])
+    if blocked:
+        listed = "\n  ".join(blocked)
+        sys.exit(
+            f"\n{stage_dir.relative_to(ROOT).as_posix()}/.vercelignore would exclude "
+            f"these staged file(s) from the upload:\n  {listed}\n\n"
+            f"They would 404 in production while the deploy reported success. "
+            f"Add a matching '!' line to that allowlist."
+        )
+
     return stage_dir
 
 

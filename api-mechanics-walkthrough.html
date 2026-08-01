@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F · D2 Claude API Mechanics — Visual Walkthrough</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232736; --code:#0b0d13;
+    --text:#e8eaf0; --dim:#9aa0b4; --accent:#d97748; --green:#4fa877; --red:#c95b5b;
+    --purple:#c98bdb; --blue:#5b9bd9; --yellow:#d9b45b; --border:#2e3345;
+  }
+  *{box-sizing:border-box; margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:22px 16px 60px;}
+  a{color:var(--accent);}
+  header{text-align:center; margin-bottom:16px;}
+  h1{font-size:1.15rem; font-weight:600; letter-spacing:.03em;}
+  h1 span{color:var(--accent);}
+  .sub{color:var(--dim); font-size:.8rem; margin-top:4px;}
+
+  .rail{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:940px; margin:10px auto 4px;}
+  .rail button{background:var(--panel); color:var(--dim); border:1px solid var(--border); border-radius:999px;
+       padding:5px 12px; font-size:.72rem; cursor:pointer; transition:all .15s; white-space:nowrap;}
+  .rail button:hover{border-color:var(--accent); color:var(--text);}
+  .rail button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .rail button.done{color:var(--text); border-color:#3c4256;}
+  .rail button.done::before{content:"\2713 "; color:var(--green);}
+
+  main{width:100%; max-width:900px;}
+  .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
+  .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+         padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
+  .badge.scen{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  .badge.stream{background:rgba(217,119,72,.16); color:var(--accent); border:1px solid rgba(217,119,72,.35);}
+  .badge.rule{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
+  .badge.fail{background:rgba(201,91,91,.16); color:var(--red); border:1px solid rgba(201,91,91,.35);}
+  .badge.cost{background:rgba(79,168,119,.16); color:var(--green); border:1px solid rgba(79,168,119,.35);}
+  .badge.plain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
+  h2{font-size:1.35rem; font-weight:650; margin-bottom:4px; line-height:1.25;}
+  h3{font-size:.96rem; font-weight:650; margin:22px 0 8px; color:var(--text);}
+  h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; color:var(--dim); font-weight:600;}
+  .loc{color:var(--dim); font-size:.82rem; margin-bottom:14px;}
+  p{line-height:1.62; margin:9px 0; color:#d4d8e4; font-size:.92rem;}
+  p.lead{font-size:1rem; color:var(--text);}
+  strong{color:#fff;}
+  em{color:var(--accent); font-style:normal;}
+  code.inl{background:var(--code); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+        font-family:'Cascadia Code','Consolas',monospace; font-size:.82em; color:#cdd3e6;}
+  ul{margin:8px 0 8px 2px; padding-left:18px; line-height:1.6; color:#d4d8e4; font-size:.92rem;}
+  li{margin:5px 0;}
+
+  .code{background:var(--code); border:1px solid var(--border); border-radius:10px; overflow-x:auto;
+        font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:.8rem; line-height:1.62; margin:10px 0;}
+  .ln{display:flex; white-space:pre; min-width:max-content;}
+  .ln .gut{width:2.6em; text-align:right; padding:0 12px 0 10px; color:#454b62; user-select:none; flex:none;}
+  .ln .src{padding-right:16px; flex:1;}
+  .ln.bug{background:rgba(201,91,91,.14);}
+  .ln.bug .gut{color:var(--red); font-weight:700;}
+  .ln.add{background:rgba(79,168,119,.13);}
+  .ln.add .gut{color:var(--green);}
+  .ln.ctx{background:rgba(217,119,72,.07);}
+  .t-kw{color:var(--purple);} .t-str{color:#8fbf87;} .t-com{color:#5c6478; font-style:italic;}
+  .t-num{color:#d99a5b;} .t-key{color:#7fb3e0;} .t-lit{color:var(--purple);}
+  .tagline{font-size:.7rem; color:var(--red); margin-left:8px; font-weight:600; letter-spacing:.04em;}
+  .tagline.add{color:var(--green);}
+
+  .revwrap{margin:12px 0;}
+  .revbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+      padding:9px 16px; font-size:.83rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px;}
+  .revbtn:hover{border-color:var(--accent);}
+  .revbtn .chev{color:var(--accent); transition:transform .2s;}
+  .reveal{display:none; margin-top:12px; padding:16px 18px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel2); animation:fade .25s ease;}
+  .reveal.open{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .reveal .oneliner{font-size:.96rem; color:#fff; font-weight:600; line-height:1.5;}
+
+  .callout{border-left:3px solid var(--accent); background:var(--panel2); border-radius:0 8px 8px 0;
+      padding:12px 16px; margin:14px 0; font-size:.88rem; line-height:1.6;}
+  .callout.warn{border-left-color:var(--red);}
+  .callout.good{border-left-color:var(--green);}
+  .callout.note{border-left-color:var(--blue);}
+  .callout b{color:#fff;}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:.83rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.5;}
+  th{background:var(--panel2); color:var(--text); font-weight:600;}
+
+  /* ---- generic cards ---- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; margin:14px 0;}
+  .card{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .card .n{font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+  .card h5{font-size:.9rem; margin:5px 0 4px;}
+  .card p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+
+  /* ---- architecture strip ---- */
+  .arch{display:flex; align-items:stretch; gap:0; flex-wrap:wrap; margin:16px 0 6px;}
+  .node{flex:1; min-width:150px; border:1px solid var(--border); background:var(--panel2); border-radius:12px;
+        padding:14px 14px; text-align:center;}
+  .node .ico{font-size:1.5rem; display:block; margin-bottom:5px;}
+  .node b{font-size:.85rem; display:block;}
+  .node small{color:var(--dim); font-size:.72rem; line-height:1.45; display:block; margin-top:4px;}
+  .node.hot{border-color:var(--accent); background:rgba(217,119,72,.1);}
+  .arrow{flex:none; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 10px; min-width:74px;}
+  .arrow .a{color:var(--accent); font-size:1.1rem; line-height:1.1;}
+  .arrow small{color:var(--dim); font-size:.66rem; text-align:center; line-height:1.3;}
+
+  /* ---- history stack ---- */
+  .turn{border:1px solid var(--border); border-radius:8px; padding:7px 11px; font-size:.79rem;
+        font-family:'Cascadia Code',monospace; margin:5px 0;}
+  .turn.user{background:rgba(91,155,217,.1); border-color:rgba(91,155,217,.3);}
+  .turn.asst{background:rgba(217,119,72,.1); border-color:rgba(217,119,72,.3);}
+  .turn.sys{background:rgba(201,139,219,.1); border-color:rgba(201,139,219,.32);}
+  .turn.bad{background:rgba(201,91,91,.12); border-color:rgba(201,91,91,.45); color:#f0b9b9;}
+  .turn small{color:var(--dim); font-family:'Segoe UI',sans-serif;}
+
+  /* ---- request anatomy ---- */
+  .anat{display:flex; gap:14px; flex-wrap:wrap;}
+  .anat .col{flex:1; min-width:290px;}
+  .part{border-left:3px solid var(--border); padding:6px 0 6px 12px; margin:10px 0;}
+  .part.p1{border-left-color:var(--purple);} .part.p2{border-left-color:var(--blue);}
+  .part.p3{border-left-color:var(--accent);} .part.p4{border-left-color:var(--green);}
+  .part b{font-size:.85rem;} .part span{display:block; color:var(--dim); font-size:.78rem; line-height:1.5; margin-top:3px;}
+
+  /* ---- timelines ---- */
+  .tl{margin:12px 0 18px;}
+  .tl .lab{font-size:.78rem; color:var(--dim); margin-bottom:5px;}
+  .track{position:relative; height:30px; background:var(--code); border:1px solid var(--border);
+         border-radius:7px; overflow:hidden;}
+  .fill{position:absolute; left:0; top:0; bottom:0; width:0; background:linear-gradient(90deg,rgba(217,119,72,.55),rgba(217,119,72,.25));}
+  .fill.blank{background:repeating-linear-gradient(45deg,#181b25,#181b25 7px,#141720 7px,#141720 14px);}
+  .fill.done{background:rgba(79,168,119,.4);}
+  .track .tick{position:absolute; top:0; bottom:0; width:2px; background:var(--accent);}
+  .track .txt{position:absolute; left:9px; top:7px; font-size:.74rem; color:#fff; font-family:'Cascadia Code',monospace;}
+  .tlnote{font-size:.74rem; color:var(--dim); margin-top:4px;}
+  .tlnote b{color:var(--accent);}
+
+  /* ---- event tape ---- */
+  .tape{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;}
+  .tapecol{flex:1; min-width:300px;}
+  .evctl{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0;}
+  .evctl button{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:7px 14px; font-size:.8rem; cursor:pointer;}
+  .evctl button:hover:not(:disabled){border-color:var(--accent);}
+  .evctl button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .evctl button:disabled{opacity:.35; cursor:not-allowed;}
+  .evlist{max-height:340px; overflow-y:auto; border:1px solid var(--border); border-radius:10px; background:var(--code); padding:6px;}
+  .ev{border-radius:7px; padding:6px 9px; margin:3px 0; font-family:'Cascadia Code',monospace; font-size:.75rem;
+      color:#5b6178; border:1px solid transparent; display:flex; gap:8px; align-items:baseline;}
+  .ev .no{color:#454b62; flex:none; width:1.5em; text-align:right;}
+  .ev.seen{color:#aeb5cb; background:rgba(255,255,255,.03);}
+  .ev.cur{color:#fff; background:rgba(217,119,72,.18); border-color:rgba(217,119,72,.5);}
+  .ev.k-start{border-left:3px solid var(--blue);}
+  .ev.k-delta{border-left:3px solid var(--accent);}
+  .ev.k-stop{border-left:3px solid var(--green);}
+  .ev.k-ping{border-left:3px solid #3c4256;}
+  .evjson{background:var(--code); border:1px solid var(--border); border-radius:9px; padding:10px 12px;
+      font-family:'Cascadia Code',monospace; font-size:.74rem; line-height:1.6; overflow-x:auto; white-space:pre-wrap; word-break:break-word;}
+  .evwhat{background:var(--panel2); border:1px solid var(--border); border-left:3px solid var(--purple);
+      border-radius:0 9px 9px 0; padding:10px 13px; margin-top:9px; font-size:.82rem; line-height:1.55;}
+  .evwhat b{color:#fff;}
+  .msgbox{border:1px solid var(--border); border-radius:11px; background:var(--code); padding:12px;}
+  .msgbox .hd{font-size:.72rem; color:var(--dim); font-family:'Cascadia Code',monospace; margin-bottom:8px;}
+  .blk{border:1px solid var(--border); border-radius:8px; padding:9px 11px; margin:7px 0; background:var(--panel2);}
+  .blk .bh{font-size:.7rem; letter-spacing:.05em; text-transform:uppercase; color:var(--dim); margin-bottom:5px; font-weight:600;}
+  .blk.text{border-left:3px solid var(--accent);}
+  .blk.tool{border-left:3px solid var(--purple);}
+  .blk .body{font-family:'Cascadia Code',monospace; font-size:.76rem; line-height:1.55; color:#d6dbea; word-break:break-word;}
+  .caret{display:inline-block; width:7px; background:var(--accent); animation:blink 1s steps(1) infinite; color:transparent;}
+  @keyframes blink{50%{opacity:0;}}
+  .pill{display:inline-block; font-size:.7rem; padding:3px 9px; border-radius:999px; font-weight:600; margin-top:7px;}
+  .pill.bad{background:rgba(201,91,91,.18); color:#f0a5a5; border:1px solid rgba(201,91,91,.45);}
+  .pill.wait{background:rgba(217,180,91,.15); color:var(--yellow); border:1px solid rgba(217,180,91,.4);}
+  .pill.ok{background:rgba(79,168,119,.16); color:#8fd6ac; border:1px solid rgba(79,168,119,.45);}
+  .kv{display:flex; justify-content:space-between; gap:10px; font-family:'Cascadia Code',monospace;
+      font-size:.75rem; padding:4px 0; border-bottom:1px dashed #262b3b;}
+  .kv span:first-child{color:var(--dim);}
+  .safebar{margin-top:9px; font-size:.78rem; padding:8px 11px; border-radius:8px; line-height:1.5;}
+  .safebar.ok{background:rgba(79,168,119,.1); border:1px solid rgba(79,168,119,.3); color:#a7dcbf;}
+  .safebar.no{background:rgba(201,91,91,.1); border:1px solid rgba(201,91,91,.3); color:#f0b9b9;}
+
+  /* ---- choice quiz ---- */
+  .choice{display:block; width:100%; text-align:left; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); border-radius:10px; padding:12px 15px; margin:8px 0; font-size:.87rem;
+      cursor:pointer; line-height:1.55; transition:all .15s;}
+  .choice:hover{border-color:var(--accent);}
+  .choice.right{border-color:var(--green); background:rgba(79,168,119,.12);}
+  .choice.wrong{border-color:var(--red); background:rgba(201,91,91,.1);}
+  .choice .tag{font-weight:700; margin-right:8px; color:var(--dim);}
+  .fb{display:none; margin:6px 0 14px; padding:12px 15px; border-radius:10px; font-size:.85rem; line-height:1.6;}
+  .fb.open{display:block;}
+  .fb.right{background:rgba(79,168,119,.1); border-left:3px solid var(--green);}
+  .fb.wrong{background:rgba(201,91,91,.09); border-left:3px solid var(--red);}
+  .fb b{color:#fff;}
+
+  /* ---- severity ladder ---- */
+  .lad{display:flex; gap:10px; flex-wrap:wrap; margin:14px 0;}
+  .rung{flex:1; min-width:220px; border-radius:10px; padding:12px 14px; border:1px solid var(--border);}
+  .rung.mild{background:rgba(217,180,91,.09); border-color:rgba(217,180,91,.35);}
+  .rung.sev{background:rgba(201,91,91,.1); border-color:rgba(201,91,91,.4);}
+  .rung .ico{font-size:1.3rem;} .rung b{display:block; margin:4px 0 3px; font-size:.88rem;}
+  .rung p{font-size:.78rem; margin:0; color:var(--dim);}
+
+  /* ---- stop_reason fork ---- */
+  .router{border:1px solid var(--accent); background:rgba(217,119,72,.1); border-radius:11px;
+      padding:12px 16px; text-align:center; margin:14px 0 6px; font-family:'Cascadia Code',monospace; font-size:.86rem;}
+  .forkline{text-align:center; color:var(--border); font-size:1.2rem; letter-spacing:.6em; margin:-2px 0 4px;}
+  .fork{display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:9px;}
+  .fk{border:1px solid var(--border); border-radius:10px; padding:11px 12px; background:var(--panel2);}
+  .fk .r{font-family:'Cascadia Code',monospace; font-size:.79rem; font-weight:700; display:block; margin-bottom:4px;}
+  .fk p{font-size:.76rem; color:var(--dim); margin:0; line-height:1.5;}
+  .fk.loop{border-color:rgba(79,168,119,.5); background:rgba(79,168,119,.08);} .fk.loop .r{color:#8fd6ac;}
+  .fk.term{border-color:rgba(91,155,217,.4);} .fk.term .r{color:var(--blue);}
+  .fk.warnk{border-color:rgba(201,91,91,.5); background:rgba(201,91,91,.08);} .fk.warnk .r{color:#f0a5a5;}
+  .fk.hold{border-color:rgba(217,180,91,.45);} .fk.hold .r{color:var(--yellow);}
+
+  /* ---- error board ---- */
+  .board{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:11px; margin:14px 0;}
+  .bd{border-radius:11px; padding:13px 15px; border:1px solid var(--border);}
+  .bd.red{background:rgba(201,91,91,.1); border-color:rgba(201,91,91,.4);}
+  .bd.amber{background:rgba(217,180,91,.09); border-color:rgba(217,180,91,.38);}
+  .bd.blue{background:rgba(91,155,217,.09); border-color:rgba(91,155,217,.35);}
+  .bd h5{font-size:.86rem; margin-bottom:6px;}
+  .bd .codes{font-family:'Cascadia Code',monospace; font-size:.83rem; color:#fff; margin:6px 0;}
+  .bd p{font-size:.78rem; color:var(--dim); margin:5px 0 0;}
+
+  /* ---- cache hierarchy ---- */
+  .cache{border:1px solid var(--border); border-radius:11px; overflow:hidden; margin:12px 0;}
+  .clvl{padding:12px 15px; border-bottom:1px solid var(--border); cursor:pointer; transition:all .15s;
+        display:flex; justify-content:space-between; align-items:center; gap:12px; background:var(--panel2);}
+  .clvl:last-child{border-bottom:none;}
+  .clvl:hover{background:#282d3e;}
+  .clvl b{font-family:'Cascadia Code',monospace; font-size:.85rem;}
+  .clvl small{color:var(--dim); font-size:.75rem; display:block; margin-top:2px; font-family:'Segoe UI',sans-serif;}
+  .clvl .st{font-size:.74rem; font-weight:700; padding:3px 10px; border-radius:999px; white-space:nowrap;}
+  .clvl.hit .st{background:rgba(79,168,119,.16); color:#8fd6ac; border:1px solid rgba(79,168,119,.4);}
+  .clvl.miss{background:rgba(201,91,91,.09);}
+  .clvl.miss .st{background:rgba(201,91,91,.18); color:#f0a5a5; border:1px solid rgba(201,91,91,.45);}
+  .clvl.changed{background:rgba(217,119,72,.14);}
+  .clvl.changed .st{background:rgba(217,119,72,.2); color:#f0b48c; border:1px solid rgba(217,119,72,.5);}
+
+  .nav{display:flex; justify-content:space-between; align-items:center; max-width:900px; width:100%; margin-top:16px; gap:10px;}
+  .nav button{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:11px 22px; font-size:.88rem; cursor:pointer; transition:all .15s; font-weight:500;}
+  .nav button:hover:not(:disabled){border-color:var(--accent);}
+  .nav button:disabled{opacity:.3; cursor:not-allowed;}
+  .nav button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .progress{color:var(--dim); font-size:.78rem; text-align:center;}
+  .progress b{color:var(--text);}
+  .keys{margin-top:22px; color:var(--dim); font-size:.7rem; text-align:center; line-height:1.9;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.68rem;}
+  .foot{margin-top:8px; color:#5c6478; font-size:.72rem; text-align:center; line-height:1.7; max-width:660px;}
+  .foot a{color:var(--dim);}
+  .ck{list-style:none; padding-left:0;}
+  .ck li{display:flex; align-items:flex-start; gap:9px; margin:8px 0; cursor:pointer;}
+  .ck input{margin-top:3px; accent-color:var(--green); flex:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Claude API Mechanics — <span>Visual Walkthrough</span></h1>
+  <div class="sub">CCDV-F · Domain 2 · Claude API Mechanics (6.8%) · one scenario, followed from request to invoice</div>
+</header>
+
+<div class="rail" id="rail"></div>
+<main><div class="view" id="view"></div></main>
+
+<div class="nav">
+  <button id="prev">&#8592; Back</button>
+  <div class="progress">Step <b id="stepNo">1</b> / <b id="stepTot">10</b><br><span id="stepName"></span></div>
+  <button id="next" class="primary">Next &#8594;</button>
+</div>
+
+<div class="keys"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate steps &nbsp;·&nbsp; answer the choice panels <em>before</em> you reveal</div>
+<div class="foot" id="foot"></div>
+
+<script>
+/* ===================== helpers ===================== */
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+const KW = /^\b(?:def|return|if|elif|else|for|while|in|with|as|not|and|or|is|True|False|None|raise|import|from|class|lambda|try|except|break|continue)\b/;
+function pyHi(line){
+  let i=0,out="";
+  while(i<line.length){
+    const rest=line.slice(i); let m;
+    if(rest[0]==="#"){ out+='<span class="t-com">'+esc(rest)+'</span>'; break; }
+    if((m=rest.match(/^"(?:[^"\\]|\\.)*"|^'(?:[^'\\]|\\.)*'/))){ out+='<span class="t-str">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(KW))){ out+='<span class="t-kw">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(/^\b\d+\b/))){ out+='<span class="t-num">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    out+=esc(line[i]); i++;
+  }
+  return out;
+}
+function jsonHi(s){
+  let out="", i=0;
+  while(i<s.length){
+    const rest=s.slice(i); let m;
+    if((m=rest.match(/^"(?:[^"\\]|\\.)*"\s*:/))){ out+='<span class="t-key">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(/^"(?:[^"\\]|\\.)*"/))){ out+='<span class="t-str">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(/^\b(?:true|false|null)\b/))){ out+='<span class="t-lit">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(/^\b\d+(?:\.\d+)?\b/))){ out+='<span class="t-num">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    out+=esc(s[i]); i++;
+  }
+  return out;
+}
+function code(lines){
+  let h='<div class="code">';
+  for(const l of lines){
+    const cls=l.mark?" "+l.mark:"";
+    const tag=l.tag?'<span class="tagline'+(l.mark==="add"?" add":"")+'">'+l.tag+'</span>':"";
+    h+='<div class="ln'+cls+'"><span class="gut">'+(l.n||"")+'</span><span class="src">'+pyHi(l.t)+tag+'</span></div>';
+  }
+  return h+'</div>';
+}
+function P(arr){ return arr.map((t,i)=>({n:i+1,t:t.s!==undefined?t.s:t,mark:t.m,tag:t.g})); }
+function reveal(id,btn){
+  const el=$(id); el.classList.toggle("open");
+  const c=btn.querySelector(".chev"); if(c) c.style.transform=el.classList.contains("open")?"rotate(90deg)":"none";
+}
+
+/* ===================== SSE event tape data ===================== */
+const EV = [
+{k:"start", name:"message_start",
+ json:`{"type":"message_start","message":{"id":"msg_01QxT…","model":"claude-sonnet-5",
+  "role":"assistant","content":[],"stop_reason":null,
+  "usage":{"input_tokens":2841,"cache_read_input_tokens":2560,"output_tokens":1}}}`,
+ what:"<b>The shell arrives — content is empty.</b> Input tokens are already known (the prompt was counted on the way in); output is 1 and will be corrected later. Your handler creates an empty content array and nothing else.",
+ apply:s=>{s.started=true;}},
+
+{k:"start", name:"content_block_start · index 0", idx:0,
+ json:`{"type":"content_block_start","index":0,
+  "content_block":{"type":"text","text":""}}`,
+ what:"<b>A block opens at index 0.</b> Type <code class='inl'>text</code>. Create a slot at that index — every later delta is addressed by index, not by arrival order.",
+ apply:s=>{s.blocks[0]={type:"text",text:"",buf:"",closed:false};}},
+
+{k:"ping", name:"ping",
+ json:`{"type":"ping"}`,
+ what:"<b>Carries nothing.</b> A keepalive that can appear at any point. Your handler ignores it — but a handler written with an exhaustive switch and no default will throw on it.",
+ apply:s=>{}},
+
+{k:"delta", name:"content_block_delta · index 0 · text_delta",
+ json:`{"type":"content_block_delta","index":0,
+  "delta":{"type":"text_delta","text":"Let me pull up"}}`,
+ what:"<b>Append the fragment to block 0.</b> Text deltas are the one thing you may safely render the instant they arrive — this is the whole UX benefit of streaming.",
+ apply:s=>{s.blocks[0].text+="Let me pull up";}},
+
+{k:"delta", name:"content_block_delta · index 0 · text_delta",
+ json:`{"type":"content_block_delta","index":0,
+  "delta":{"type":"text_delta","text":" order #4471 for you."}}`,
+ what:"Append again. The user sees the sentence build; nothing is committed anywhere yet.",
+ apply:s=>{s.blocks[0].text+=" order #4471 for you.";}},
+
+{k:"stop", name:"content_block_stop · index 0",
+ json:`{"type":"content_block_stop","index":0}`,
+ what:"<b>Block 0 is final.</b> For a text block this is undramatic — you had already painted it. For the next block it will be the whole ballgame.",
+ apply:s=>{s.blocks[0].closed=true;}},
+
+{k:"start", name:"content_block_start · index 1", idx:1,
+ json:`{"type":"content_block_start","index":1,
+  "content_block":{"type":"tool_use","id":"toolu_01Vd9K…","name":"lookup_order","input":{}}}`,
+ what:"<b>A tool_use block opens — with a name and an id, but no input.</b> This is the trap: everything you need to <em>identify</em> the call is here, so the block looks ready. The arguments have not been sent yet.",
+ apply:s=>{s.blocks[1]={type:"tool_use",id:"toolu_01Vd9K…",name:"lookup_order",buf:"",closed:false};}},
+
+{k:"delta", name:"content_block_delta · index 1 · input_json_delta",
+ json:`{"type":"content_block_delta","index":1,
+  "delta":{"type":"input_json_delta","partial_json":"{\\"order_"}}`,
+ what:"<b>The arguments arrive as raw string fragments.</b> Not objects — <em>string pieces of JSON</em>. Concatenate onto the buffer for index 1. Do not parse.",
+ apply:s=>{s.blocks[1].buf+='{"order_';}},
+
+{k:"delta", name:"content_block_delta · index 1 · input_json_delta",
+ json:`{"type":"content_block_delta","index":1,
+  "delta":{"type":"input_json_delta","partial_json":"id\\": \\"44"}}`,
+ what:"Watch the buffer on the right: the order id is currently <code class='inl'>\"44\"</code>. A handler that parsed here — if it could — would look up the wrong order.",
+ apply:s=>{s.blocks[1].buf+='id": "44';}},
+
+{k:"delta", name:"content_block_delta · index 1 · input_json_delta",
+ json:`{"type":"content_block_delta","index":1,
+  "delta":{"type":"input_json_delta","partial_json":"71\\", \\"include_addr"}}`,
+ what:"Still unterminated. The id is now right, but a second argument is half-written — so the buffer is <em>more</em> broken than it was a moment ago, not less.",
+ apply:s=>{s.blocks[1].buf+='71", "include_addr';}},
+
+{k:"delta", name:"content_block_delta · index 1 · input_json_delta",
+ json:`{"type":"content_block_delta","index":1,
+  "delta":{"type":"input_json_delta","partial_json":"ess\\": true}"}}`,
+ what:"The buffer now <em>happens</em> to be valid JSON. It is still not safe to act on — you cannot know a block is finished by inspecting its contents. Only one event tells you that.",
+ apply:s=>{s.blocks[1].buf+='ess": true}';}},
+
+{k:"stop", name:"content_block_stop · index 1",
+ json:`{"type":"content_block_stop","index":1}`,
+ what:"<b>THE moment.</b> First point at which the accumulated <code class='inl'>input_json</code> is a complete, parseable tool input. <code class='inl'>json.loads()</code> belongs here or later — never earlier.",
+ apply:s=>{s.blocks[1].closed=true;}},
+
+{k:"delta", name:"message_delta",
+ json:`{"type":"message_delta",
+  "delta":{"stop_reason":"tool_use","stop_sequence":null},
+  "usage":{"output_tokens":78}}`,
+ what:"<b>Top-level news: why the turn ended, and the real token count.</b> <code class='inl'>usage</code> here is cumulative, not incremental. <code class='inl'>stop_reason: \"tool_use\"</code> is the only value that means \"run the tools and loop\".",
+ apply:s=>{s.stop_reason="tool_use"; s.out=78;}},
+
+{k:"stop", name:"message_stop",
+ json:`{"type":"message_stop"}`,
+ what:"<b>The turn is now real.</b> The assembled content array equals the Message a non-streamed call would have returned — and only now may it be appended to conversation history.",
+ apply:s=>{s.stopped=true;}}
+];
+
+function tapeState(upto){
+  const s={started:false,blocks:{},stop_reason:null,out:1,stopped:false};
+  for(let i=0;i<=upto;i++) EV[i].apply(s);
+  return s;
+}
+
+/* ===================== steps ===================== */
+let cur=0; const seen=new Set([0]);
+let evIdx=-1, playing=null;
+let cacheChanged=null;
+
+const STEPS=[
+ {name:"1 · Scenario",     r:sScenario},
+ {name:"2 · The request",  r:sRequest},
+ {name:"3 · Why stream",   r:sWhyStream},
+ {name:"4 · The tape",     r:sTape},
+ {name:"5 · The rule",     r:sRule},
+ {name:"6 · Stream dies",  r:sBreak},
+ {name:"7 · stop_reason",  r:sStop},
+ {name:"8 · Error triage", r:sErrors},
+ {name:"9 · The bill",     r:sCost},
+ {name:"10 · Recall",      r:sRecall}
+];
+
+/* ---------- 1 ---------- */
+function sScenario(){
+ return `<span class="badge scen">Scenario</span>
+ <h2>ShipRight — the order-support assistant</h2>
+ <div class="loc">D2 · Claude API Mechanics &nbsp;·&nbsp; the app every step below refers back to</div>
+ <p class="lead">A support widget on a retailer's site. A customer types <em>"Where's order #4471, and can I still change the delivery address?"</em> Your server holds the store's policy prompt and two tools — <code class="inl">lookup_order</code> and <code class="inl">update_address</code> — and streams Claude's reply into the chat bubble.</p>
+
+ <div class="arch">
+   <div class="node"><span class="ico">&#128100;</span><b>Browser</b><small>chat widget · wants the first word fast</small></div>
+   <div class="arrow"><span class="a">&#8594;</span><small>question</small></div>
+   <div class="node hot"><span class="ico">&#127959;</span><b>Your server</b><small>owns history, keys, tool execution</small></div>
+   <div class="arrow"><span class="a">&#8646;</span><small>HTTPS<br>SSE back</small></div>
+   <div class="node"><span class="ico">&#129504;</span><b>Claude API</b><small>stateless · remembers nothing</small></div>
+ </div>
+
+ <div class="callout warn"><b>The fact the whole domain rests on: the API is stateless.</b> Claude has no session, no memory of the last request, no server-side thread. Conversation state lives in <em>your</em> application, and every single request re-sends the whole thing.</div>
+
+ <h3>What "re-send everything" actually looks like on turn 3</h3>
+ <div class="turn sys">system: <small>ShipRight policy, tone, refund rules — top-level parameter, not a message</small></div>
+ <div class="turn user">user: "Where's order #4471…"</div>
+ <div class="turn asst">assistant: text + tool_use <small>(id toolu_01Vd…)</small></div>
+ <div class="turn user">user: tool_result <small>&rarr; toolu_01Vd… — your server ran the tool and reported back</small></div>
+ <div class="turn asst">assistant: "It ships Tuesday…"</div>
+ <div class="turn user">user: "Change the address then" <small>&larr; the only new bytes</small></div>
+
+ <div class="callout note"><b>Three consequences to carry into every later step.</b>
+ <ul>
+ <li>History grows every turn &rarr; input tokens grow every turn &rarr; <em>the stable front of that history is what prompt caching is for</em> (step 9).</li>
+ <li>If you write a <em>malformed</em> turn into history, it is re-sent on every subsequent request. The damage repeats until you clean it up (step 6).</li>
+ <li>An assistant turn containing <code class="inl">tool_use</code> must be followed by a user turn containing the matching <code class="inl">tool_result</code>. Break the pairing and the next request is rejected.</li>
+ </ul></div>`;
+}
+
+/* ---------- 2 ---------- */
+function sRequest(){
+ const req=[
+ '{',
+ '  "model": "claude-sonnet-5",',
+ '  "max_tokens": 1024,',
+ '  "system": "You are ShipRight support. Never promise a refund…",',
+ '  "tools": [ { "name": "lookup_order", "input_schema": {…} } ],',
+ '  "stream": true,',
+ '  "messages": [',
+ '    { "role": "user",      "content": [ {"type":"text","text":"Where is order #4471?"} ] },',
+ '    { "role": "assistant", "content": [ {"type":"text",…}, {"type":"tool_use",…} ] },',
+ '    { "role": "user",      "content": [ {"type":"tool_result","tool_use_id":"toolu_01Vd…",…} ] }',
+ '  ]',
+ '}'];
+ let h='<div class="code">';
+ req.forEach((l,i)=>{ h+='<div class="ln'+(i===3||i===2?" ctx":"")+'"><span class="gut">'+(i+1)+'</span><span class="src">'+jsonHi(l)+'</span></div>'; });
+ h+='</div>';
+
+ return `<span class="badge scen">Anatomy</span>
+ <h2>One request, four parts worth memorising</h2>
+ <div class="loc">Messages API structure &nbsp;·&nbsp; the shape distractors are built from</div>
+ ${h}
+ <div class="anat"><div class="col">
+   <div class="part p1"><b>system &mdash; a top-level parameter</b><span>Not a role inside <code class="inl">messages</code>. If an answer option puts <code class="inl">{"role":"system"}</code> in the array, that option is wrong on sight.</span></div>
+   <div class="part p2"><b>messages &mdash; alternating user / assistant</b><span>Only two roles exist. Tool results come back as <em>user</em> turns; that is not a typo, it is the design.</span></div>
+ </div><div class="col">
+   <div class="part p3"><b>content &mdash; a list of typed blocks</b><span><code class="inl">text</code> · <code class="inl">image</code> · <code class="inl">document</code> · <code class="inl">tool_use</code> · <code class="inl">tool_result</code> · <code class="inl">thinking</code>. One turn can carry several. A bare string is shorthand for one text block.</span></div>
+   <div class="part p4"><b>max_tokens &mdash; required</b><span>The one easily-forgotten mandatory field. It caps <em>output</em>, and hitting it produces <code class="inl">stop_reason: "max_tokens"</code> — a truncated answer, not an error.</span></div>
+ </div></div>
+
+ <div class="revwrap">
+  <button class="revbtn" onclick="reveal('r2',this)"><span class="chev">&#9654;</span> Self-test: three ways the exam deforms this shape</button>
+  <div class="reveal" id="r2">
+    <div class="oneliner">Recognise the deformation, not the sentence.</div>
+    <ul>
+      <li><b>system as a message role.</b> It is a sibling of <code class="inl">messages</code>, never a member.</li>
+      <li><b>"Claude keeps the thread."</b> It does not. No session id, no server-side history, ever.</li>
+      <li><b>"Streaming reduces cost/latency."</b> It reduces <em>perceived</em> latency only — same tokens, same price, same final message. Next step.</li>
+    </ul>
+  </div>
+ </div>`;
+}
+
+/* ---------- 3 ---------- */
+function sWhyStream(){
+ setTimeout(runTL,60);
+ return `<span class="badge stream">Streaming</span>
+ <h2>Streaming changes exactly one thing</h2>
+ <div class="loc">The customer is watching a spinner. What does <code class="inl">stream: true</code> actually buy?</div>
+
+ <div class="tl">
+  <div class="lab">Non-streamed &mdash; one response at the end</div>
+  <div class="track"><div class="fill blank" id="f1"></div><div class="txt" id="t1">…</div></div>
+  <div class="tlnote">First visible word at <b>4.2 s</b> · complete at <b>4.2 s</b></div>
+ </div>
+ <div class="tl">
+  <div class="lab">Streamed &mdash; server-sent events as they are produced</div>
+  <div class="track"><div class="fill" id="f2"></div><div class="txt" id="t2"></div></div>
+  <div class="tlnote">First visible word at <b>0.4 s</b> · complete at <b>4.2 s</b> &mdash; <em>the finish line did not move</em></div>
+ </div>
+ <div class="evctl"><button onclick="runTL()">&#8635; Replay</button></div>
+
+ <div class="callout"><b>Same final <code class="inl">Message</code>. Same content. Same token cost. Same total wall-clock.</b> Streaming moves <em>when the user sees something</em>, and nothing else. Any option claiming it makes generation cheaper or faster is wrong.</div>
+
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--green)">Reach for it</div><h5>User-facing chat</h5><p>Time-to-first-token is the felt latency. A 0.4 s first word reads as fast even when the answer takes 4 s.</p></div>
+  <div class="card"><div class="n" style="color:var(--green)">Reach for it</div><h5>Long generations</h5><p>A long non-streamed call can sit idle past a proxy or gateway timeout. Streaming keeps bytes moving.</p></div>
+  <div class="card"><div class="n" style="color:var(--red)">Cannot use it</div><h5>Batch requests</h5><p><code class="inl">stream: true</code> is not supported in the Message Batches API. Nobody is waiting on a batch anyway.</p></div>
+  <div class="card"><div class="n" style="color:var(--yellow)">The price</div><h5>You now assemble</h5><p>You reconstruct the message from fragments <em>and</em> handle a stream that stops early. Steps 4–6 are that bill.</p></div>
+ </div>`;
+}
+function runTL(){
+ const f1=$("f1"),f2=$("f2"),t1=$("t1"),t2=$("t2"); if(!f1) return;
+ const words="Order #4471 left the warehouse Monday and is out for delivery.".split(" ");
+ f1.style.transition="none"; f2.style.transition="none"; f1.style.width="0%"; f2.style.width="0%";
+ t1.textContent=""; t2.textContent="";
+ const DUR=4200, t0=performance.now();
+ function frame(now){
+   const p=Math.min(1,(now-t0)/DUR);
+   f1.style.width=(p*100)+"%"; f2.style.width=(p*100)+"%";
+   t1.textContent = p<1 ? "▚ waiting…" : "Order #4471 left the warehouse Monday and is out for delivery.";
+   if(p>=1){ f1.className="fill done"; f2.className="fill done"; }
+   const shown = Math.floor(Math.max(0,(p-0.09)/0.91)*words.length);
+   t2.textContent = words.slice(0,shown).join(" ");
+   if(p<1) requestAnimationFrame(frame);
+ }
+ f1.className="fill blank"; f2.className="fill";
+ requestAnimationFrame(frame);
+}
+
+/* ---------- 4 ---------- */
+function sTape(){
+ setTimeout(drawTape,20);
+ return `<span class="badge stream">The centrepiece</span>
+ <h2>Fourteen events build one message</h2>
+ <div class="loc">Step it yourself. Left = what arrives on the wire. Right = what your handler has built so far.</div>
+ <div class="evctl">
+   <button class="primary" id="evNext" onclick="evStep(1)">Next event &#8594;</button>
+   <button id="evPlay" onclick="evPlay()">&#9654; Play</button>
+   <button onclick="evReset()">&#8635; Reset</button>
+   <span style="align-self:center; color:var(--dim); font-size:.78rem;" id="evCount"></span>
+ </div>
+ <div class="tape">
+  <div class="tapecol">
+    <h4>Event stream (SSE)</h4>
+    <div class="evlist" id="evList"></div>
+    <div id="evDetail"></div>
+  </div>
+  <div class="tapecol">
+    <h4>Your accumulating Message</h4>
+    <div id="evMsg"></div>
+  </div>
+ </div>`;
+}
+function drawTape(){
+ const list=$("evList"); if(!list) return;
+ list.innerHTML = EV.map((e,i)=>{
+   const cls = i===evIdx ? "cur" : (i<evIdx ? "seen" : "");
+   return `<div class="ev k-${e.k} ${cls}" onclick="evGoto(${i})"><span class="no">${i+1}</span><span>${esc(e.name)}</span></div>`;
+ }).join("");
+ const c=list.querySelector(".ev.cur"); if(c) c.scrollIntoView({block:"nearest"});
+ $("evCount").textContent = evIdx<0 ? "not started" : `event ${evIdx+1} of ${EV.length}`;
+ $("evNext").disabled = evIdx>=EV.length-1;
+
+ const d=$("evDetail");
+ if(evIdx<0){ d.innerHTML=`<div class="evwhat" style="border-left-color:var(--border)">Press <b>Next event</b> or <b>Play</b>. Nothing has arrived yet — your handler is holding an empty content array and has committed nothing.</div>`; }
+ else{
+   const e=EV[evIdx];
+   d.innerHTML = `<div class="evjson" style="margin-top:9px">${jsonHi(e.json)}</div><div class="evwhat">${e.what}</div>`;
+ }
+ drawMsg();
+}
+function drawMsg(){
+ const box=$("evMsg"); if(!box) return;
+ const s=tapeState(evIdx);
+ if(!s.started){ box.innerHTML=`<div class="msgbox"><div class="hd">// nothing constructed yet</div></div>`; return; }
+ let h=`<div class="msgbox"><div class="hd">Message · id msg_01QxT… · model claude-sonnet-5</div>`;
+ const b0=s.blocks[0], b1=s.blocks[1];
+ if(!b0) h+=`<div style="color:#5b6178; font-family:'Cascadia Code',monospace; font-size:.76rem">content: []&nbsp; <span style="color:var(--dim)">// empty shell</span></div>`;
+ if(b0){
+   h+=`<div class="blk text"><div class="bh">content[0] · text ${b0.closed?"· closed":"· open"}</div>
+     <div class="body">${esc(b0.text)}${b0.closed?"":'<span class="caret">|</span>'}</div>
+     <span class="pill ok">safe to paint on screen now</span></div>`;
+ }
+ if(b1){
+   let pill, buf = b1.buf===""?"(no input yet)":b1.buf;
+   if(b1.closed) pill=`<span class="pill ok">&#10003; complete &mdash; json.loads() is safe here</span>`;
+   else if(b1.buf==="") pill=`<span class="pill wait">name + id known, arguments not sent</span>`;
+   else pill=`<span class="pill bad">&#9888; partial JSON &mdash; do NOT parse, do NOT run the tool</span>`;
+   h+=`<div class="blk tool"><div class="bh">content[1] · tool_use ${b1.closed?"· closed":"· open"}</div>
+     <div class="body">name: <span class="t-str">"${b1.name}"</span><br>id: <span class="t-str">"${b1.id}"</span><br>
+     input_json buffer:<br><span style="color:#f0c39a">${esc(buf)}</span>${b1.closed?"":'<span class="caret">|</span>'}</div>
+     ${pill}</div>`;
+ }
+ h+=`<div style="margin-top:10px">
+   <div class="kv"><span>stop_reason</span><span style="color:${s.stop_reason?"#8fd6ac":"#5b6178"}">${s.stop_reason?'"'+s.stop_reason+'"':"null"}</span></div>
+   <div class="kv"><span>usage.output_tokens</span><span>${s.out}</span></div>
+   <div class="kv" style="border:none"><span>message_stop seen</span><span style="color:${s.stopped?"#8fd6ac":"#f0a5a5"}">${s.stopped?"yes":"no"}</span></div>
+ </div>`;
+ h+= s.stopped
+   ? `<div class="safebar ok"><b>&#10003; The turn is complete.</b> Append it to conversation history, run <code class="inl">lookup_order</code> with the parsed input, and send the <code class="inl">tool_result</code> back as a user turn.</div>`
+   : `<div class="safebar no"><b>&#10007; Provisional.</b> Whatever is above may be painted to the screen, but it must not enter conversation history and no tool may be executed from it.</div>`;
+ return box.innerHTML = h+`</div>`;
+}
+function evStep(d){ evGoto(Math.min(EV.length-1, Math.max(-1, evIdx+d))); }
+function evGoto(i){ evIdx=i; drawTape(); }
+function evReset(){ evStopPlay(); evIdx=-1; drawTape(); }
+function evPlay(){
+ if(playing){ evStopPlay(); return; }
+ if(evIdx>=EV.length-1) evIdx=-1;
+ $("evPlay").textContent="⏸ Pause";
+ playing=setInterval(()=>{ if(evIdx>=EV.length-1){ evStopPlay(); return; } evStep(1); },1000);
+}
+function evStopPlay(){ if(playing){ clearInterval(playing); playing=null; } const b=$("evPlay"); if(b) b.textContent="▶ Play"; }
+
+/* ---------- 5 ---------- */
+function sRule(){
+ const wrong=P([
+ {s:'for event in stream:'},
+ {s:'    if event.type == "content_block_delta":'},
+ {s:'        d = event.delta'},
+ {s:'        if d.type == "input_json_delta":'},
+ {s:'            args = json.loads(d.partial_json)   # parse each fragment', m:"bug", g:"THROWS"},
+ {s:'            run_tool(name, args)                # act immediately', m:"bug", g:"CORRUPTS"},
+ ]);
+ const right=P([
+ {s:'tool_blocks = {}          # index -> accumulated block'},
+ {s:'text_chunks = []'},
+ {s:'with client.messages.stream(**kwargs) as stream:'},
+ {s:'    for event in stream:'},
+ {s:'        if event.type == "content_block_start":'},
+ {s:'            b = event.content_block'},
+ {s:'            tool_blocks[event.index] = {'},
+ {s:'                "type": b.type, "id": getattr(b, "id", None),'},
+ {s:'                "name": getattr(b, "name", None), "input_json": ""'},
+ {s:'            }'},
+ {s:'        elif event.type == "content_block_delta":'},
+ {s:'            d = event.delta'},
+ {s:'            if d.type == "input_json_delta":'},
+ {s:'                tool_blocks[event.index]["input_json"] += d.partial_json', m:"ctx", g:"append only"},
+ {s:'            elif d.type == "text_delta":'},
+ {s:'                text_chunks.append(d.text)'},
+ {s:'        elif event.type == "message_stop":'},
+ {s:'            break'},
+ {s:''},
+ {s:'# reconstruct completed tool calls only after the stream closes'},
+ {s:'tool_calls = []'},
+ {s:'for block in tool_blocks.values():'},
+ {s:'    if block["type"] == "tool_use":'},
+ {s:'        tool_calls.append({'},
+ {s:'            "id": block["id"], "name": block["name"],'},
+ {s:'            "input": json.loads(block["input_json"])   # parseable only now', m:"add", g:"SAFE"},
+ {s:'        })'},
+ ]);
+ return `<span class="badge rule">The rule</span>
+ <h2>Never act on a partial block</h2>
+ <div class="loc">One line moves. That line is the entire lesson.</div>
+
+ <h3>Wrong &mdash; parsing inside the loop</h3>
+ ${code(wrong)}
+ <p>Fragment 1 is <code class="inl">{"order_</code>. <code class="inl">json.loads</code> raises. And in the rare case a fragment <em>is</em> syntactically valid — as it was at event 11 on the last step — you get a <em>silently wrong</em> tool call with missing or truncated arguments. That is the worse outcome, because nothing throws.</p>
+
+ <h3>Right &mdash; accumulate by index, parse after the close</h3>
+ ${code(right)}
+
+ <div class="callout good"><b>Keyed by <code class="inl">index</code>, not by arrival order.</b> Blocks are addressed by index precisely because deltas for different blocks interleave. Appending to "the current block" is a bug that hides until a response contains two tool calls.</div>
+
+ <h3>Three events, three permissions &mdash; the mnemonic</h3>
+ <div class="grid">
+  <div class="card" style="border-left:3px solid var(--accent)"><div class="n" style="color:var(--accent)">content_block_delta</div><h5>Append. Never interpret.</h5><p>Text may be painted. JSON may only be concatenated.</p></div>
+  <div class="card" style="border-left:3px solid var(--green)"><div class="n" style="color:var(--green)">content_block_stop</div><h5>The <em>block</em> is now real.</h5><p>First moment its input parses. First moment a tool may run.</p></div>
+  <div class="card" style="border-left:3px solid var(--blue)"><div class="n" style="color:var(--blue)">message_stop</div><h5>The <em>turn</em> is now real.</h5><p>First moment it may be written to conversation history.</p></div>
+ </div>`;
+}
+
+/* ---------- 6 ---------- */
+function sBreak(){
+ return `<span class="badge fail">Failure</span>
+ <h2>Traffic spike. The stream dies at event 10.</h2>
+ <div class="loc">You have the text block, and a <code class="inl">tool_use</code> block whose buffer reads <code class="inl">{"order_id": "4471", "include_addr</code>. No <code class="inl">message_stop</code>. What does your handler do?</div>
+
+ <button class="choice" onclick="pick('A',false)"><span class="tag">A</span>Append what you have to conversation history so the work is not lost, then retry only the customer's last message on the next request.</button>
+ <div class="fb wrong" id="fbA"><b>Structural corruption &mdash; and it is durable.</b> A half-built <code class="inl">tool_use</code> block is now permanently in history and is re-sent on every subsequent request. The assistant turn has a <code class="inl">tool_use</code> with no matching <code class="inl">tool_result</code>, so the very next call is rejected with a terminal <code class="inl">400</code> — an error no retry can clear, because the cause is in the request you keep re-sending.</div>
+
+ <button class="choice" onclick="pick('B',false)"><span class="tag">B</span>Show the partial text to the customer and treat the turn as finished, since the visible answer already reads as a complete sentence.</button>
+ <div class="fb wrong" id="fbB"><b>Judging completeness by looking at the content.</b> The text half is only a cosmetic glitch; the <code class="inl">tool_use</code> half is structural. Reading well is not evidence of being finished — only <code class="inl">message_stop</code> is. This is the same mistake as A with better manners.</div>
+
+ <button class="choice" onclick="pick('C',true)"><span class="tag">C</span>Discard the partial assistant turn, write nothing to history, and retry the whole request &mdash; a dropped stream is a transient failure.</button>
+ <div class="fb right" id="fbC"><b>Correct.</b> A turn is usable only once <code class="inl">message_stop</code> has arrived; until then everything accumulated is provisional. History stays clean, the retry re-sends a valid request, and the customer sees at worst a re-typed sentence. Track completion <em>on purpose</em> with a flag — never infer it.</div>
+
+ <div class="revwrap">
+  <button class="revbtn" onclick="reveal('r6',this)"><span class="chev">&#9654;</span> The severity split worth memorising</button>
+  <div class="reveal" id="r6">
+   <div class="lad">
+    <div class="rung mild"><span class="ico">&#128993;</span><b>Partial <em>text</em> shown to a user</b><p>Cosmetic. A sentence stops mid-word. Annoying; nothing downstream breaks.</p></div>
+    <div class="rung sev"><span class="ico">&#128308;</span><b>Partial <em>tool_use</em> written to history</b><p>Structural. Breaks tool_use/tool_result pairing and poisons every following request until history is repaired.</p></div>
+   </div>
+   <div class="callout warn"><b>Why the exam likes this one:</b> both failures come from the same missing guard, but only one of them looks like a bug in testing. The text glitch is what you notice; the history corruption is what pages you.</div>
+  </div>
+ </div>`;
+}
+function pick(k,ok){
+ ["A","B","C"].forEach(x=>{ $("fb"+x).classList.remove("open"); });
+ $("fb"+k).classList.add("open");
+ document.querySelectorAll(".choice").forEach(b=>b.classList.remove("right","wrong"));
+ event.currentTarget.classList.add(ok?"right":"wrong");
+}
+
+/* ---------- 7 ---------- */
+function sStop(){
+ return `<span class="badge rule">Branching</span>
+ <h2>The turn ended. <code class="inl">stop_reason</code> says what happens next.</h2>
+ <div class="loc">Read from <code class="inl">message_delta</code> when streaming; from the response body when not. Read it <em>before</em> you branch.</div>
+
+ <div class="router">stop_reason &nbsp;=&nbsp; ?</div>
+ <div class="forkline">&#9662;&#9662;&#9662;&#9662;&#9662;&#9662;</div>
+ <div class="fork">
+  <div class="fk loop"><span class="r">"tool_use"</span><p>The <em>only</em> value that continues the agent loop. Run your tools, append the <code class="inl">tool_result</code> user turn, call again.</p></div>
+  <div class="fk term"><span class="r">"end_turn"</span><p>Claude finished naturally. Render it and stop. No loop.</p></div>
+  <div class="fk hold"><span class="r">"max_tokens"</span><p>Truncated by <em>your</em> cap. Not an error — a cut-off answer. Raise <code class="inl">max_tokens</code> or continue the generation.</p></div>
+  <div class="fk term"><span class="r">"stop_sequence"</span><p>Hit a string you supplied in <code class="inl">stop_sequences</code>. Your own boundary fired.</p></div>
+  <div class="fk hold"><span class="r">"pause_turn"</span><p>A long server-tool loop paused. Resubmit the turn as-is to continue — do not treat it as done.</p></div>
+  <div class="fk warnk"><span class="r">"refusal"</span><p>Claude declined. Arrives as <b>HTTP 200</b>. Fail fast and surface it — retrying reproduces it.</p></div>
+ </div>
+
+ <div class="callout warn"><b>The trap: a refusal is a success code.</b> A pipeline that classifies outcomes by HTTP status alone sees <code class="inl">200</code>, marks the call healthy, and ships an empty or declining answer downstream. Status code and <code class="inl">stop_reason</code> are two different questions — check both.</div>
+ <div class="callout good"><b>The loop guard, in one line:</b> continue the agent loop <em>only</em> on <code class="inl">"tool_use"</code>. Any other value is a different code path, not a variation of the same one.</div>
+
+ <div class="revwrap">
+  <button class="revbtn" onclick="reveal('r7',this)"><span class="chev">&#9654;</span> Where a failed tool goes (it is not here)</button>
+  <div class="reveal" id="r7">
+   <p>If <code class="inl">lookup_order</code> throws inside <em>your</em> code, that is not a <code class="inl">stop_reason</code> at all — it is your turn to speak. Send a <code class="inl">tool_result</code> block with <code class="inl">"is_error": true</code> and a description of what failed.</p>
+   <div class="evjson">${jsonHi('{"type":"tool_result","tool_use_id":"toolu_01Vd9K…","content":"Order service timed out after 5s","is_error":true}')}</div>
+   <p><b>Never an empty result and never a silent omission.</b> An empty result tells Claude the lookup succeeded and found nothing — which is a different fact, and it will answer the customer accordingly.</p>
+  </div>
+ </div>`;
+}
+
+/* ---------- 8 ---------- */
+function sErrors(){
+ return `<span class="badge fail">Triage</span>
+ <h2>Something came back that is not a message</h2>
+ <div class="loc">The single question that sorts every API failure: <em>is the cause in my request, or in the moment?</em></div>
+
+ <div class="board">
+  <div class="bd amber"><h5>&#128993; Retriable &mdash; the moment is wrong</h5>
+   <div class="codes">429 &nbsp;·&nbsp; 529 &nbsp;·&nbsp; 500 / 502 / 503 / 504</div>
+   <p>Rate limited, Anthropic-side overload, transient server faults. The identical request may well succeed later. Back off and retry.</p></div>
+  <div class="bd red"><h5>&#128308; Terminal &mdash; the request is wrong</h5>
+   <div class="codes">400 &nbsp;·&nbsp; 401 &nbsp;·&nbsp; 403 &nbsp;·&nbsp; 404</div>
+   <p>Malformed body, bad key, no permission, unknown resource. The cause travels <em>with</em> the request, so an identical retry reproduces it exactly. Fix and resend, or fail.</p></div>
+  <div class="bd blue"><h5>&#128309; 200 &mdash; but read it</h5>
+   <div class="codes">stop_reason: "refusal"</div>
+   <p>A success status carrying a declined answer. Invisible to a status-code classifier. Check <code class="inl">stop_reason</code> on every response.</p></div>
+ </div>
+
+ <h3>Three rules that beat instinct</h3>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--accent)">Header wins</div><h5><code class="inl">retry-after</code> is authoritative</h5><p>On a <code class="inl">429</code>/<code class="inl">529</code>, obey the header over your own schedule. Exponential backoff <em>with jitter</em> is the fallback for when it is absent.</p></div>
+  <div class="card"><div class="n" style="color:var(--red)">Do not double-wrap</div><h5>The SDK already retries</h5><p>SDKs auto-retry transient failures with progressive delays, up to a configurable max. Your own loop around that <em>multiplies</em> attempts against the rate limit instead of capping them — set <code class="inl">max_retries</code> instead.</p></div>
+  <div class="card"><div class="n" style="color:var(--blue)">Different layer</div><h5>Tool failures are not HTTP</h5><p>Your tool blowing up is a <code class="inl">tool_result</code> with <code class="inl">is_error: true</code>, inside a perfectly healthy <code class="inl">200</code>.</p></div>
+ </div>
+
+ <div class="callout note"><b>Back to step 6 for a second.</b> A dropped stream produces no status code at all — but it classifies as <em>transient</em>, so the handling is the retriable path: discard the partial turn, retry the whole request. Partial output never goes downstream.</div>`;
+}
+
+/* ---------- 9 ---------- */
+function sCost(){
+ setTimeout(drawCache,20);
+ return `<span class="badge cost">Economics</span>
+ <h2>Same app, 2 a.m.: re-classify 40,000 backlog tickets</h2>
+ <div class="loc">Nobody is waiting. The workload changed, so every mechanic in this walkthrough changes with it.</div>
+
+ <table>
+  <tr><th>&nbsp;</th><th>Daytime widget</th><th>Nightly backlog job</th></tr>
+  <tr><td><b>Who waits</b></td><td>A customer, right now</td><td>Nobody</td></tr>
+  <tr><td><b>API</b></td><td>Messages API, realtime</td><td><b>Message Batches API</b></td></tr>
+  <tr><td><b>Streaming</b></td><td>Yes — time-to-first-token is the product</td><td><b>Not available in batches</b>, and pointless</td></tr>
+  <tr><td><b>Latency budget</b></td><td>Sub-second first token</td><td>Most batches &lt; 1 h · hard expiry <b>24 h</b></td></tr>
+  <tr><td><b>Price</b></td><td>Standard</td><td><b>50% off</b> input <em>and</em> output</td></tr>
+ </table>
+
+ <div class="callout warn"><b>The failure that passes every test:</b> reaching for batch in a user-facing flow. It works perfectly in staging with one request and fails in production because the customer is <em>waiting</em> and the batch is not. "A user submits something and expects an answer now" &rarr; <b>synchronous, always.</b></div>
+
+ <h3>Batch mechanics worth carrying</h3>
+ <ul>
+  <li><b>100,000 requests or 256 MB</b> per batch; results downloadable for <b>29 days</b>.</li>
+  <li>Every request needs a unique <code class="inl">custom_id</code> — <b>results return in any order, so you match by <code class="inl">custom_id</code></b>, never by position.</li>
+  <li>Outcomes are <code class="inl">succeeded</code> / <code class="inl">errored</code> / <code class="inl">canceled</code> / <code class="inl">expired</code>; you are billed only for <b>succeeded</b>. One failure does not affect the rest of the batch.</li>
+ </ul>
+
+ <h3>And the other 40,000 copies of the same prompt &mdash; prompt caching</h3>
+ <p>Every ticket in the run carries the same tool definitions and the same long classification taxonomy in <code class="inl">system</code>. Cached, that prefix costs <b>0.1&times;</b> to read instead of 1&times; to re-send. <b>Click a level to change it</b> and watch what survives:</p>
+ <div class="cache" id="cacheBox"></div>
+ <div class="callout"><b>The prefix is a hierarchy: <code class="inl">tools</code> &rarr; <code class="inl">system</code> &rarr; <code class="inl">messages</code>.</b> A change at any level invalidates that level <em>and everything after it</em>. Which is why the breakpoint goes on the last block that is byte-identical across requests — and why a timestamp or a per-request id at the top of your system prompt quietly destroys the entire cache.</div>
+
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--green)">Multipliers</div><h5>0.1&times; read</h5><p>5-min write <b>1.25&times;</b> · 1-hour write <b>2&times;</b> · read <b>0.1&times;</b>. Hits refresh the TTL free. <b>Stacks with the batch discount.</b></p></div>
+  <div class="card"><div class="n" style="color:var(--yellow)">Silent failure</div><h5>Below the minimum</h5><p>Minimum cacheable length <em>varies by model</em> (~1,024 tokens Opus/Sonnet tiers; 4,096 for Haiku 4.5). Under it, nothing is cached and <b>no error is raised</b>.</p></div>
+  <div class="card"><div class="n" style="color:var(--blue)">Exact match</div><h5>Byte-for-byte</h5><p>Caches are isolated per organization. Up to 4 explicit breakpoints; automatic caching places one for you.</p></div>
+  <div class="card"><div class="n" style="color:var(--accent)">In batches</div><h5>Best-effort</h5><p>Hit rates in batches vary widely — prefer the <b>1-hour TTL</b> when a batch shares a long prefix.</p></div>
+ </div>`;
+}
+const CLVL=[
+ {k:"tools", label:"tools", note:"Tool definitions — first in the prefix, so a change here invalidates everything."},
+ {k:"system", label:"system", note:"The ShipRight policy + classification taxonomy. The natural breakpoint."},
+ {k:"messages", label:"messages", note:"The ticket being classified — different on every request, cached never."}
+];
+function drawCache(){
+ const box=$("cacheBox"); if(!box) return;
+ const ci = cacheChanged===null ? -1 : cacheChanged;
+ box.innerHTML = CLVL.map((l,i)=>{
+   let cls,st;
+   if(ci===-1){ cls = i===2?"miss":"hit"; st = i===2?"not cacheable — new every time":"cache read · 0.1×"; }
+   else if(i<ci){ cls="hit"; st="still cached · 0.1×"; }
+   else if(i===ci){ cls="changed"; st="you changed this — cache write"; }
+   else { cls="miss"; st="invalidated · full price"; }
+   return `<div class="clvl ${cls}" onclick="cacheChanged=${cacheChanged===i?null:i};drawCache()">
+     <div><b>${l.label}</b><small>${l.note}</small></div><div class="st">${st}</div></div>`;
+ }).join("");
+}
+
+/* ---------- 10 ---------- */
+function sRecall(){
+ return `<span class="badge plain">Recap &amp; recall</span>
+ <h2>One request, end to end</h2>
+ <table>
+  <tr><th>Step</th><th>The single sentence</th></tr>
+  <tr><td><b>Stateless</b></td><td>Conversation state lives in your app; every request re-sends the whole history.</td></tr>
+  <tr><td><b>Shape</b></td><td><code class="inl">system</code> is top-level; <code class="inl">messages</code> alternate user/assistant; content is typed blocks; <code class="inl">max_tokens</code> is required.</td></tr>
+  <tr><td><b>Streaming</b></td><td>Changes perceived latency only — same message, same cost, same total time. Not in batches.</td></tr>
+  <tr><td><b>Assembly</b></td><td>Accumulate deltas keyed by <code class="inl">index</code>; a <code class="inl">tool_use</code> input parses no earlier than its <code class="inl">content_block_stop</code>.</td></tr>
+  <tr><td><b>Commit</b></td><td>A turn enters history only after <code class="inl">message_stop</code>. A broken stream = discard the partial turn and retry.</td></tr>
+  <tr><td><b>Branch</b></td><td>Only <code class="inl">stop_reason: "tool_use"</code> continues the agent loop; a refusal is HTTP 200.</td></tr>
+  <tr><td><b>Errors</b></td><td>429/529/5xx retriable (<code class="inl">retry-after</code> wins); 400/401/403/404 terminal. The SDK already retries — don't wrap it.</td></tr>
+  <tr><td><b>Economics</b></td><td>Batch = 50% off, ≤24 h, match by <code class="inl">custom_id</code>. Cache prefix tools&rarr;system&rarr;messages; read 0.1×; stacks with batch.</td></tr>
+ </table>
+
+ <h3>Blueprint-style item &mdash; D2 · Claude API Mechanics</h3>
+ <p class="lead">A streaming support assistant with tools sees roughly 3% of its streams terminate before <code class="inl">message_stop</code> during traffic spikes. The handler appends whatever content has accumulated to conversation history, then retries by sending only the customer's most recent message. Users on those sessions then hit <code class="inl">400</code> errors on every following request. <b>Select ONE.</b></p>
+
+ <button class="choice" onclick="q('A',false)"><span class="tag">A</span>Raise <code class="inl">max_tokens</code> so responses finish generating before the connection is dropped, and lengthen the client-side request timeout to match.</button>
+ <div class="fb wrong" id="qfbA"><b>Incorrect.</b> The turn was cut off by a transport failure, not by an output cap — a <code class="inl">max_tokens</code> stop is a clean, complete message with a truncated answer. Neither change addresses the malformed history that is producing the <code class="inl">400</code>.</div>
+
+ <button class="choice" onclick="q('B',true)"><span class="tag">B</span>Discard the partial assistant turn without saving it, and retry the full request &mdash; committing a turn only once <code class="inl">message_stop</code> has arrived.</button>
+ <div class="fb right" id="qfbB"><b>Correct.</b> The <code class="inl">400</code> comes from a half-built <code class="inl">tool_use</code> block sitting in history with no matching <code class="inl">tool_result</code>. Until <code class="inl">message_stop</code>, accumulated content is provisional; a dropped stream is a transient failure, so the whole request is retried and history stays valid.</div>
+
+ <button class="choice" onclick="q('C',false)"><span class="tag">C</span>Parse each <code class="inl">input_json_delta</code> as it arrives so a partial tool input can still be executed, and fill any absent arguments with schema defaults.</button>
+ <div class="fb wrong" id="qfbC"><b>Incorrect &mdash; and it makes things worse.</b> <code class="inl">partial_json</code> fragments are not valid JSON until <code class="inl">content_block_stop</code>, so this either raises or, worse, executes a tool against truncated arguments while appearing to succeed.</div>
+
+ <button class="choice" onclick="q('D',false)"><span class="tag">D</span>Disable streaming for this endpoint so partial assistant turns can no longer occur, accepting the loss of time-to-first-token for the chat widget.</button>
+ <div class="fb wrong" id="qfbD"><b>Incorrect.</b> It trades away the UX the feature exists for, and it does not fix the defect: a non-streamed call can also fail mid-flight, and long non-streamed generations then risk connection timeouts. The missing commit guard is the actual bug.</div>
+
+ <h3>Cold-recall check</h3>
+ <ul class="ck">
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>six</b> SSE event types and what each one permits you to do.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Say <b>when</b> a <code class="inl">tool_use</code> input first parses, and when a turn may enter history.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Sort <code class="inl">400 / 429 / 500 / 529 / 200+refusal</code> into retriable, terminal, and neither.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> State the cache hierarchy and the three price multipliers from memory.</li>
+ </ul>
+
+ <div class="callout good"><b>Where to go next:</b> the same scenario extends into <b>D8</b> (tool schema design and <code class="inl">tool_use</code>/<code class="inl">tool_result</code> pairing), <b>D4</b> (retriable vs. terminal as a production failure policy), and <b>D5</b> (which tier classifies 40,000 tickets, and at what cost).</div>`;
+}
+function q(k,ok){
+ ["A","B","C","D"].forEach(x=>$("qfb"+x).classList.remove("open"));
+ $("qfb"+k).classList.add("open");
+ document.querySelectorAll(".choice").forEach(b=>b.classList.remove("right","wrong"));
+ event.currentTarget.classList.add(ok?"right":"wrong");
+}
+
+/* ===================== driver ===================== */
+function render(){
+ evStopPlay();
+ const s=STEPS[cur];
+ $("view").innerHTML=s.r();
+ $("view").scrollIntoView({behavior:"smooth",block:"nearest"});
+ $("stepNo").textContent=cur+1;
+ $("stepName").textContent=s.name;
+ $("prev").disabled=cur===0;
+ $("next").disabled=cur===STEPS.length-1;
+ $("next").textContent = cur===STEPS.length-2 ? "Recall →" : "Next →";
+ renderRail();
+}
+function renderRail(){
+ const r=$("rail"); r.innerHTML="";
+ STEPS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.textContent=s.name;
+  if(i===cur) b.className="active"; else if(seen.has(i)) b.className="done";
+  b.onclick=()=>goto(i);
+  r.appendChild(b);
+ });
+}
+function goto(i){ cur=Math.max(0,Math.min(STEPS.length-1,i)); seen.add(cur); render(); }
+function go(d){ goto(cur+d); }
+$("prev").onclick=()=>go(-1);
+$("next").onclick=()=>go(1);
+document.addEventListener("keydown",e=>{
+ if(e.target.tagName==="INPUT") return;
+ if(e.key==="ArrowRight") go(1); else if(e.key==="ArrowLeft") go(-1);
+});
+$("stepTot").textContent=STEPS.length;
+$("foot").innerHTML='Grounded in <a href="https://docs.claude.com/en/docs/build-with-claude/streaming">streaming</a>, <a href="https://docs.claude.com/en/api/messages">Messages API</a>, <a href="https://docs.claude.com/en/docs/build-with-claude/prompt-caching">prompt caching</a> and <a href="https://docs.claude.com/en/docs/build-with-claude/batch-processing">batch</a> docs · pricing and limits verified 2026-07-12 to 2026-07-19 — re-verify version-sensitive figures at build time. Practice item is original, written to blueprint objectives — not live exam content.';
+render();
+</script>
+</body>
+</html>

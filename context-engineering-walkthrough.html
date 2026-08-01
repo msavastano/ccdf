@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F · D6 Context Engineering — Visual Walkthrough</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232736; --code:#0b0d13;
+    --text:#e8eaf0; --dim:#9aa0b4; --accent:#d97748; --green:#4fa877; --red:#c95b5b;
+    --purple:#c98bdb; --blue:#5b9bd9; --yellow:#d9b45b; --teal:#4fb3a8; --border:#2e3345;
+  }
+  *{box-sizing:border-box; margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:22px 16px 60px;}
+  a{color:var(--accent);}
+  header{text-align:center; margin-bottom:16px;}
+  h1{font-size:1.15rem; font-weight:600; letter-spacing:.03em;}
+  h1 span{color:var(--accent);}
+  .sub{color:var(--dim); font-size:.8rem; margin-top:4px;}
+
+  .rail{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:960px; margin:10px auto 4px;}
+  .rail button{background:var(--panel); color:var(--dim); border:1px solid var(--border); border-radius:999px;
+       padding:5px 12px; font-size:.72rem; cursor:pointer; transition:all .15s; white-space:nowrap;}
+  .rail button:hover{border-color:var(--accent); color:var(--text);}
+  .rail button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .rail button.done{color:var(--text); border-color:#3c4256;}
+  .rail button.done::before{content:"\2713 "; color:var(--green);}
+
+  main{width:100%; max-width:940px;}
+  .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
+  .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+         padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
+  .badge.mem{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  .badge.fail{background:rgba(201,91,91,.16); color:var(--red); border:1px solid rgba(201,91,91,.35);}
+  .badge.strat{background:rgba(217,119,72,.16); color:var(--accent); border:1px solid rgba(217,119,72,.35);}
+  .badge.sum{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
+  .badge.rag{background:rgba(79,179,168,.16); color:var(--teal); border:1px solid rgba(79,179,168,.35);}
+  .badge.plain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
+  h2{font-size:1.35rem; font-weight:650; margin-bottom:4px; line-height:1.25;}
+  h3{font-size:.96rem; font-weight:650; margin:22px 0 8px; color:var(--text);}
+  h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; color:var(--dim); font-weight:600;}
+  .loc{color:var(--dim); font-size:.82rem; margin-bottom:14px;}
+  p{line-height:1.62; margin:9px 0; color:#d4d8e4; font-size:.92rem;}
+  p.lead{font-size:1rem; color:var(--text);}
+  strong{color:#fff;}
+  em{color:var(--accent); font-style:normal;}
+  code.inl{background:var(--code); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+        font-family:'Cascadia Code','Consolas',monospace; font-size:.82em; color:#cdd3e6;}
+  ul{margin:8px 0 8px 2px; padding-left:18px; line-height:1.6; color:#d4d8e4; font-size:.92rem;}
+  li{margin:5px 0;}
+
+  .code{background:var(--code); border:1px solid var(--border); border-radius:10px; overflow-x:auto;
+        font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:.8rem; line-height:1.62; margin:10px 0;}
+  .ln{display:flex; white-space:pre; min-width:max-content;}
+  .ln .gut{width:2.6em; text-align:right; padding:0 12px 0 10px; color:#454b62; user-select:none; flex:none;}
+  .ln .src{padding-right:16px; flex:1;}
+  .ln.add{background:rgba(79,168,119,.13);} .ln.add .gut{color:var(--green);}
+  .ln.ctx{background:rgba(217,119,72,.07);}
+  .t-kw{color:var(--purple);} .t-str{color:#8fbf87;} .t-com{color:#5c6478; font-style:italic;}
+  .t-num{color:#d99a5b;}
+  .tagline{font-size:.7rem; color:var(--red); margin-left:8px; font-weight:600;}
+  .tagline.add{color:var(--green);}
+
+  .revwrap{margin:12px 0;}
+  .revbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+      padding:9px 16px; font-size:.83rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px;}
+  .revbtn:hover{border-color:var(--accent);}
+  .revbtn .chev{color:var(--accent); transition:transform .2s;}
+  .reveal{display:none; margin-top:12px; padding:16px 18px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel2); animation:fade .25s ease;}
+  .reveal.open{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .reveal .oneliner{font-size:.96rem; color:#fff; font-weight:600; line-height:1.5;}
+
+  .callout{border-left:3px solid var(--accent); background:var(--panel2); border-radius:0 8px 8px 0;
+      padding:12px 16px; margin:14px 0; font-size:.88rem; line-height:1.6;}
+  .callout.warn{border-left-color:var(--red);}
+  .callout.good{border-left-color:var(--green);}
+  .callout.note{border-left-color:var(--blue);}
+  .callout b{color:#fff;}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:.83rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.5;}
+  th{background:var(--panel2); color:var(--text); font-weight:600;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; margin:14px 0;}
+  .card{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .card .n{font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+  .card h5{font-size:.9rem; margin:5px 0 4px;}
+  .card p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+
+  /* session filler */
+  .sess{display:flex; gap:14px; flex-wrap:wrap;}
+  .scol{flex:1; min-width:280px; border:1px solid var(--border); border-radius:12px; padding:13px 15px; background:var(--panel2);}
+  .scol h4{margin-bottom:8px;}
+  .scol.dev{border-color:rgba(79,168,119,.35);}
+  .scol.prod{border-color:rgba(201,91,91,.4);}
+  .wbar{height:200px; border:1px solid var(--border); border-radius:8px; background:var(--code);
+    display:flex; flex-direction:column-reverse; overflow:hidden; position:relative;}
+  .wseg{width:100%; flex:none; border-top:1px solid rgba(0,0,0,.35);}
+  .wcap{position:absolute; left:0; right:0; top:0; height:2px; background:var(--red);}
+  .wmeta{display:flex; justify-content:space-between; font-size:.75rem; color:var(--dim); margin-top:7px;
+    font-family:'Cascadia Code',monospace;}
+  .wmeta b{color:var(--text);}
+  .wstat{margin-top:8px; font-size:.79rem; padding:8px 11px; border-radius:8px; line-height:1.5;}
+  .wstat.ok{background:rgba(79,168,119,.1); border:1px solid rgba(79,168,119,.3); color:#a7dcbf;}
+  .wstat.bad{background:rgba(201,91,91,.11); border:1px solid rgba(201,91,91,.4); color:#f0b9b9;}
+  .evctl{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;}
+  .evctl button{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:7px 14px; font-size:.8rem; cursor:pointer;}
+  .evctl button:hover:not(:disabled){border-color:var(--accent);}
+  .evctl button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .evctl button:disabled{opacity:.35; cursor:not-allowed;}
+
+  /* drill */
+  .drill{border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin:10px 0; background:var(--panel2);}
+  .drill .stem{font-size:.88rem; line-height:1.55; margin-bottom:10px;}
+  .drill .opts{display:flex; gap:7px; flex-wrap:wrap;}
+  .drill .opts button{background:var(--code); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:7px 12px; font-size:.75rem; cursor:pointer; transition:all .15s;}
+  .drill .opts button:hover{border-color:var(--accent);}
+  .drill .opts button.right{border-color:var(--green); background:rgba(79,168,119,.15); color:#a7dcbf;}
+  .drill .opts button.wrong{border-color:var(--red); background:rgba(201,91,91,.12); color:#f0b9b9;}
+  .drill .why{display:none; margin-top:10px; font-size:.82rem; line-height:1.55; color:#d4d8e4;
+      border-left:3px solid var(--purple); padding-left:12px;}
+  .drill .why.open{display:block;} .drill .why b{color:#fff;}
+
+  /* summarizer */
+  .stog{display:flex; gap:8px; margin:12px 0;}
+  .stog button{flex:1; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+    padding:9px 12px; font-size:.79rem; cursor:pointer;}
+  .stog button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .sprompt{background:var(--code); border:1px solid var(--border); border-radius:9px; padding:11px 14px;
+    font-family:'Cascadia Code',monospace; font-size:.79rem; line-height:1.6; color:#c6cbdb; margin:10px 0;}
+  .statelist{margin:12px 0;}
+  .si{display:flex; align-items:flex-start; gap:9px; padding:8px 11px; border-radius:8px; margin:5px 0;
+    font-size:.82rem; line-height:1.5; border:1px solid var(--border);}
+  .si.kept{background:rgba(79,168,119,.09); border-color:rgba(79,168,119,.35); color:#c6e5d4;}
+  .si.lost{background:rgba(201,91,91,.09); border-color:rgba(201,91,91,.35); color:#8a8f9e; text-decoration:line-through;}
+  .si .mk{flex:none; font-weight:700;}
+  .si.kept .mk{color:#8fd6ac;} .si.lost .mk{color:#c95b5b;}
+  .sverdict{margin-top:10px; padding:11px 13px; border-radius:9px; font-size:.83rem; line-height:1.55;}
+  .sverdict.ok{background:rgba(79,168,119,.1); border:1px solid rgba(79,168,119,.35); color:#a7dcbf;}
+  .sverdict.bad{background:rgba(201,91,91,.11); border:1px solid rgba(201,91,91,.4); color:#f0b9b9;}
+
+  /* rag pipeline */
+  .pipe{display:flex; align-items:stretch; flex-wrap:wrap; margin:14px 0;}
+  .pnode{flex:1; min-width:165px; border:1px solid var(--border); border-radius:11px; padding:12px 13px; background:var(--panel2);}
+  .pnode b{font-size:.87rem; display:block; margin-bottom:4px;}
+  .pnode .dec{font-size:.75rem; color:var(--dim); line-height:1.45;}
+  .pnode .fail{font-size:.75rem; color:#f0a5a5; line-height:1.45; margin-top:6px; padding-top:6px; border-top:1px dashed var(--border);}
+  .parrow{flex:none; display:flex; align-items:center; padding:0 8px; color:var(--accent); font-size:1.1rem;}
+
+  .choice{display:block; width:100%; text-align:left; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); border-radius:10px; padding:12px 15px; margin:8px 0; font-size:.87rem;
+      cursor:pointer; line-height:1.55; transition:all .15s;}
+  .choice:hover{border-color:var(--accent);}
+  .choice.right{border-color:var(--green); background:rgba(79,168,119,.12);}
+  .choice.wrong{border-color:var(--red); background:rgba(201,91,91,.1);}
+  .choice .tag{font-weight:700; margin-right:8px; color:var(--dim);}
+  .fb{display:none; margin:6px 0 14px; padding:12px 15px; border-radius:10px; font-size:.85rem; line-height:1.6;}
+  .fb.open{display:block;}
+  .fb.right{background:rgba(79,168,119,.1); border-left:3px solid var(--green);}
+  .fb.wrong{background:rgba(201,91,91,.09); border-left:3px solid var(--red);}
+  .fb b{color:#fff;}
+
+  .nav{display:flex; justify-content:space-between; align-items:center; max-width:940px; width:100%; margin-top:16px; gap:10px;}
+  .nav button{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:11px 22px; font-size:.88rem; cursor:pointer; transition:all .15s; font-weight:500;}
+  .nav button:hover:not(:disabled){border-color:var(--accent);}
+  .nav button:disabled{opacity:.3; cursor:not-allowed;}
+  .nav button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .progress{color:var(--dim); font-size:.78rem; text-align:center;} .progress b{color:var(--text);}
+  .keys{margin-top:22px; color:var(--dim); font-size:.7rem; text-align:center; line-height:1.9;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.68rem;}
+  .foot{margin-top:8px; color:#5c6478; font-size:.72rem; text-align:center; line-height:1.7; max-width:700px;}
+  .foot a{color:var(--dim);}
+  .ck{list-style:none; padding-left:0;}
+  .ck li{display:flex; align-items:flex-start; gap:9px; margin:8px 0; cursor:pointer;}
+  .ck input{margin-top:3px; accent-color:var(--green); flex:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Context Engineering — <span>Visual Walkthrough</span></h1>
+  <div class="sub">CCDV-F · Domain 6 · Context Engineering (3.8%) · deciding in advance what enters the window, what comes back as a summary, and what never enters at all</div>
+</header>
+
+<div class="rail" id="rail"></div>
+<main><div class="view" id="view"></div></main>
+
+<div class="nav">
+  <button id="prev">&#8592; Back</button>
+  <div class="progress">Step <b id="stepNo">1</b> / <b id="stepTot">8</b><br><span id="stepName"></span></div>
+  <button id="next" class="primary">Next &#8594;</button>
+</div>
+
+<div class="keys"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate &nbsp;·&nbsp; run the session on step 1 until one side breaks</div>
+<div class="foot" id="foot"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+const KW=/^\b(?:def|return|if|elif|else|for|while|in|with|as|not|and|or|is|True|False|None|raise|import|from|class|lambda|try|except)\b/;
+function pyHi(line){
+  let i=0,out="";
+  while(i<line.length){
+    const rest=line.slice(i); let m;
+    if(rest[0]==="#"){ out+='<span class="t-com">'+esc(rest)+'</span>'; break; }
+    if((m=rest.match(/^"(?:[^"\\]|\\.)*"|^'(?:[^'\\]|\\.)*'/))){ out+='<span class="t-str">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(KW))){ out+='<span class="t-kw">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(/^\b\d+\b/))){ out+='<span class="t-num">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    out+=esc(line[i]); i++;
+  }
+  return out;
+}
+function code(lines){
+  let h='<div class="code">';
+  for(const l of lines){
+    const cls=l.mark?" "+l.mark:"";
+    const tag=l.tag?'<span class="tagline'+(l.mark==="add"?" add":"")+'">'+l.tag+'</span>':"";
+    h+='<div class="ln'+cls+'"><span class="gut">'+(l.n||"")+'</span><span class="src">'+pyHi(l.t)+tag+'</span></div>';
+  }
+  return h+'</div>';
+}
+function P(arr){ return arr.map((t,i)=>({n:i+1,t:t.s!==undefined?t.s:t,mark:t.m,tag:t.g})); }
+function reveal(id,btn){
+  const el=$(id); el.classList.toggle("open");
+  const c=btn.querySelector(".chev"); if(c) c.style.transform=el.classList.contains("open")?"rotate(90deg)":"none";
+}
+const fmt=n=>Math.round(n).toLocaleString("en-US");
+
+let cur=0; const seen=new Set([0]);
+const drState={};
+let turn=0, playing=null;
+let sumSpec=false;
+
+/* history budget left after the system prompt, tool schemas and the retrieved corpus */
+const BUDGET=28000;
+const DEV={tool:600, overhead:700};    // small test fixtures — 20 turns fit with room
+const PROD={tool:2900, overhead:700};  // real tool output, ~4.8× the fixture — over at turn 8
+
+const STEPS=[
+ {name:"1 · Working memory", r:sMemory},
+ {name:"2 · Nothing trims",  r:sCeiling},
+ {name:"3 · Four strategies",r:sStrategies},
+ {name:"4 · The summarizer", r:sSummarizer},
+ {name:"5 · Handoffs",       r:sHandoff},
+ {name:"6 · RAG breaks",     r:sRag},
+ {name:"7 · Index vs search",r:sIndex},
+ {name:"8 · Recall",         r:sRecall}
+];
+
+/* ---------- 1 ---------- */
+function sMemory(){
+ setTimeout(drawSess,20);
+ return `<span class="badge mem">Working memory</span>
+ <h2>It passed every test, then filled at turn eight</h2>
+ <div class="loc">D6 · a claims agent that reads policy documents through tools. Same code, two environments.</div>
+ <p class="lead">Context engineering is deciding <b>in advance</b> what enters the window, what comes back out as a summary, and what never enters at all. The window is Claude's <b>working memory</b> — and the fact that makes it a design problem rather than a runtime one: <b>every tool result stays in the window for the rest of the session.</b></p>
+ <div class="evctl">
+   <button class="primary" id="tNext" onclick="tStep(1)">Advance a turn &#8594;</button>
+   <button id="tPlay" onclick="tPlay()">&#9654; Run</button>
+   <button onclick="tReset()">&#8635; Reset</button>
+   <span style="align-self:center; color:var(--dim); font-size:.78rem;" id="tCount"></span>
+ </div>
+ <div class="sess">
+  <div class="scol dev"><h4>Development — small fixtures</h4><div id="devBox"></div></div>
+  <div class="scol prod"><h4>Production — real tool output</h4><div id="prodBox"></div></div>
+ </div>
+ <div class="callout warn"><b>Nothing about the code differs.</b> In production, <b>tool outputs run 3–5× longer than test fixtures</b> and sessions run more turns. The window that held twenty turns cleanly in testing fills at turn eight. The workload passes every dev test and then fails in prod for one reason — <em>the data got bigger and the sessions got longer.</em></div>
+ <div class="callout"><b>Two consequences, both examinable.</b>
+ <ul>
+  <li><b>Cost and latency.</b> Every token in the window is billed on input <em>and</em> adds latency. A long session compounds both — moving state out of the live window is a <em>budget</em> decision, not only a correctness one.</li>
+  <li><b>This is an architecture-stage decision.</b> The cost of not planning for it is a production outage, so context budgeting belongs in the design, not in a patch after the first incident.</li>
+ </ul></div>`;
+}
+function drawSess(){
+ if(!$("devBox")) return;
+ $("tCount").textContent = turn===0 ? "session not started" : `turn ${turn}`;
+ $("tNext").disabled = turn>=20;
+ for(const [id,cfg,cls] of [["devBox",DEV,"dev"],["prodBox",PROD,"prod"]]){
+   const per=cfg.tool+cfg.overhead;
+   const raw=turn*per;
+   const used=Math.min(BUDGET, raw);
+   // at budget is already a failure: the window must also hold the response
+   const over=raw>=BUDGET;
+   const segs=[];
+   const drawable=Math.min(turn, Math.ceil(BUDGET/per));
+   for(let i=0;i<drawable;i++){
+     segs.push(`<div class="wseg" style="height:${Math.min(per/BUDGET*100,100)}%; background:${
+       cls==="dev" ? (i%2?"#4fa877":"#3f8a61") : (i%2?"#c95b5b":"#a94848")}"></div>`);
+   }
+   const pct=(used/BUDGET*100).toFixed(0);
+   $(id).innerHTML=`<div class="wbar">${segs.join("")}${over?'<div class="wcap"></div>':""}</div>
+     <div class="wmeta"><span>tool result <b>${fmt(cfg.tool)}</b>/turn</span><span><b>${fmt(used)}</b> / ${fmt(BUDGET)} · ${pct}%</span></div>
+     ${over
+       ? `<div class="wstat bad"><b>&#10007; Over budget at turn ${Math.ceil(BUDGET/(cfg.tool+cfg.overhead))}.</b> The next request is rejected before generation.</div>`
+       : `<div class="wstat ok">${turn===0?"Nothing sent yet.":(()=>{
+           const n=Math.floor((BUDGET-used)/per);
+           return `&#10003; Fits. ${n} more turn${n===1?"":"s"} of headroom.`;
+         })()}</div>`}`;
+ }
+}
+function tStep(d){ turn=Math.max(0,Math.min(20,turn+d)); drawSess(); }
+function tReset(){ tStopPlay(); turn=0; drawSess(); }
+function tPlay(){
+ if(playing){ tStopPlay(); return; }
+ if(turn>=20) turn=0;
+ $("tPlay").textContent="⏸ Pause";
+ playing=setInterval(()=>{ if(turn>=20){ tStopPlay(); return; } tStep(1); },500);
+}
+function tStopPlay(){ if(playing){ clearInterval(playing); playing=null; } const b=$("tPlay"); if(b) b.textContent="▶ Run"; }
+
+/* ---------- 2 ---------- */
+function sCeiling(){
+ return `<span class="badge fail">The ceiling</span>
+ <h2>Nothing truncates history for you</h2>
+ <div class="loc">The single fact that turns a limit into your responsibility.</div>
+ <table>
+  <tr><th>Situation</th><th>What the API does</th><th>Stop reason</th></tr>
+  <tr><td>The request is <b>already larger</b> than the window</td><td>Rejected <b>before generation</b> with a validation error</td><td>— (never runs)</td></tr>
+  <tr><td>It fits, but generation <b>hits the ceiling partway</b></td><td>Returns the output generated so far</td><td><code class="inl">model_context_window_exceeded</code></td></tr>
+ </table>
+ <div class="callout warn"><b>Current models never quietly drop your oldest content.</b> Neither path truncates history for you — so <b>if you want a session to outlive the window limit, your application must trim or summarise history itself</b>, before the next request goes out. That is the entire job description of the next three steps.</div>
+ <div class="callout note"><b>A tempting non-fix:</b> "enable prompt caching so context isn't a problem." Caching changes what you <em>pay</em> for those tokens, not whether they occupy space. The bar doesn't move. <em>(Caching economics &rarr; the <b>Cost &amp; Levers</b> walkthrough; the three overflow signals and how to tell them apart &rarr; the <b>Tokens &amp; Context</b> walkthrough.)</em></div>
+ <div class="callout good"><b>Measure before you manage.</b> <code class="inl">count_tokens</code> takes the same request body as a Messages call and returns the input count without running inference — so you can gate a request that would exceed the window instead of letting it error. In development, run it against <b>real tool outputs</b>, not small fixtures: that 3–5× gap is exactly what sinks sessions in production.</div>`;
+}
+
+/* ---------- 3 ---------- */
+const ST=[
+ {stem:"The agent spent six turns chasing a theory that turned out to be wrong. You want to continue the same task from before it went astray.", a:"prune",
+  why:"<b>Pruning.</b> Jump back to an earlier message and continue from there, dropping everything after that point. <b>What you lose:</b> the work after the rewind point — anything useful learned there has to be relearned."},
+ {stem:"Approaching the ceiling, but you're still on the same claim and need the decisions and file changes made so far.", a:"compact",
+  why:"<b>Compaction.</b> Summarise history into a condensed version that keeps the key learnings, at fewer tokens than the original turns. <b>What you lose:</b> any detail the summary didn't capture — which is why the next step is entirely about the summariser."},
+ {stem:"The claim is closed. The next task is an unrelated billing reconciliation.", a:"clear",
+  why:"<b>Clearing.</b> Start fresh with empty context, because prior context would only add bias and confusion. <b>What you lose:</b> all session context — anything needed later must already be persisted somewhere, e.g. a <code class='inl'>CLAUDE.md</code>."},
+ {stem:"You need to know which of 40 policy documents mentions a specific exclusion. The search will be messy; the answer is one sentence.", a:"sub",
+  why:"<b>Subagent handoff.</b> The textbook case: <em>exploration where the journey clutters the main context but the answer is short</em>. It works in its own isolated window and returns a summary. <b>What you lose:</b> visibility into <em>how</em> it got there — the intermediate steps die with its context."},
+ {stem:"The window keeps filling, so the team proposes moving to a model with a larger context window.", a:"none",
+  why:"<b>None of these — and that's the point.</b> When a task is too big for one window, <b>increasing the window is not the fix; decomposition is.</b> A bigger window delays the same failure and buys degraded recall along the way. Reach for the four strategies, not a bigger container."}
+];
+function sStrategies(){
+ setTimeout(drawST,20);
+ return `<span class="badge strat">Four levers</span>
+ <h2>Four strategies, and what each one costs you</h2>
+ <div class="loc">They differ less in what they do than in <b>what continuity you give up</b>. That column is the exam's.</div>
+ <table>
+  <tr><th>Strategy</th><th>What it does</th><th>Continuity lost</th></tr>
+  <tr><td><b>Pruning</b></td><td>Jump back to an earlier message and continue, dropping everything after</td><td>The work after the rewind point</td></tr>
+  <tr><td><b>Compaction</b></td><td>Summarise history into a condensed version keeping key learnings</td><td>Any detail the summary didn't capture</td></tr>
+  <tr><td><b>Clearing</b></td><td>Start a fresh conversation with empty context</td><td><b>All</b> session context</td></tr>
+  <tr><td><b>Subagent handoff</b></td><td>Isolated window with only the task it needs; returns a summary</td><td>Visibility into <em>how</em> it got there</td></tr>
+ </table>
+ <div class="callout note"><b>Names to recognise:</b> <code class="inl">/compact</code> and <code class="inl">/clear</code> in Claude Code. On the API, clearing is simply a new session, and compaction has a documented <b>server-side compaction (beta)</b> the platform performs for you, with <b>manual client-side summarisation</b> as the alternative.</div>
+ <h3>Five situations — which lever?</h3>
+ <div id="stDrills"></div>`;
+}
+function drawST(){
+ const el=$("stDrills"); if(!el) return;
+ const opts=[["prune","Pruning"],["compact","Compaction"],["clear","Clearing"],["sub","Subagent handoff"],["none","None of these"]];
+ el.innerHTML=ST.map((d,i)=>{
+  const s=drState["st"+i];
+  const cls=x=>s?(x===d.a?"right":(s===x?"wrong":"")):"";
+  return `<div class="drill"><div class="stem">${i+1}. ${d.stem}</div>
+   <div class="opts">${opts.map(o=>`<button class="${cls(o[0])}" onclick="stPick(${i},'${o[0]}')">${o[1]}</button>`).join("")}</div>
+   <div class="why ${s?"open":""}">${d.why}</div></div>`;
+ }).join("");
+}
+function stPick(i,v){ drState["st"+i]=v; drawST(); }
+
+/* ---------- 4 ---------- */
+const STATE=[
+ {t:"Files modified: <code class='inl'>claims/policy_check.py</code>, <code class='inl'>claims/refund.py</code>", spec:true},
+ {t:"Decision: refunds above $500 route to manual review, agreed on turn 6", spec:true},
+ {t:"Error hit and resolved: the policy API returns 404 for archived claims — handled by falling back to the archive endpoint", spec:true},
+ {t:"The customer's original question and the claim ID under review", spec:false, always:true},
+ {t:"Dead end already tried: matching on customer email — duplicates made it unreliable", spec:true}
+];
+function sSummarizer(){
+ setTimeout(drawSum,20);
+ return `<span class="badge sum">The most testable point</span>
+ <h2>The summariser prompt <em>is</em> the memory</h2>
+ <div class="loc">What survives compaction depends entirely on how the summariser prompt is written.</div>
+ <div class="stog">
+  <button class="${sumSpec?"":"on"}" onclick="sumSpec=false;drawSum()">Under-specified</button>
+  <button class="${sumSpec?"on":""}" onclick="sumSpec=true;drawSum()">Specified</button>
+ </div>
+ <div class="sprompt" id="sPrompt"></div>
+ <h4>What the agent still knows on the next turn</h4>
+ <div class="statelist" id="sList"></div>
+ <div class="sverdict" id="sVerdict"></div>
+
+ <div class="callout warn"><b>Task-critical state loss from an under-specified summariser is one of the most common sources of multi-session agent failure</b> — not an edge case. The agent doesn't announce the loss; it simply re-tries the dead end, re-hits the resolved error, and re-opens the settled decision, each time confidently.</div>
+ <div class="callout"><b>Who decides differs by mechanism, and only one of them is yours.</b> With <code class="inl">/compact</code> the tool decides what to include. With API server-side compaction (beta), the platform decides. When you write a <b>manual</b> summariser, that prompt determines what the agent knows on <em>every subsequent turn</em> — so engineer it against the state your task cannot afford to lose.</div>
+ <div class="callout good"><b>The design question to ask out loud:</b> "if the next turn started from this summary alone, what would the agent get wrong?" Whatever the answer names belongs in the summariser prompt.</div>`;
+}
+function drawSum(){
+ if(!$("sPrompt")) return;
+ $("sPrompt").innerHTML = sumSpec
+  ? `"Summarise the conversation, <span style="color:#8fd6ac">preserving all file paths modified, all decisions made, and any errors encountered and their resolutions</span>."`
+  : `"Summarise the conversation so far."`;
+ $("sList").innerHTML=STATE.map(s=>{
+   const kept = s.always || sumSpec;
+   return `<div class="si ${kept?"kept":"lost"}"><span class="mk">${kept?"✓":"✗"}</span><span>${s.t}</span></div>`;
+ }).join("");
+ const v=$("sVerdict");
+ if(sumSpec){ v.className="sverdict ok";
+   v.innerHTML=`<b>&#10003; The agent can continue.</b> It knows what it changed, what was decided, what already failed and why, and which path is a dead end.`; }
+ else { v.className="sverdict bad";
+   v.innerHTML=`<b>&#10007; Four of five gone.</b> The agent keeps the topic and loses the work — so it re-explores the dead end, re-hits the 404, and may quietly re-open a decision the team already made.`; }
+}
+
+/* ---------- 5 ---------- */
+function sHandoff(){
+ return `<span class="badge strat">Decompose</span>
+ <h2>When a task is too big for one window</h2>
+ <div class="loc">The instinct is a bigger container. The answer is a smaller task.</div>
+ <div class="callout warn"><b>Increasing the window is not the fix — decomposition is.</b> A larger window postpones the same failure and degrades recall on the way there. Split the task instead.</div>
+ <h3>What each subagent gets — all four, deliberately</h3>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--accent)">1</div><h5>A scoped task</h5><p>One question it can finish. Not "help with the claim" — "which of these 40 policies mentions the archived-claim exclusion?"</p></div>
+  <div class="card"><div class="n" style="color:var(--blue)">2</div><h5>The minimum context</h5><p>Only the prior results <em>directly relevant</em>. Passing the parent's history back in defeats the entire purpose.</p></div>
+  <div class="card"><div class="n" style="color:var(--purple)">3</div><h5>The tools required</h5><p>Enough to finish, and no more — every extra definition is context spend inside the child window too.</p></div>
+  <div class="card"><div class="n" style="color:var(--green)">4</div><h5>Clear exit conditions</h5><p>Without them the child runs past the point of usefulness — the same failure as any agent loop.</p></div>
+ </div>
+ <p>The parent collects the results. Per-turn cost stays low, and long-horizon tasks become tractable.</p>
+ <div class="callout note"><b>It is not free.</b> Like pruning and compaction it adds implementation overhead, so apply it only where context cost is a <b>real</b> constraint. <b>Measure actual token usage against your model's limit before adding management overhead</b> — a pipeline that never approaches the window limit should not carry any of this machinery.</div>
+ <div class="callout"><b>Where the handoff loses you something:</b> the intermediate steps die with the child's context. You get the answer, not the reasoning — which is fine for exploration and bad for anything you'll need to audit later. <em>(Subagents also start with a clean context in another sense: they don't inherit Skills, though they do inherit permissions &rarr; <b>D1</b>.)</em></div>`;
+}
+
+/* ---------- 6 ---------- */
+const RG=[
+ {stem:"A query for a specific policy identifier returns three plausible-looking policies — none of them the one containing that exact identifier.", a:"embed",
+  why:"<b>Embedding match.</b> Similarity search returns what is <em>semantically close</em>, not necessarily what contains the <b>exact term</b>. A more semantically similar chunk outranked the one that actually held the identifier. <b>Fix:</b> run a <b>lexical match alongside</b> the semantic one — hybrid search covers exactly this."},
+ {stem:"Retrieved chunks are correct, but the model answers from general knowledge and ignores them.", a:"assembly",
+  why:"<b>Assembly.</b> If the chunks don't arrive in the structure the prompt expects, the model answers <b>from memory instead of from the retrieved text</b>. The retrieval worked; the handoff into the prompt didn't."},
+ {stem:"A fact that spans the end of one section and the start of the next is never retrieved intact, no matter how the query is phrased.", a:"chunk",
+  why:"<b>Chunking.</b> The fact crosses a boundary, so no single chunk contains it. <b>Fix:</b> sentence- or section-based chunking <b>with a little overlap</b> — the overlap is precisely what keeps boundary-crossing facts retrievable."}
+];
+function sRag(){
+ setTimeout(drawRG,20);
+ return `<span class="badge rag">Getting content in</span>
+ <h2>When the knowledge lives outside the window</h2>
+ <div class="loc">A retrieval path has three places it can break, and they need different fixes.</div>
+ <div class="pipe">
+  <div class="pnode"><b>Chunking</b><div class="dec">What counts as one retrievable unit</div>
+   <div class="fail">Too small → lacks surrounding context. Too large → dilutes the match with unrelated text.</div></div>
+  <div class="parrow">&#8594;</div>
+  <div class="pnode"><b>Embedding match</b><div class="dec">Which chunks come back</div>
+   <div class="fail">Returns what is semantically close, not what contains the exact term.</div></div>
+  <div class="parrow">&#8594;</div>
+  <div class="pnode"><b>Assembly</b><div class="dec">How chunks reach the model</div>
+   <div class="fail">Wrong structure → the model answers from memory, not from the retrieved text.</div></div>
+ </div>
+ <h3>Three failures — which stage?</h3>
+ <div id="rgDrills"></div>
+ <div class="callout good"><b>Why reach for retrieval at all — and it isn't accuracy.</b> <b>It scales:</b> as source material grows, <em>cost per request stays flat</em>. The model only ever receives the slice relevant to that question, never the whole library. A knowledge base can reach thousands of documents and a single question still pulls back roughly the same amount of text. <b>The source can keep growing without the request growing with it.</b></div>
+ <div class="callout warn"><b>And the matching limitation:</b> the model reasons over the slice it receives. If retrieval <b>misses</b> the document, the model never sees it and nothing downstream recovers. 🔑 That makes <b>how you organise source material a retrieval-quality decision</b>, not housekeeping — <code class="inl">notes_final_v3.pdf</code> is hard to surface; <em>"Q3 refund policy, updated August 2024"</em> is easy. Descriptive names and grouped related files are <b>part of the retrieval system</b>.</div>`;
+}
+function drawRG(){
+ const el=$("rgDrills"); if(!el) return;
+ const opts=[["chunk","Chunking"],["embed","Embedding match"],["assembly","Assembly"]];
+ el.innerHTML=RG.map((d,i)=>{
+  const s=drState["rg"+i];
+  const cls=x=>s?(x===d.a?"right":(s===x?"wrong":"")):"";
+  return `<div class="drill"><div class="stem">${i+1}. ${d.stem}</div>
+   <div class="opts">${opts.map(o=>`<button class="${cls(o[0])}" onclick="rgPick(${i},'${o[0]}')">${o[1]}</button>`).join("")}</div>
+   <div class="why ${s?"open":""}">${d.why}</div></div>`;
+ }).join("");
+}
+function rgPick(i,v){ drState["rg"+i]=v; drawRG(); }
+
+/* ---------- 7 ---------- */
+function sIndex(){
+ return `<span class="badge rag">One clean tradeoff</span>
+ <h2>Own an index, or search at query time</h2>
+ <div class="loc">Both find a relevant slice and generate from it. <b>The difference is timing.</b></div>
+ <table>
+  <tr><th></th><th>Fetch-once (retrieval index)</th><th>Search-across-rounds (agentic search)</th></tr>
+  <tr><td><b>What it is</b></td><td>A pre-built embedding index you query</td><td>The model reads current files at query time via tools</td></tr>
+  <tr><td><b>You gain</b></td><td><b>Inspectable, testable</b> retrieval — you can see exactly which chunks a query returned</td><td>No index infrastructure and <b>no staleness</b> — it reads what's there now</td></tr>
+  <tr><td><b>You pay</b></td><td>Building, storing, syncing and securing the index</td><td>More tokens and time per query; a less inspectable process</td></tr>
+  <tr><td><b>Best for</b></td><td>A <b>stable</b> corpus queried with <b>simple lookups</b></td><td>A <b>changing</b> corpus or <b>multi-step</b> questions</td></tr>
+ </table>
+ <div class="callout note"><b>One-line distinction for the exam:</b> classical RAG matches against an index <b>built in advance</b>; agentic search finds the slice <b>at the moment of need</b>. Timing, not capability.</div>
+
+ <h3>You don't have to pick one — route</h3>
+ ${code(P([
+ {s:'def route(query):'},
+ {s:'    kind = classify(query)        # cheap call: "lookup" or "multi_step"'},
+ {s:'    if kind == "lookup":'},
+ {s:'        return fetch_once(query)  # static retrieval, one pass'},
+ {s:'    return agentic_search(query)  # search across rounds', m:"add", g:"pay for iteration only when needed"},
+ ]))}
+ <table>
+  <tr><th>Default everything to…</th><th>What it costs you</th></tr>
+  <tr><td><b>Iterative search</b></td><td>Inflated cost and latency on questions a single fetch would have answered</td></tr>
+  <tr><td><b>A static index</b></td><td>Shallow answers on questions that needed several passes</td></tr>
+ </table>
+ <div class="callout warn">🔑 <b>When the router earns its cost: only when traffic is mixed.</b> One classification call costs far less than running agentic search on a query one retrieval would have answered. <b>If every query is the same shape, skip the router and hardcode the path that fits</b> — that's the distractor-resistant half of the rule, and it's the same shape as model routing in <b>D5</b>: a cheap call picks the expensive path only when warranted.</div>
+ <div class="callout"><b>Two places you've met agentic search without the name:</b> Claude Code deferring MCP <em>tool definitions</em> and loading only what a task needs, and Claude.ai Projects surfacing only relevant document sections once a knowledge base outgrows the window. Same pattern — tools in one case, documents in the other.</div>
+ <p style="color:var(--dim); font-size:.79rem">⚠️ Any headline "agentic search beats the index by X%" figure is <b>version-pinned</b> — confirm it against the reference layer at build time rather than quoting a number.</p>`;
+}
+
+/* ---------- 8 ---------- */
+function sRecall(){
+ return `<span class="badge plain">Recap &amp; recall</span>
+ <h2>In advance, not in a patch</h2>
+ <table>
+  <tr><th>Step</th><th>The single sentence</th></tr>
+  <tr><td><b>Working memory</b></td><td>Every tool result stays in the window for the rest of the session. Prod tool outputs run 3–5× the fixtures, so the session that held 20 turns in dev fills at turn 8.</td></tr>
+  <tr><td><b>The ceiling</b></td><td>Nothing truncates for you — oversized requests are rejected before generation, and mid-generation exhaustion returns <code class="inl">model_context_window_exceeded</code>. Trimming is your application's job.</td></tr>
+  <tr><td><b>Four strategies</b></td><td>Prune (lose work after the rewind) · Compact (lose what the summary missed) · Clear (lose everything) · Handoff (lose the reasoning).</td></tr>
+  <tr><td><b>Compaction</b></td><td>The summariser prompt <em>is</em> the memory. Name the state your task can't lose — file paths, decisions, errors and resolutions, dead ends.</td></tr>
+  <tr><td><b>Handoffs</b></td><td>Too big for one window → <b>decompose, don't enlarge</b>. Scoped task + minimum context + required tools + exit conditions.</td></tr>
+  <tr><td><b>RAG breaks</b></td><td>Chunking (boundaries) · Embedding match (semantic ≠ exact term → hybrid) · Assembly (wrong structure → answers from memory).</td></tr>
+  <tr><td><b>Index vs. search</b></td><td>Same job, different <b>timing</b>. Route only when traffic is mixed; otherwise hardcode the path that fits.</td></tr>
+ </table>
+
+ <h3>Blueprint-style item &mdash; D6 · Context Engineering</h3>
+ <p class="lead">A long-running agent uses automatic compaction to stay within its window. After each compaction it repeats work it already completed — re-running a migration step, re-investigating an error it had already diagnosed — while continuing to discuss the correct overall task. What is the most likely cause? <b>Select ONE.</b></p>
+
+ <button class="choice" onclick="q('A',false)"><span class="tag">A</span>Compaction is being triggered too early, so the agent loses history it still needs; raising the threshold so it compacts closer to the ceiling will preserve those turns.</button>
+ <div class="fb wrong" id="qfbA"><b>Incorrect.</b> Later compaction delays the loss without changing its character — the same under-captured state disappears, just further in. It also runs the session nearer the ceiling, where an oversized request is rejected outright.</div>
+
+ <button class="choice" onclick="q('B',false)"><span class="tag">B</span>The window is too small for the task, so the agent should be moved to a model with a larger context window and the compaction step removed.</button>
+ <div class="fb wrong" id="qfbB"><b>Incorrect.</b> When a task is too big for one window, decomposition is the fix rather than a bigger container — and the symptom points at <em>what survived compaction</em>, not at capacity. Removing compaction trades this failure for hitting the ceiling.</div>
+
+ <button class="choice" onclick="q('C',true)"><span class="tag">C</span>The summariser is under-specified, so completed steps and resolved errors aren't carried forward; name that state explicitly in the summariser prompt.</button>
+ <div class="fb right" id="qfbC"><b>Correct.</b> The agent keeps the topic and loses the work — the signature of a summary that captured the subject but not the task-critical state. What survives compaction depends entirely on how the summariser prompt is written, so it must name what the task can't lose: steps completed, decisions made, errors and their resolutions.</div>
+
+ <button class="choice" onclick="q('D',false)"><span class="tag">D</span>Repetition after compaction is expected behaviour, and the reliable remedy is to have the agent re-read its own transcript at the start of each turn to re-establish state.</button>
+ <div class="fb wrong" id="qfbD"><b>Incorrect.</b> Re-reading the transcript re-injects the very tokens compaction removed, so it defeats the mechanism and returns the session to the ceiling. Task-critical state loss is a common failure to engineer against, not expected behaviour to work around.</div>
+
+ <h3>Cold-recall check</h3>
+ <ul class="ck">
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>four</b> budget strategies and the continuity each one costs.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Say what the API does on each of the <b>two</b> window-overflow paths, and whose job trimming is.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> List <b>four</b> kinds of state a summariser prompt should name.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Give the <b>three</b> RAG break points and the fix for each.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> State the one-line difference between classical RAG and agentic search.</li>
+ </ul>
+ <div class="callout good"><b>Where this connects:</b> what counts toward the window and the overflow signals &rarr; the <b>Tokens &amp; Context</b> walkthrough · caching and <code class="inl">count_tokens</code> as cost levers &rarr; the <b>Cost &amp; Levers</b> walkthrough · subagent scoping and exit conditions &rarr; the <b>Agent Construction</b> walkthrough · tool-definition context cost &rarr; the <b>Which Mechanism?</b> walkthrough · session hygiene as a design rule &rarr; the <b>Application Design</b> walkthrough.</div>`;
+}
+function q(k,ok){
+ ["A","B","C","D"].forEach(x=>$("qfb"+x).classList.remove("open"));
+ $("qfb"+k).classList.add("open");
+ document.querySelectorAll(".choice").forEach(b=>b.classList.remove("right","wrong"));
+ event.currentTarget.classList.add(ok?"right":"wrong");
+}
+
+/* ---------- driver ---------- */
+function render(){
+ tStopPlay();
+ const s=STEPS[cur];
+ $("view").innerHTML=s.r();
+ $("view").scrollIntoView({behavior:"smooth",block:"nearest"});
+ $("stepNo").textContent=cur+1;
+ $("stepName").textContent=s.name;
+ $("prev").disabled=cur===0;
+ $("next").disabled=cur===STEPS.length-1;
+ $("next").textContent = cur===STEPS.length-2 ? "Recall →" : "Next →";
+ renderRail();
+}
+function renderRail(){
+ const r=$("rail"); r.innerHTML="";
+ STEPS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.textContent=s.name;
+  if(i===cur) b.className="active"; else if(seen.has(i)) b.className="done";
+  b.onclick=()=>goto(i);
+  r.appendChild(b);
+ });
+}
+function goto(i){ cur=Math.max(0,Math.min(STEPS.length-1,i)); seen.add(cur); render(); }
+function go(d){ goto(cur+d); }
+$("prev").onclick=()=>go(-1);
+$("next").onclick=()=>go(1);
+document.addEventListener("keydown",e=>{
+ if(e.target.tagName==="INPUT") return;
+ if(e.key==="ArrowRight") go(1); else if(e.key==="ArrowLeft") go(-1);
+});
+$("stepTot").textContent=STEPS.length;
+$("foot").innerHTML='Grounded in the class module "Context Engineering"; API overflow behaviour cross-checked against docs.claude.com and verified 2026-07-18 · retrieval properties added 2026-07-19. Window figures in step 1 are illustrative of the dev-to-prod gap, not measurements. Practice item is original, written to blueprint objectives — not live exam content.';
+render();
+</script>
+</body>
+</html>

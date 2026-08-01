@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F · D2 Software Engineering Foundations — Visual Walkthrough</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232736; --code:#0b0d13;
+    --text:#e8eaf0; --dim:#9aa0b4; --accent:#d97748; --green:#4fa877; --red:#c95b5b;
+    --purple:#c98bdb; --blue:#5b9bd9; --yellow:#d9b45b; --border:#2e3345;
+  }
+  *{box-sizing:border-box; margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:22px 16px 60px;}
+  a{color:var(--accent);}
+  header{text-align:center; margin-bottom:16px;}
+  h1{font-size:1.15rem; font-weight:600; letter-spacing:.03em;}
+  h1 span{color:var(--accent);}
+  .sub{color:var(--dim); font-size:.8rem; margin-top:4px;}
+
+  .rail{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:940px; margin:10px auto 4px;}
+  .rail button{background:var(--panel); color:var(--dim); border:1px solid var(--border); border-radius:999px;
+       padding:5px 12px; font-size:.72rem; cursor:pointer; transition:all .15s; white-space:nowrap;}
+  .rail button:hover{border-color:var(--accent); color:var(--text);}
+  .rail button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .rail button.done{color:var(--text); border-color:#3c4256;}
+  .rail button.done::before{content:"\2713 "; color:var(--green);}
+
+  main{width:100%; max-width:900px;}
+  .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
+  .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+         padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
+  .badge.scen{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  .badge.inc{background:rgba(201,91,91,.16); color:var(--red); border:1px solid rgba(201,91,91,.35);}
+  .badge.disc{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
+  .badge.proc{background:rgba(79,168,119,.16); color:var(--green); border:1px solid rgba(79,168,119,.35);}
+  .badge.plain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
+  h2{font-size:1.35rem; font-weight:650; margin-bottom:4px; line-height:1.25;}
+  h3{font-size:.96rem; font-weight:650; margin:22px 0 8px; color:var(--text);}
+  h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; color:var(--dim); font-weight:600;}
+  .loc{color:var(--dim); font-size:.82rem; margin-bottom:14px;}
+  p{line-height:1.62; margin:9px 0; color:#d4d8e4; font-size:.92rem;}
+  p.lead{font-size:1rem; color:var(--text);}
+  strong{color:#fff;}
+  em{color:var(--accent); font-style:normal;}
+  code.inl{background:var(--code); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+        font-family:'Cascadia Code','Consolas',monospace; font-size:.82em; color:#cdd3e6;}
+  ul{margin:8px 0 8px 2px; padding-left:18px; line-height:1.6; color:#d4d8e4; font-size:.92rem;}
+  li{margin:5px 0;}
+
+  .code{background:var(--code); border:1px solid var(--border); border-radius:10px; overflow-x:auto;
+        font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:.8rem; line-height:1.62; margin:10px 0;}
+  .ln{display:flex; white-space:pre; min-width:max-content;}
+  .ln .gut{width:2.6em; text-align:right; padding:0 12px 0 10px; color:#454b62; user-select:none; flex:none;}
+  .ln .src{padding-right:16px; flex:1;}
+  .ln.bug{background:rgba(201,91,91,.14);}  .ln.bug .gut{color:var(--red); font-weight:700;}
+  .ln.add{background:rgba(79,168,119,.13);} .ln.add .gut{color:var(--green);}
+  .ln.ctx{background:rgba(217,119,72,.07);}
+  .t-kw{color:var(--purple);} .t-str{color:#8fbf87;} .t-com{color:#5c6478; font-style:italic;}
+  .t-num{color:#d99a5b;} .t-key{color:#7fb3e0;} .t-lit{color:var(--purple);}
+  .hl{background:rgba(201,91,91,.28); border-radius:3px; padding:0 2px;}
+  .hlg{background:rgba(79,168,119,.25); border-radius:3px; padding:0 2px;}
+  .tagline{font-size:.7rem; color:var(--red); margin-left:8px; font-weight:600; letter-spacing:.04em;}
+  .tagline.add{color:var(--green);}
+
+  .revwrap{margin:12px 0;}
+  .revbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+      padding:9px 16px; font-size:.83rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px;}
+  .revbtn:hover{border-color:var(--accent);}
+  .revbtn .chev{color:var(--accent); transition:transform .2s;}
+  .reveal{display:none; margin-top:12px; padding:16px 18px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel2); animation:fade .25s ease;}
+  .reveal.open{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .reveal .oneliner{font-size:.96rem; color:#fff; font-weight:600; line-height:1.5;}
+
+  .callout{border-left:3px solid var(--accent); background:var(--panel2); border-radius:0 8px 8px 0;
+      padding:12px 16px; margin:14px 0; font-size:.88rem; line-height:1.6;}
+  .callout.warn{border-left-color:var(--red);}
+  .callout.good{border-left-color:var(--green);}
+  .callout.note{border-left-color:var(--blue);}
+  .callout b{color:#fff;}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:.83rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.5;}
+  th{background:var(--panel2); color:var(--text); font-weight:600;}
+  td.yes{color:#8fd6ac; font-weight:700; text-align:center;} td.no{color:#f0a5a5; font-weight:700; text-align:center;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; margin:14px 0;}
+  .card{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .card .n{font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+  .card h5{font-size:.9rem; margin:5px 0 4px;}
+  .card p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+
+  /* incident board */
+  .board{display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:9px; margin:14px 0;}
+  .inc{border:1px solid var(--border); border-radius:10px; padding:12px 13px; background:var(--panel2); cursor:pointer; transition:all .15s;}
+  .inc:hover{border-color:var(--accent);}
+  .inc .num{font-family:'Cascadia Code',monospace; font-size:.7rem; color:var(--red); font-weight:700;}
+  .inc h5{font-size:.85rem; margin:5px 0 4px;}
+  .inc p{font-size:.75rem; color:var(--dim); margin:0; line-height:1.45;}
+
+  /* status code chips */
+  .chips{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:9px; margin:14px 0;}
+  .chip{border:1px solid var(--border); border-radius:10px; padding:11px 13px; background:var(--panel2);
+        cursor:pointer; transition:all .15s;}
+  .chip:hover{border-color:var(--accent);}
+  .chip .cd{font-family:'Cascadia Code',monospace; font-size:1.05rem; font-weight:700;}
+  .chip .nm{font-size:.78rem; color:var(--dim); margin-top:2px;}
+  .chip .ans{display:none; margin-top:9px; padding-top:9px; border-top:1px dashed var(--border); font-size:.77rem; line-height:1.5; color:#d4d8e4;}
+  .chip.open .ans{display:block;}
+  .chip.open.retry{border-color:rgba(217,180,91,.5); background:rgba(217,180,91,.09);}
+  .chip.open.term{border-color:rgba(201,91,91,.5); background:rgba(201,91,91,.09);}
+  .chip.open.sneak{border-color:rgba(91,155,217,.5); background:rgba(91,155,217,.09);}
+  .chip .verdict{display:inline-block; font-size:.66rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+      padding:3px 9px; border-radius:999px; margin-top:8px;}
+  .chip.retry .verdict{background:rgba(217,180,91,.2); color:var(--yellow); border:1px solid rgba(217,180,91,.45);}
+  .chip.term .verdict{background:rgba(201,91,91,.2); color:#f0a5a5; border:1px solid rgba(201,91,91,.5);}
+  .chip.sneak .verdict{background:rgba(91,155,217,.2); color:var(--blue); border:1px solid rgba(91,155,217,.5);}
+
+  /* three-way drill */
+  .drill{border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin:10px 0; background:var(--panel2);}
+  .drill .stem{font-size:.88rem; line-height:1.55; margin-bottom:10px;}
+  .drill .opts{display:flex; gap:8px; flex-wrap:wrap;}
+  .drill .opts button{background:var(--code); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:8px 14px; font-size:.79rem; cursor:pointer; transition:all .15s;}
+  .drill .opts button:hover{border-color:var(--accent);}
+  .drill .opts button.right{border-color:var(--green); background:rgba(79,168,119,.15); color:#a7dcbf;}
+  .drill .opts button.wrong{border-color:var(--red); background:rgba(201,91,91,.12); color:#f0b9b9;}
+  .drill .why{display:none; margin-top:10px; font-size:.82rem; line-height:1.55; color:#d4d8e4;
+      border-left:3px solid var(--purple); padding-left:12px;}
+  .drill .why.open{display:block;}
+  .drill .why b{color:#fff;}
+
+  /* cmp panels */
+  .cmp{display:flex; gap:14px; flex-wrap:wrap;}
+  .cmp .col{flex:1; min-width:290px;}
+  .cmp .col h4 .x{color:var(--red);} .cmp .col h4 .ok{color:var(--green);}
+  .outcome{border-radius:9px; padding:10px 13px; font-size:.8rem; line-height:1.55; margin-top:8px;}
+  .outcome.bad{background:rgba(201,91,91,.11); border:1px solid rgba(201,91,91,.38); color:#f0b9b9;}
+  .outcome.good{background:rgba(79,168,119,.1); border:1px solid rgba(79,168,119,.35); color:#a7dcbf;}
+
+  /* usage readout */
+  .kv{display:flex; justify-content:space-between; gap:10px; font-family:'Cascadia Code',monospace;
+      font-size:.78rem; padding:5px 0; border-bottom:1px dashed #262b3b;}
+  .kv:last-child{border:none;}
+  .kv span:first-child{color:var(--dim);}
+  .usage{border:1px solid var(--border); border-radius:10px; background:var(--code); padding:11px 14px; margin:10px 0;}
+
+  /* fan-out */
+  .fan{display:flex; gap:10px; align-items:stretch; flex-wrap:wrap; margin:12px 0;}
+  .fanbox{flex:1; min-width:250px; border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .req{display:flex; gap:5px; margin:7px 0; flex-wrap:wrap;}
+  .rq{font-family:'Cascadia Code',monospace; font-size:.68rem; padding:4px 8px; border-radius:6px; border:1px solid var(--border);}
+  .rq.full{background:rgba(201,91,91,.15); color:#f0a5a5; border-color:rgba(201,91,91,.4);}
+  .rq.cheap{background:rgba(79,168,119,.14); color:#8fd6ac; border-color:rgba(79,168,119,.4);}
+  .rq.write{background:rgba(217,119,72,.16); color:#f0b48c; border-color:rgba(217,119,72,.45);}
+
+  .choice{display:block; width:100%; text-align:left; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); border-radius:10px; padding:12px 15px; margin:8px 0; font-size:.87rem;
+      cursor:pointer; line-height:1.55; transition:all .15s;}
+  .choice:hover{border-color:var(--accent);}
+  .choice.right{border-color:var(--green); background:rgba(79,168,119,.12);}
+  .choice.wrong{border-color:var(--red); background:rgba(201,91,91,.1);}
+  .choice .tag{font-weight:700; margin-right:8px; color:var(--dim);}
+  .fb{display:none; margin:6px 0 14px; padding:12px 15px; border-radius:10px; font-size:.85rem; line-height:1.6;}
+  .fb.open{display:block;}
+  .fb.right{background:rgba(79,168,119,.1); border-left:3px solid var(--green);}
+  .fb.wrong{background:rgba(201,91,91,.09); border-left:3px solid var(--red);}
+  .fb b{color:#fff;}
+
+  .nav{display:flex; justify-content:space-between; align-items:center; max-width:900px; width:100%; margin-top:16px; gap:10px;}
+  .nav button{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:11px 22px; font-size:.88rem; cursor:pointer; transition:all .15s; font-weight:500;}
+  .nav button:hover:not(:disabled){border-color:var(--accent);}
+  .nav button:disabled{opacity:.3; cursor:not-allowed;}
+  .nav button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .progress{color:var(--dim); font-size:.78rem; text-align:center;} .progress b{color:var(--text);}
+  .keys{margin-top:22px; color:var(--dim); font-size:.7rem; text-align:center; line-height:1.9;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.68rem;}
+  .foot{margin-top:8px; color:#5c6478; font-size:.72rem; text-align:center; line-height:1.7; max-width:660px;}
+  .foot a{color:var(--dim);}
+  .ck{list-style:none; padding-left:0;}
+  .ck li{display:flex; align-items:flex-start; gap:9px; margin:8px 0; cursor:pointer;}
+  .ck input{margin-top:3px; accent-color:var(--green); flex:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Software Engineering Foundations — <span>Visual Walkthrough</span></h1>
+  <div class="sub">CCDV-F · Domain 2 · Software Engineering Foundations (7.4%) · second-biggest skill on the exam</div>
+</header>
+
+<div class="rail" id="rail"></div>
+<main><div class="view" id="view"></div></main>
+
+<div class="nav">
+  <button id="prev">&#8592; Back</button>
+  <div class="progress">Step <b id="stepNo">1</b> / <b id="stepTot">8</b><br><span id="stepName"></span></div>
+  <button id="next" class="primary">Next &#8594;</button>
+</div>
+
+<div class="keys"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate &nbsp;·&nbsp; commit to an answer <em>before</em> you click to reveal</div>
+<div class="foot" id="foot"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+const KW=/^\b(?:def|return|if|elif|else|for|while|in|with|as|not|and|or|is|True|False|None|raise|import|from|class|lambda|try|except|break|continue|async|await)\b/;
+function pyHi(line){
+  let i=0,out="";
+  while(i<line.length){
+    const rest=line.slice(i); let m;
+    if(rest[0]==="#"){ out+='<span class="t-com">'+esc(rest)+'</span>'; break; }
+    if((m=rest.match(/^"(?:[^"\\]|\\.)*"|^'(?:[^'\\]|\\.)*'/))){ out+='<span class="t-str">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(KW))){ out+='<span class="t-kw">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(/^\b\d+\b/))){ out+='<span class="t-num">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    out+=esc(line[i]); i++;
+  }
+  return out;
+}
+function code(lines){
+  let h='<div class="code">';
+  for(const l of lines){
+    const cls=l.mark?" "+l.mark:"";
+    const tag=l.tag?'<span class="tagline'+(l.mark==="add"?" add":"")+'">'+l.tag+'</span>':"";
+    const src = l.raw!==undefined ? l.raw : pyHi(l.t);
+    h+='<div class="ln'+cls+'"><span class="gut">'+(l.n||"")+'</span><span class="src">'+src+tag+'</span></div>';
+  }
+  return h+'</div>';
+}
+function P(arr){ return arr.map((t,i)=>({n:i+1,t:t.s!==undefined?t.s:t,mark:t.m,tag:t.g,raw:t.raw})); }
+function reveal(id,btn){
+  const el=$(id); el.classList.toggle("open");
+  const c=btn.querySelector(".chev"); if(c) c.style.transform=el.classList.contains("open")?"rotate(90deg)":"none";
+}
+
+let cur=0; const seen=new Set([0]);
+const chipOpen=new Set();
+const drState={};
+const revState={};
+
+const STEPS=[
+ {name:"1 · The board",       r:sBoard},
+ {name:"2 · Retry storm",     r:sRetry},
+ {name:"3 · Vanished cache",  r:sCache},
+ {name:"4 · Not batching",    r:sAsync},
+ {name:"5 · Untracked change",r:sVCS},
+ {name:"6 · Refactor?",       r:sRefactor},
+ {name:"7 · AI reviewer",     r:sReview},
+ {name:"8 · Recall",          r:sRecall}
+];
+
+/* ---------- 1 ---------- */
+function sBoard(){
+ return `<span class="badge scen">Scenario</span>
+ <h2>ShipRight shipped. Here is the postmortem board.</h2>
+ <div class="loc">D2 · Software Engineering Foundations &nbsp;·&nbsp; five incidents, one root discipline</div>
+ <p class="lead">The order-support assistant is live. Five weeks in, the board looks like every other production board — except that one component returns a different answer to the same input, and the team keeps mistaking that for a special case.</p>
+
+ <div class="callout"><b>The framing to hold for the whole skill:</b> an LLM application is an ordinary distributed system that happens to call a probabilistic API. Almost every item here is normal engineering practice applied to a component whose output varies. <em>The AI part changes what you assert, not whether you engineer.</em></div>
+
+ <div class="board">
+  <div class="inc" onclick="goto(1)"><div class="num">INC-101</div><h5>Retry storm</h5><p>Rate limits got worse after the team added retries.</p></div>
+  <div class="inc" onclick="goto(2)"><div class="num">INC-102</div><h5>Bill tripled</h5><p>Cache hit rate fell to zero. No error, no alert.</p></div>
+  <div class="inc" onclick="goto(3)"><div class="num">INC-103</div><h5>"We batched it"</h5><p>1,000 parallel requests. Full price, throttled anyway.</p></div>
+  <div class="inc" onclick="goto(4)"><div class="num">INC-104</div><h5>Output drifted</h5><p>Answers changed overnight. Nobody deployed.</p></div>
+  <div class="inc" onclick="goto(5)"><div class="num">INC-105</div><h5>"Refactor"</h5><p>A module was modernised. Behaviour changed with it.</p></div>
+ </div>
+
+ <h3>Two structural properties of the API cause most of what follows</h3>
+ <table>
+  <tr><th>Property</th><th>Consequence you have to engineer around</th></tr>
+  <tr><td><b>Stateless</b><br><span style="color:var(--dim)">REST + JSON over HTTPS · one endpoint, <code class="inl">POST /v1/messages</code></span></td>
+      <td>No server-side conversation. You re-send the full <code class="inl">messages</code> array every turn and store session state yourself — so <b>context growth is your bug to manage, not the API's</b>.</td></tr>
+  <tr><td><b>Versioned by header</b><br><span style="color:var(--dim)"><code class="inl">anthropic-version</code></span></td>
+      <td>The header pins the wire contract. New event types and new <code class="inl">stop_reason</code> values are added under that policy, so <b>your code must tolerate values it has never seen</b> — an exhaustive switch with no default is a latent outage.</td></tr>
+ </table>
+ <p style="color:var(--dim); font-size:.82rem">Click any incident above, or just walk forward.</p>`;
+}
+
+/* ---------- 2 ---------- */
+const CODES=[
+ {c:"400",n:"Invalid request",k:"term",a:"Malformed body, bad parameter, a feature the model does not support, prompt too long. <b>The cause travels with the request</b> — an identical retry reproduces it forever."},
+ {c:"401",n:"Authentication",k:"term",a:"Missing, invalid, or revoked key. Also fires when <code class='inl'>ANTHROPIC_API_KEY</code> <em>and</em> an auth token are both set at once."},
+ {c:"403",n:"Permission",k:"term",a:"The key is valid but lacks access to that model or feature. Fix the grant, not the schedule."},
+ {c:"404",n:"Not found",k:"term",a:"Typo'd or retired model ID, wrong endpoint. Common after a model is deprecated out from under a hardcoded string."},
+ {c:"413",n:"Request too large",k:"term",a:"Body over the size limit — a batch above 256 MB, oversized images. Shrink the payload; no amount of waiting helps."},
+ {c:"429",n:"Rate limited",k:"retry",a:"RPM / ITPM / OTPM exceeded. <b>Honour <code class='inl'>retry-after</code></b> — the header is authoritative over your own backoff."},
+ {c:"500",n:"Server error",k:"retry",a:"Anthropic-side fault. Transient by definition; back off and retry."},
+ {c:"529",n:"Overloaded",k:"retry",a:"Capacity. Back off — or shift load to a less-contended model, which is the answer a capacity-planning stem is fishing for."},
+ {c:"200",n:"…with stop_reason: \"refusal\"",k:"sneak",a:"A <b>success status carrying a declined answer</b>. Invisible to a classifier that branches on status code alone. Check <code class='inl'>stop_reason</code> on every response."},
+ {c:"200",n:"…then an error event mid-stream",k:"sneak",a:"A stream can carry an <code class='inl'>error</code> event (e.g. <code class='inl'>overloaded_error</code>) <em>after</em> a 200 header. The status told you the connection opened, not that the work finished."}
+];
+function sRetry(){
+ setTimeout(drawChips,20);
+ return `<span class="badge inc">INC-101</span>
+ <h2>They added retries. Rate limiting got worse.</h2>
+ <div class="loc">Sort every failure into one of two classes before you write a single line of handling.</div>
+ <p class="lead">The one question that sorts them: <em>is the cause in my request, or in the moment?</em> Click each to check yourself.</p>
+ <div class="chips" id="chips"></div>
+
+ <div class="callout warn"><b>The rule the exam tests: retry the transient class, fix the permanent class.</b> Retrying a <code class="inl">400</code> re-sends the same broken request forever, burning quota that the transient failures actually need.</div>
+
+ <h3>Now the actual root cause of INC-101</h3>
+ ${code(P([
+ {s:'for attempt in range(5):                     # the team\'s own loop'},
+ {s:'    try:'},
+ {s:'        return client.messages.create(**kw)  # SDK already retries ×2 inside', m:"bug", g:"5 × 2 = 10 ATTEMPTS"},
+ {s:'    except APIError:'},
+ {s:'        time.sleep(2 ** attempt)'},
+ ]))}
+ <div class="callout warn"><b>The SDKs already retry transient failures</b> with exponential backoff (default 2 attempts). A hand-rolled loop wrapped around that <b>multiplies</b> attempts against the rate limit instead of capping them — which is precisely how adding retries makes throttling worse. Configure <code class="inl">max_retries</code> on the client; do not nest loops.</div>
+ <div class="callout note"><b>And use jitter.</b> Plain exponential backoff synchronises every client to the same retry instants — the fleet stampedes together. Backoff <em>with jitter</em> spreads them. Use it only when <code class="inl">retry-after</code> is absent; the header wins when present.</div>`;
+}
+function drawChips(){
+ const el=$("chips"); if(!el) return;
+ el.innerHTML=CODES.map((c,i)=>{
+  const open=chipOpen.has(i);
+  const label = c.k==="retry"?"Retriable":(c.k==="term"?"Terminal — fix it":"Neither — read the body");
+  const col = c.k==="retry"?"var(--yellow)":(c.k==="term"?"#f0a5a5":"var(--blue)");
+  return `<div class="chip ${c.k} ${open?"open":""}" onclick="chipTog(${i})">
+    <div class="cd" style="color:${open?col:"var(--text)"}">${c.c}</div>
+    <div class="nm">${c.n}</div>
+    <div class="ans">${c.a}<br><span class="verdict">${label}</span></div>
+  </div>`;
+ }).join("");
+}
+function chipTog(i){ if(chipOpen.has(i)) chipOpen.delete(i); else chipOpen.add(i); drawChips(); }
+
+/* ---------- 3 ---------- */
+function sCache(){
+ const badRaw=[
+  '<span class="t-com"># tools payload rebuilt per request from a dict</span>',
+  'tools = <span class="t-kw">[</span>{<span class="t-key">"name"</span>: <span class="t-str">"lookup_order"</span>, <span class="t-key">"input_schema"</span>: schema}<span class="t-kw">]</span>',
+  'body  = json.dumps({<span class="t-key">"tools"</span>: tools, ...})   <span class="t-com"># key order not guaranteed</span>'
+ ];
+ const r1='<span class="hl">{"input_schema":{...},"name":"lookup_order"}</span>';
+ const r2='<span class="hl">{"name":"lookup_order","input_schema":{...}}</span>';
+ return `<span class="badge inc">INC-102</span>
+ <h2>The cache stopped working. Nothing errored.</h2>
+ <div class="loc">The only symptom was on the invoice — and in one usage field.</div>
+ <div class="usage">
+  <div class="kv"><span>input_tokens</span><span style="color:#f0a5a5">2841</span></div>
+  <div class="kv"><span>cache_creation_input_tokens</span><span style="color:#f0b48c">2560</span></div>
+  <div class="kv"><span>cache_read_input_tokens</span><span style="color:#f0a5a5">0 &nbsp;&larr; every request</span></div>
+ </div>
+ <p>Writing the cache on every call and reading it never. The prefix was byte-identical <em>in intent</em> and different <em>on the wire</em>:</p>
+ ${code([{n:1,raw:badRaw[0]},{n:2,raw:badRaw[1]},{n:3,raw:badRaw[2]}])}
+ <div class="cmp">
+  <div class="col"><h4>Request A serialised</h4>${code([{n:"",raw:r1}])}</div>
+  <div class="col"><h4>Request B serialised</h4>${code([{n:"",raw:r2}])}</div>
+ </div>
+ <div class="callout warn"><b>Prompt caching is an exact prefix match.</b> A re-ordered JSON blob anywhere in the cached prefix is a <em>different prefix</em> — full price, <b>no error, no warning</b>. Serializers in several languages do not guarantee key order, and iterating a set is worse. <b>Sort keys deterministically.</b></div>
+
+ <h3>The same discipline, three ways</h3>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--purple)">Schema-first</div><h5>Define the shape before you prompt</h5><p>Tool <code class="inl">input_schema</code> and output schemas are contracts. <code class="inl">additionalProperties: false</code> plus an explicit <code class="inl">required</code> list is what makes validation mean anything.</p></div>
+  <div class="card"><div class="n" style="color:var(--accent)">Defensive parsing</div><h5>Output is untrusted until it validates</h5><p>Parse, do not string-match — and handle the failure path deliberately rather than letting it fall through.</p></div>
+  <div class="card"><div class="n" style="color:var(--red)">Never string-match</div><h5>…a serialized tool input</h5><p>JSON escaping (Unicode, forward slashes) can differ between models. Parse it into an object and read fields. A substring check passes in test and fails on a model swap.</p></div>
+ </div>
+
+ <h3>The second cache surprise: concurrency cannot share a cache</h3>
+ <p>A cache entry becomes readable only once the first response <em>begins</em>. Fire N identical-prefix requests simultaneously and all N miss.</p>
+ <div class="fan">
+  <div class="fanbox"><h4><span style="color:var(--red)">&#10007;</span> All at once</h4>
+   <div class="req">${Array(6).fill('<span class="rq full">full price</span>').join("")}</div>
+   <p style="font-size:.78rem; color:var(--dim); margin:6px 0 0">Six writes, zero reads. The prefix existed in none of them yet.</p></div>
+  <div class="fanbox"><h4><span style="color:var(--green)">&#10003;</span> Fan-out pattern</h4>
+   <div class="req"><span class="rq write">1 · write</span>${Array(5).fill('<span class="rq cheap">0.1×</span>').join("")}</div>
+   <p style="font-size:.78rem; color:var(--dim); margin:6px 0 0">Send one, wait for the first token, <em>then</em> fire the rest.</p></div>
+ </div>`;
+}
+
+/* ---------- 4 ---------- */
+const AS=[
+ {stem:"40,000 backlog tickets to re-classify overnight. Cost is the driver and nobody is waiting.",
+  a:"batch", why:"<b>Batching.</b> One asynchronous job of many requests, ~50% off, up to 24 h. The discriminator is <em>nobody is waiting</em>."},
+ {stem:"The chat widget feels sluggish. The answer takes four seconds and the user stares at a spinner for all of it.",
+  a:"stream", why:"<b>Streaming.</b> One request whose response arrives incrementally as SSE. It changes perceived latency only — same content, same cost, same total time."},
+ {stem:"Peak hour brings 300 simultaneous customers. Each one needs their own answer, now.",
+  a:"conc", why:"<b>Concurrency.</b> Many independent requests in flight at once — async client, connection pooling. Each caller still waits for their own response; you are raising throughput, not deferring work."},
+ {stem:"A report generates a 6,000-token document. The HTTP connection sometimes times out before it completes.",
+  a:"stream", why:"<b>Streaming</b> again — the non-latency reason for it. A long non-streamed call can sit idle past a proxy or gateway timeout; streaming keeps bytes moving on the wire."},
+ {stem:"The team fires 1,000 parallel requests through the Messages API and calls it \"our batch job\". They are throttled and billed at full rate.",
+  a:"conc", why:"<b>That is concurrency, not batching &mdash; INC-103 itself.</b> Parallelism is still realtime pricing against realtime rate limits. The Batch API is a <em>different endpoint</em> with different economics. This conflation is the single most reliable distractor in the skill."}
+];
+function sAsync(){
+ setTimeout(drawAs,20);
+ return `<span class="badge disc">INC-103</span>
+ <h2>Three things that get conflated on every exam stem</h2>
+ <div class="loc">Concurrency · Streaming · Batching &mdash; and the signal that separates them.</div>
+ <table>
+  <tr><th>Pattern</th><th>What it actually is</th><th>Reach for it when</th></tr>
+  <tr><td><b>Concurrency</b></td><td>Many independent requests in flight at once (async client, connection pooling)</td><td>Throughput on realtime traffic; <em>each caller still waits for their own response</em></td></tr>
+  <tr><td><b>Streaming</b></td><td>One request whose response arrives incrementally as <b>SSE</b></td><td>A user is watching, or <code class="inl">max_tokens</code> is large enough to risk an HTTP timeout</td></tr>
+  <tr><td><b>Batching</b></td><td>One asynchronous job of many requests, ~50% cost, up to 24 h</td><td>Nobody is waiting; volume is high and latency-tolerant</td></tr>
+ </table>
+ <div class="callout warn"><b>Claude streaming is SSE, not websockets</b> — one-directional, over the same HTTP request. A distractor describing a bidirectional persistent socket is describing a different product.</div>
+ <h3>Five stems &mdash; pick the pattern</h3>
+ <div id="asDrills"></div>`;
+}
+function drawAs(){
+ const el=$("asDrills"); if(!el) return;
+ el.innerHTML=AS.map((d,i)=>{
+  const s=drState["as"+i];
+  const cls=x=>s?(x===d.a?"right":(s===x?"wrong":"")):"";
+  return `<div class="drill"><div class="stem">${i+1}. ${d.stem}</div>
+   <div class="opts">
+    <button class="${cls('conc')}" onclick="asPick(${i},'conc')">Concurrency</button>
+    <button class="${cls('stream')}" onclick="asPick(${i},'stream')">Streaming</button>
+    <button class="${cls('batch')}" onclick="asPick(${i},'batch')">Batching</button>
+   </div>
+   <div class="why ${s?"open":""}">${d.why}</div></div>`;
+ }).join("");
+}
+function asPick(i,v){ drState["as"+i]=v; drawAs(); }
+
+/* ---------- 5 ---------- */
+function sVCS(){
+ return `<span class="badge proc">INC-104</span>
+ <h2>The output changed overnight. Nobody deployed.</h2>
+ <div class="loc">Two causes, one root: things that determine behaviour were living outside version control.</div>
+ <div class="cmp">
+  <div class="col"><div class="outcome bad"><b>Cause 1 — the model moved.</b> Production called a convenience alias. An upstream model update landed and became <em>an untracked change to your output</em>. Nothing in your repo differs between the good day and the bad day.</div></div>
+  <div class="col"><div class="outcome bad"><b>Cause 2 — the prompt moved.</b> Someone edited the system prompt in a console, stored in a database row. No diff, no blame, no reviewer, no rollback path.</div></div>
+ </div>
+
+ <h3>What belongs in the repo &mdash; and the reason, which is the examinable part</h3>
+ <table>
+  <tr><th>Artefact</th><th style="text-align:center">In repo</th><th>Why</th></tr>
+  <tr><td><b>Prompts</b></td><td class="yes">&#10003;</td><td>A prompt change <em>is</em> a behaviour change. You need diff, blame, and rollback — which console edits and database rows do not give you.</td></tr>
+  <tr><td><b>Eval sets</b></td><td class="yes">&#10003;</td><td>They are the regression suite for a non-deterministic component. Untracked evals cannot gate anything.</td></tr>
+  <tr><td><b>Model version pin</b></td><td class="yes">&#10003;</td><td>An unpinned alias makes every upstream update an untracked change to your output. Pin a dated snapshot in production; upgrade deliberately.</td></tr>
+  <tr><td><b>Tool schemas / configs</b></td><td class="yes">&#10003;</td><td>Changing a tool <em>description</em> changes tool selection. That is a code change wearing a documentation costume.</td></tr>
+  <tr><td><b>API keys</b></td><td class="no">&#10007;</td><td>Environment or secrets manager. Never the repo.</td></tr>
+ </table>
+
+ <div class="callout"><b>Code review applies to prompt changes.</b> A one-word edit to a tool description can flip which tool the model selects. A reviewer who waves through "just a prompt tweak" is waving through a behaviour change they did not read.</div>
+
+ <h3>The LLM-specific SDLC step: CI runs the evals</h3>
+ <p>Because output is non-deterministic, a unit test asserting an exact string is the wrong instrument — it fails on harmless rewording and passes on a genuinely worse answer. The gate is an <b>eval scored against criteria</b>, run in CI, on the same cases that justified the current configuration.</p>
+ <div class="callout warn"><b>Exam trap, stated plainly:</b> "we tested it manually and it looked good" is <em>never</em> the right answer for promoting a prompt or model change. The right answer names an <b>eval set</b> and a <b>measured comparison</b> against a pinned baseline.</div>
+
+ <div class="revwrap">
+  <button class="revbtn" onclick="reveal('r5',this)"><span class="chev">&#9654;</span> What changes, and what does not, versus ordinary engineering</button>
+  <div class="reveal" id="r5">
+   <table>
+    <tr><td style="width:32%"><b>Transfers directly</b></td><td>Version control, code review, CI, dependency pinning, secrets hygiene. Most of what makes an LLM app operable at all is unremarkable engineering.</td></tr>
+    <tr><td><b>Costs more</b></td><td>Non-determinism breaks the usual assertion style. You pay for eval sets and criteria-based grading instead of cheap exact-match tests.</td></tr>
+    <tr><td><b>Needs a different tool</b></td><td>When the failure is in <em>what the model produced</em> rather than <em>how you called it</em>, the fix is prompt, context, or schema work — not more retry logic.</td></tr>
+   </table>
+  </div>
+ </div>`;
+}
+
+/* ---------- 6 ---------- */
+function sRefactor(){
+ return `<span class="badge proc">INC-105</span>
+ <h2>"We refactored the pricing module."</h2>
+ <div class="loc">Behaviour-preserving change, backed by tests that <em>prove</em> the behaviour was preserved.</div>
+ <p class="lead">An assistant was pointed at an unfamiliar module and asked to modernise it. The result compiled, the diff looked clean, and three discount edge cases silently changed. There were no tests over those paths — so nothing objected.</p>
+
+ <div class="callout warn"><b>Refactoring without tests is not refactoring — it is rewriting and hoping.</b> The tests are not a nicety attached to a refactor; they are the thing that <em>makes it one</em>. Without them you have a rewrite with a reassuring name.</div>
+
+ <table>
+  <tr><th>Scale</th><th>Examples</th><th>What makes it safe</th></tr>
+  <tr><td><b>Small</b></td><td>Rename, extract function, inline variable</td><td>A test suite that already covers the touched paths.</td></tr>
+  <tr><td><b>Large</b></td><td>Module boundaries, dependency swaps, codebase modernisation — a stated Claude Code use case</td><td><b>Characterisation tests first</b>, capturing current behaviour including the parts nobody understands, <em>then</em> change.</td></tr>
+ </table>
+
+ <div class="cmp">
+  <div class="col"><h4><span class="x">&#10007;</span> What happened</h4>
+   ${code(P([
+   {s:'1. point the assistant at the module'},
+   {s:'2. "modernise this"'},
+   {s:'3. review the diff'},
+   {s:'4. merge', m:"bug", g:"NOTHING PROVED BEHAVIOUR HELD"},
+   ]))}
+   <div class="outcome bad">Review reads the change you can see. Edge cases live in the behaviour you cannot see from a diff.</div></div>
+  <div class="col"><h4><span class="ok">&#10003;</span> What makes it a refactor</h4>
+   ${code(P([
+   {s:'1. write characterisation tests over'},
+   {s:'   current behaviour — including the'},
+   {s:'   parts nobody understands yet', m:"add"},
+   {s:'2. run them: green on the old code'},
+   {s:'3. change'},
+   {s:'4. run them again: still green', m:"add", g:"THIS IS THE PROOF"},
+   ]))}
+   <div class="outcome good">Now the diff is a refactor by evidence, not by intention.</div></div>
+ </div>
+
+ <div class="callout"><b>The exam shape:</b> when a stem describes an agent or assistant making sweeping changes to unfamiliar code, the missing control is almost always <em>tests that would catch a behaviour change</em> — not more human review, not a more careful prompt, not a smaller diff.</div>`;
+}
+
+/* ---------- 7 ---------- */
+const RV=[
+ {f:"\"Line 84 opens a file handle that is never closed on the error path.\"", a:"prove",
+  why:"<b>Provable from the diff.</b> The evidence is right there in the artefact the reviewer was given. <b>Trust it — and confirm on the lines it cites.</b> Verification takes seconds."},
+ {f:"\"This will deadlock under concurrent load.\"", a:"hypo",
+  why:"<b>Hypothesis to test.</b> The reviewer had no runtime trace and no load data — it inferred from shape. Plausible, worth investigating, not established. Reproduce it before you act on it."},
+ {f:"\"CRITICAL: this change breaks the billing service's reconciliation job.\"", a:"hypo",
+  why:"<b>Hypothesis — and note the severity word does nothing.</b> The reviewer had no cross-service context. <b>A high-severity claim with no evidence is still a hypothesis.</b> Severity language is not evidence; the reviewer writes every finding in the same confident register."},
+ {f:"\"The <code class='inl'>user_id</code> parameter is unchecked for null before dereference on line 112.\"", a:"prove",
+  why:"<b>Provable from the diff.</b> A missing check on a cited line — open the file and look. Same class as the first one."}
+];
+function sReview(){
+ setTimeout(drawRv,20);
+ return `<span class="badge disc">Practice</span>
+ <h2>The AI code reviewer filed four findings</h2>
+ <div class="loc">Triage, do not apply. For each: <em>does the evidence exist in the artefact the reviewer was actually given?</em></div>
+ <div class="callout"><b>An AI code review produces a set of findings to triage, not a verdict to apply.</b> The reviewer writes every finding in the same confident register, so tone and severity carry no information about how well-founded a claim is.</div>
+ <div id="rvDrills"></div>
+
+ <h3>Two design decisions around the reviewer</h3>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--accent)">Decision 1</div><h5>Put the human gate where the action is hard to reverse</h5><p>Not at "a finding was produced" — reading findings is cheap. At the <em>auto-applied fix</em>, the <em>merge</em>, the <em>blocked deploy</em>. That is where the cost lands, and it holds whether the reviewer runs interactively or unattended in CI.</p></div>
+  <div class="card"><div class="n" style="color:var(--green)">Decision 2</div><h5>Supply what it would otherwise guess</h5><p>Project conventions, naming rules, error-handling patterns — <code class="inl">CLAUDE.md</code> in Claude Code, the system prompt on the API. A reviewer left to infer conventions from surrounding code will <b>flag your house style as a defect and miss violations of it</b>.</p></div>
+ </div>
+ <div class="callout warn"><b>Two distractors to recognise:</b> an option that <em>applies both</em> the provable finding and the inferred one because both were stated with equal confidence — and the over-correction, <em>rejecting both</em> pending independent human re-derivation, when the provable one is checkable in seconds.</div>`;
+}
+function drawRv(){
+ const el=$("rvDrills"); if(!el) return;
+ el.innerHTML=RV.map((d,i)=>{
+  const s=drState["rv"+i];
+  const cls=x=>s?(x===d.a?"right":(s===x?"wrong":"")):"";
+  return `<div class="drill"><div class="stem">${i+1}. ${d.f}</div>
+   <div class="opts">
+    <button class="${cls('prove')}" onclick="rvPick(${i},'prove')">Provable from the diff</button>
+    <button class="${cls('hypo')}" onclick="rvPick(${i},'hypo')">Hypothesis to test</button>
+   </div>
+   <div class="why ${s?"open":""}">${d.why}</div></div>`;
+ }).join("");
+}
+function rvPick(i,v){ drState["rv"+i]=v; drawRv(); }
+
+/* ---------- 8 ---------- */
+function sRecall(){
+ return `<span class="badge plain">Recap &amp; recall</span>
+ <h2>Five incidents, one discipline</h2>
+ <table>
+  <tr><th>Incident</th><th>The single sentence</th></tr>
+  <tr><td><b>101 · Retries</b></td><td>Retry the transient class (429/500/529), fix the permanent class (400/401/403/404/413). <code class="inl">retry-after</code> beats your backoff; the SDK already retries, so don't nest loops.</td></tr>
+  <tr><td><b>102 · Cache</b></td><td>Caching is an exact prefix match — unstable JSON key ordering kills it silently. Sort keys. Concurrent requests can't read each other's cache; fan out after the first token.</td></tr>
+  <tr><td><b>103 · Patterns</b></td><td>Concurrency is throughput, streaming is one incremental response (SSE), batching is a deferred job at ~50%. Parallel realtime calls are <em>not</em> batching.</td></tr>
+  <tr><td><b>104 · Versioning</b></td><td>Prompts, evals, tool schemas, and model pins are source code. Keys are not. CI runs evals; "we tested it manually" never promotes a change.</td></tr>
+  <tr><td><b>105 · Refactoring</b></td><td>Characterisation tests first, then change. Tests are what distinguish a refactor from a rewrite.</td></tr>
+  <tr><td><b>Reviewer</b></td><td>Provable-from-the-diff findings get confirmed and trusted; runtime and cross-system claims are hypotheses. Gate on the irreversible action.</td></tr>
+ </table>
+
+ <h3>Blueprint-style item &mdash; D2 · Software Engineering Foundations</h3>
+ <p class="lead">A team's assistant sees intermittent <code class="inl">429</code> responses at peak. They wrap every API call in a loop of up to five attempts with exponential backoff, on top of the SDK's default client. Throttling gets measurably worse, and a subset of calls now fail five times in a row with the same <code class="inl">400</code>. Which pair of changes best addresses this? <b>Select ONE.</b></p>
+
+ <button class="choice" onclick="q('A',false)"><span class="tag">A</span>Lower the custom loop to three attempts and add jitter to its backoff, so the retry volume drops while transient failures are still absorbed at peak.</button>
+ <div class="fb wrong" id="qfbA"><b>Incorrect.</b> Fewer nested attempts is still nested attempts — the multiplication remains, just with a smaller factor. And it leaves the <code class="inl">400</code> being retried, which can never succeed no matter how the delays are shaped.</div>
+
+ <button class="choice" onclick="q('B',true)"><span class="tag">B</span>Remove the custom loop and configure <code class="inl">max_retries</code> on the SDK client, and branch on the error class so only 429/5xx/529 retry while 4xx-permanent codes fail fast.</button>
+ <div class="fb right" id="qfbB"><b>Correct.</b> One retry authority instead of two removes the multiplication against the rate limit, and classifying by error family stops the wasted attempts on a request whose cause travels with it. Both symptoms trace to those two defects.</div>
+
+ <button class="choice" onclick="q('C',false)"><span class="tag">C</span>Move the workload to the Message Batches API to obtain the 50% discount and sidestep the realtime rate limits that are producing the throttling at peak.</button>
+ <div class="fb wrong" id="qfbC"><b>Incorrect.</b> Nothing in the stem says the traffic is latency-tolerant, and this is peak interactive load. Batch trades up to 24 hours of latency for cost — a change of product behaviour offered as an error-handling fix.</div>
+
+ <button class="choice" onclick="q('D',false)"><span class="tag">D</span>Honour the <code class="inl">retry-after</code> header inside the existing custom loop, and log every retried request so the team can measure the true attempt volume at peak.</button>
+ <div class="fb wrong" id="qfbD"><b>Incorrect.</b> Honouring the header is genuinely right and logging is useful, but both sit <em>inside</em> the loop that is the problem — the SDK's own retries still stack underneath, and the terminal <code class="inl">400</code> is still retried five times.</div>
+
+ <h3>Cold-recall check</h3>
+ <ul class="ck">
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Sort <code class="inl">400 · 401 · 403 · 404 · 413 · 429 · 500 · 529</code> into retriable and terminal, cold.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>two</b> responses that are not what their status code implies.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Explain in one sentence why concurrency is not batching.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> List the <b>four</b> artefacts that belong in the repo, and the one that never does.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> State what turns a rewrite into a refactor.</li>
+ </ul>
+ <div class="callout good"><b>Where this connects:</b> error families and fallback policy &rarr; <b>D4</b> · eval sets as the CI gate &rarr; <b>D4</b> · model pinning and promotion &rarr; <b>D5</b> and Configuration Management · secrets &rarr; <b>D7</b> · the streaming half of the retry story &rarr; the <b>API Mechanics</b> walkthrough.</div>`;
+}
+function q(k,ok){
+ ["A","B","C","D"].forEach(x=>$("qfb"+x).classList.remove("open"));
+ $("qfb"+k).classList.add("open");
+ document.querySelectorAll(".choice").forEach(b=>b.classList.remove("right","wrong"));
+ event.currentTarget.classList.add(ok?"right":"wrong");
+}
+
+/* ---------- driver ---------- */
+function render(){
+ const s=STEPS[cur];
+ $("view").innerHTML=s.r();
+ $("view").scrollIntoView({behavior:"smooth",block:"nearest"});
+ $("stepNo").textContent=cur+1;
+ $("stepName").textContent=s.name;
+ $("prev").disabled=cur===0;
+ $("next").disabled=cur===STEPS.length-1;
+ $("next").textContent = cur===STEPS.length-2 ? "Recall →" : "Next →";
+ renderRail();
+}
+function renderRail(){
+ const r=$("rail"); r.innerHTML="";
+ STEPS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.textContent=s.name;
+  if(i===cur) b.className="active"; else if(seen.has(i)) b.className="done";
+  b.onclick=()=>goto(i);
+  r.appendChild(b);
+ });
+}
+function goto(i){ cur=Math.max(0,Math.min(STEPS.length-1,i)); seen.add(cur); render(); }
+function go(d){ goto(cur+d); }
+$("prev").onclick=()=>go(-1);
+$("next").onclick=()=>go(1);
+document.addEventListener("keydown",e=>{
+ if(e.target.tagName==="INPUT") return;
+ if(e.key==="ArrowRight") go(1); else if(e.key==="ArrowLeft") go(-1);
+});
+$("stepTot").textContent=STEPS.length;
+$("foot").innerHTML='Grounded in <a href="https://docs.claude.com/en/api/errors">API errors</a>, <a href="https://docs.claude.com/en/docs/build-with-claude/prompt-caching">prompt caching</a> and <a href="https://docs.claude.com/en/api/rate-limits">rate limits</a> docs · error families and SDK retry behaviour verified 2026-07-27 — re-verify version-sensitive figures at build time. Practice item is original, written to blueprint objectives — not live exam content.';
+render();
+</script>
+</body>
+</html>

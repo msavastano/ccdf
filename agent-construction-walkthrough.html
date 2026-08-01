@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F · D1 Agent Construction — Visual Walkthrough</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232736; --code:#0b0d13;
+    --text:#e8eaf0; --dim:#9aa0b4; --accent:#d97748; --green:#4fa877; --red:#c95b5b;
+    --purple:#c98bdb; --blue:#5b9bd9; --yellow:#d9b45b; --border:#2e3345;
+  }
+  *{box-sizing:border-box; margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:22px 16px 60px;}
+  a{color:var(--accent);}
+  header{text-align:center; margin-bottom:16px;}
+  h1{font-size:1.15rem; font-weight:600; letter-spacing:.03em;}
+  h1 span{color:var(--accent);}
+  .sub{color:var(--dim); font-size:.8rem; margin-top:4px;}
+
+  .rail{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:960px; margin:10px auto 4px;}
+  .rail button{background:var(--panel); color:var(--dim); border:1px solid var(--border); border-radius:999px;
+       padding:5px 12px; font-size:.72rem; cursor:pointer; transition:all .15s; white-space:nowrap;}
+  .rail button:hover{border-color:var(--accent); color:var(--text);}
+  .rail button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .rail button.done{color:var(--text); border-color:#3c4256;}
+  .rail button.done::before{content:"\2713 "; color:var(--green);}
+
+  main{width:100%; max-width:920px;}
+  .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
+  .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+         padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
+  .badge.dec{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  .badge.wire{background:rgba(217,119,72,.16); color:var(--accent); border:1px solid rgba(217,119,72,.35);}
+  .badge.loop{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
+  .badge.fail{background:rgba(201,91,91,.16); color:var(--red); border:1px solid rgba(201,91,91,.35);}
+  .badge.gov{background:rgba(79,168,119,.16); color:var(--green); border:1px solid rgba(79,168,119,.35);}
+  .badge.plain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
+  h2{font-size:1.35rem; font-weight:650; margin-bottom:4px; line-height:1.25;}
+  h3{font-size:.96rem; font-weight:650; margin:22px 0 8px; color:var(--text);}
+  h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; color:var(--dim); font-weight:600;}
+  .loc{color:var(--dim); font-size:.82rem; margin-bottom:14px;}
+  p{line-height:1.62; margin:9px 0; color:#d4d8e4; font-size:.92rem;}
+  p.lead{font-size:1rem; color:var(--text);}
+  strong{color:#fff;}
+  em{color:var(--accent); font-style:normal;}
+  code.inl{background:var(--code); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+        font-family:'Cascadia Code','Consolas',monospace; font-size:.82em; color:#cdd3e6;}
+  ul{margin:8px 0 8px 2px; padding-left:18px; line-height:1.6; color:#d4d8e4; font-size:.92rem;}
+  li{margin:5px 0;}
+
+  .code{background:var(--code); border:1px solid var(--border); border-radius:10px; overflow-x:auto;
+        font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:.8rem; line-height:1.62; margin:10px 0;}
+  .ln{display:flex; white-space:pre; min-width:max-content;}
+  .ln .gut{width:2.6em; text-align:right; padding:0 12px 0 10px; color:#454b62; user-select:none; flex:none;}
+  .ln .src{padding-right:16px; flex:1;}
+  .ln.bug{background:rgba(201,91,91,.14);}  .ln.bug .gut{color:var(--red); font-weight:700;}
+  .ln.add{background:rgba(79,168,119,.13);} .ln.add .gut{color:var(--green);}
+  .ln.ctx{background:rgba(217,119,72,.07);}
+  .t-kw{color:var(--purple);} .t-str{color:#8fbf87;} .t-com{color:#5c6478; font-style:italic;}
+  .t-num{color:#d99a5b;} .t-key{color:#7fb3e0;} .t-lit{color:var(--purple);}
+  .tagline{font-size:.7rem; color:var(--red); margin-left:8px; font-weight:600; letter-spacing:.04em;}
+  .tagline.add{color:var(--green);}
+
+  .revwrap{margin:12px 0;}
+  .revbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+      padding:9px 16px; font-size:.83rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px;}
+  .revbtn:hover{border-color:var(--accent);}
+  .revbtn .chev{color:var(--accent); transition:transform .2s;}
+  .reveal{display:none; margin-top:12px; padding:16px 18px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel2); animation:fade .25s ease;}
+  .reveal.open{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .reveal .oneliner{font-size:.96rem; color:#fff; font-weight:600; line-height:1.5;}
+
+  .callout{border-left:3px solid var(--accent); background:var(--panel2); border-radius:0 8px 8px 0;
+      padding:12px 16px; margin:14px 0; font-size:.88rem; line-height:1.6;}
+  .callout.warn{border-left-color:var(--red);}
+  .callout.good{border-left-color:var(--green);}
+  .callout.note{border-left-color:var(--blue);}
+  .callout b{color:#fff;}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:.83rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.5;}
+  th{background:var(--panel2); color:var(--text); font-weight:600;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; margin:14px 0;}
+  .card{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .card .n{font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+  .card h5{font-size:.9rem; margin:5px 0 4px;}
+  .card p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+
+  /* progression */
+  .prog{display:flex; align-items:center; gap:0; flex-wrap:wrap; margin:14px 0;}
+  .pstep{flex:1; min-width:135px; border:1px solid var(--border); background:var(--panel2); border-radius:11px;
+    padding:12px 13px; text-align:center;}
+  .pstep b{display:block; font-size:.86rem;} .pstep small{color:var(--dim); font-size:.72rem; line-height:1.4; display:block; margin-top:4px;}
+  .pstep.last{border-color:rgba(201,139,219,.5); background:rgba(201,139,219,.09);}
+  .parrow{flex:none; padding:0 10px; color:var(--accent); font-size:1.1rem;}
+
+  /* drill */
+  .drill{border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin:10px 0; background:var(--panel2);}
+  .drill .stem{font-size:.88rem; line-height:1.55; margin-bottom:10px;}
+  .drill .opts{display:flex; gap:8px; flex-wrap:wrap;}
+  .drill .opts button{background:var(--code); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:8px 14px; font-size:.79rem; cursor:pointer; transition:all .15s;}
+  .drill .opts button:hover{border-color:var(--accent);}
+  .drill .opts button.right{border-color:var(--green); background:rgba(79,168,119,.15); color:#a7dcbf;}
+  .drill .opts button.wrong{border-color:var(--red); background:rgba(201,91,91,.12); color:#f0b9b9;}
+  .drill .why{display:none; margin-top:10px; font-size:.82rem; line-height:1.55; color:#d4d8e4;
+      border-left:3px solid var(--purple); padding-left:12px;}
+  .drill .why.open{display:block;} .drill .why b{color:#fff;}
+
+  /* ownership spectrum */
+  .specbar{display:flex; height:26px; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin:16px 0 5px;}
+  .specbar div{flex:1; display:flex; align-items:center; justify-content:center; font-size:.68rem; font-weight:700; color:#0b0d13;}
+  .specends{display:flex; justify-content:space-between; font-size:.72rem; color:var(--dim); margin-bottom:14px;}
+  .paths{display:grid; grid-template-columns:repeat(auto-fit,minmax(255px,1fr)); gap:10px;}
+  .path{border:1px solid var(--border); border-radius:11px; padding:13px 15px; background:var(--panel2);
+    cursor:pointer; transition:all .15s;}
+  .path:hover{border-color:var(--accent);}
+  .path b{font-size:.9rem; display:block; margin-bottom:4px;}
+  .path .who{font-family:'Cascadia Code',monospace; font-size:.73rem; color:#f0b48c; display:block; margin-bottom:7px;}
+  .path p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+  .path .more{display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); font-size:.79rem; line-height:1.55;}
+  .path.open .more{display:block;}
+  .path.open{border-color:var(--accent); background:rgba(217,119,72,.07);}
+  .path .hint{font-size:.7rem; color:#5b6178; margin-top:8px;} .path.open .hint{display:none;}
+
+  /* loop diagram */
+  .loopd{display:flex; gap:0; align-items:stretch; flex-wrap:wrap; margin:12px 0 6px;}
+  .lnode{flex:1; min-width:130px; border:1px solid var(--border); background:var(--panel2); border-radius:11px;
+    padding:11px 10px; text-align:center; transition:all .2s;}
+  .lnode .ico{font-size:1.25rem; display:block; margin-bottom:4px;}
+  .lnode b{font-size:.76rem; display:block; line-height:1.3;}
+  .lnode small{color:var(--dim); font-size:.68rem; display:block; margin-top:3px; line-height:1.35;}
+  .lnode.on{border-color:var(--accent); background:rgba(217,119,72,.16); box-shadow:0 0 0 1px rgba(217,119,72,.35);}
+  .lnode.on b{color:#fff;}
+  .larrow{flex:none; display:flex; align-items:center; padding:0 7px; color:#3c4256; font-size:1rem;}
+  .larrow.on{color:var(--accent);}
+  .loopback{text-align:center; font-size:.72rem; color:var(--dim); margin-bottom:10px;}
+  .loopback b{color:var(--accent);}
+
+  .evctl{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;}
+  .evctl button{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:7px 14px; font-size:.8rem; cursor:pointer;}
+  .evctl button:hover:not(:disabled){border-color:var(--accent);}
+  .evctl button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .evctl button:disabled{opacity:.35; cursor:not-allowed;}
+
+  .tape{display:flex; gap:14px; flex-wrap:wrap;}
+  .tapecol{flex:1; min-width:300px;}
+  .actbox{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .actbox .who{display:inline-block; font-size:.66rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+    padding:3px 9px; border-radius:999px; margin-bottom:8px;}
+  .actbox .who.claude{background:rgba(201,139,219,.2); color:var(--purple); border:1px solid rgba(201,139,219,.45);}
+  .actbox .who.you{background:rgba(91,155,217,.2); color:var(--blue); border:1px solid rgba(91,155,217,.45);}
+  .actbox .who.human{background:rgba(217,180,91,.2); color:var(--yellow); border:1px solid rgba(217,180,91,.45);}
+  .actbox h5{font-size:.95rem; margin-bottom:6px;}
+  .actbox p{font-size:.85rem; margin:6px 0 0; line-height:1.55;}
+  .must{margin-top:10px; padding:9px 12px; border-radius:8px; font-size:.8rem; line-height:1.5;
+    background:rgba(91,155,217,.1); border-left:3px solid var(--blue); color:#bcd4ec;}
+  .gatebox{margin-top:10px; padding:10px 13px; border-radius:8px; font-size:.82rem; line-height:1.55;
+    background:rgba(217,180,91,.12); border:1px solid rgba(217,180,91,.45); color:#e2cd94;}
+  .stopline{margin-top:10px; font-family:'Cascadia Code',monospace; font-size:.78rem; padding:8px 12px; border-radius:8px;}
+  .stopline.cont{background:rgba(79,168,119,.1); border:1px solid rgba(79,168,119,.35); color:#8fd6ac;}
+  .stopline.exit{background:rgba(91,155,217,.12); border:1px solid rgba(91,155,217,.4); color:#a8cdf0;}
+
+  .hist{border:1px solid var(--border); border-radius:11px; background:var(--code); padding:11px; max-height:420px; overflow-y:auto;}
+  .hist .hd{font-size:.71rem; color:var(--dim); font-family:'Cascadia Code',monospace; margin-bottom:8px;}
+  .turn{border:1px solid var(--border); border-radius:8px; padding:8px 11px; margin:6px 0; font-size:.76rem;
+    font-family:'Cascadia Code',monospace; line-height:1.55;}
+  .turn.user{background:rgba(91,155,217,.09); border-color:rgba(91,155,217,.3);}
+  .turn.asst{background:rgba(201,139,219,.09); border-color:rgba(201,139,219,.3);}
+  .turn .rl{font-size:.66rem; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); display:block; margin-bottom:4px;}
+  .turn .blk{color:#d6dbea; margin:2px 0;}
+  .turn .tu{color:#f0b48c;} .turn .tr{color:#8fd6ac;} .turn .tx{color:#c6cbdb;}
+  .meter{display:flex; justify-content:space-between; font-family:'Cascadia Code',monospace; font-size:.74rem;
+    padding:5px 0; border-bottom:1px dashed #262b3b;}
+  .meter:last-child{border:none;} .meter span:first-child{color:var(--dim);}
+
+  /* HITL placement */
+  .gates{display:grid; grid-template-columns:repeat(auto-fit,minmax(245px,1fr)); gap:10px; margin:14px 0;}
+  .gt{border:1px solid var(--border); border-radius:11px; padding:13px 15px; background:var(--panel2);
+    cursor:pointer; transition:all .15s;}
+  .gt:hover{border-color:var(--accent);}
+  .gt b{font-size:.88rem; display:block; margin-bottom:5px;}
+  .gt .trig{font-size:.77rem; color:var(--dim); line-height:1.5;}
+  .gt .worst{display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); font-size:.79rem; line-height:1.55;}
+  .gt.open .worst{display:block;}
+  .gt .risk{display:inline-block; font-size:.66rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+    padding:3px 9px; border-radius:999px; margin-top:8px;}
+  .gt.high{} .gt.open.high{border-color:rgba(201,91,91,.5); background:rgba(201,91,91,.09);}
+  .gt.high .risk{background:rgba(201,91,91,.2); color:#f0a5a5; border:1px solid rgba(201,91,91,.5);}
+  .gt.open.med{border-color:rgba(217,180,91,.5); background:rgba(217,180,91,.08);}
+  .gt.med .risk{background:rgba(217,180,91,.2); color:var(--yellow); border:1px solid rgba(217,180,91,.45);}
+  .gt.open.var{border-color:rgba(91,155,217,.5); background:rgba(91,155,217,.08);}
+  .gt.var .risk{background:rgba(91,155,217,.2); color:var(--blue); border:1px solid rgba(91,155,217,.5);}
+  .gt .hint{font-size:.7rem; color:#5b6178; margin-top:8px;} .gt.open .hint{display:none;}
+
+  /* tool surface */
+  .tools{display:flex; gap:10px; flex-wrap:wrap; margin:12px 0;}
+  .tbox{flex:1; min-width:210px; border-radius:11px; padding:13px 15px; border:1px solid var(--border);}
+  .tbox.few{background:rgba(201,91,91,.09); border-color:rgba(201,91,91,.38);}
+  .tbox.right{background:rgba(79,168,119,.1); border-color:rgba(79,168,119,.4);}
+  .tbox.many{background:rgba(201,91,91,.09); border-color:rgba(201,91,91,.38);}
+  .tbox b{display:block; font-size:.87rem; margin-bottom:5px;}
+  .tbox p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+  .tbox .cnt{font-family:'Cascadia Code',monospace; font-size:.72rem; color:#f0b48c; display:block; margin-bottom:6px;}
+
+  .choice{display:block; width:100%; text-align:left; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); border-radius:10px; padding:12px 15px; margin:8px 0; font-size:.87rem;
+      cursor:pointer; line-height:1.55; transition:all .15s;}
+  .choice:hover{border-color:var(--accent);}
+  .choice.right{border-color:var(--green); background:rgba(79,168,119,.12);}
+  .choice.wrong{border-color:var(--red); background:rgba(201,91,91,.1);}
+  .choice .tag{font-weight:700; margin-right:8px; color:var(--dim);}
+  .fb{display:none; margin:6px 0 14px; padding:12px 15px; border-radius:10px; font-size:.85rem; line-height:1.6;}
+  .fb.open{display:block;}
+  .fb.right{background:rgba(79,168,119,.1); border-left:3px solid var(--green);}
+  .fb.wrong{background:rgba(201,91,91,.09); border-left:3px solid var(--red);}
+  .fb b{color:#fff;}
+
+  .nav{display:flex; justify-content:space-between; align-items:center; max-width:920px; width:100%; margin-top:16px; gap:10px;}
+  .nav button{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:11px 22px; font-size:.88rem; cursor:pointer; transition:all .15s; font-weight:500;}
+  .nav button:hover:not(:disabled){border-color:var(--accent);}
+  .nav button:disabled{opacity:.3; cursor:not-allowed;}
+  .nav button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .progress{color:var(--dim); font-size:.78rem; text-align:center;} .progress b{color:var(--text);}
+  .keys{margin-top:22px; color:var(--dim); font-size:.7rem; text-align:center; line-height:1.9;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.68rem;}
+  .foot{margin-top:8px; color:#5c6478; font-size:.72rem; text-align:center; line-height:1.7; max-width:680px;}
+  .foot a{color:var(--dim);}
+  .ck{list-style:none; padding-left:0;}
+  .ck li{display:flex; align-items:flex-start; gap:9px; margin:8px 0; cursor:pointer;}
+  .ck input{margin-top:3px; accent-color:var(--green); flex:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent Construction with Claude — <span>Visual Walkthrough</span></h1>
+  <div class="sub">CCDV-F · Domain 1 · Agent Construction (5.3%) · with the loop wiring, HITL, and governing constraints it pulls in</div>
+</header>
+
+<div class="rail" id="rail"></div>
+<main><div class="view" id="view"></div></main>
+
+<div class="nav">
+  <button id="prev">&#8592; Back</button>
+  <div class="progress">Step <b id="stepNo">1</b> / <b id="stepTot">8</b><br><span id="stepName"></span></div>
+  <button id="next" class="primary">Next &#8594;</button>
+</div>
+
+<div class="keys"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate &nbsp;·&nbsp; commit to an answer <em>before</em> you click to reveal</div>
+<div class="foot" id="foot"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+const KW=/^\b(?:def|return|if|elif|else|for|while|in|with|as|not|and|or|is|True|False|None|raise|import|from|class|lambda|try|except|break|continue)\b/;
+function pyHi(line){
+  let i=0,out="";
+  while(i<line.length){
+    const rest=line.slice(i); let m;
+    if(rest[0]==="#"){ out+='<span class="t-com">'+esc(rest)+'</span>'; break; }
+    if((m=rest.match(/^"(?:[^"\\]|\\.)*"|^'(?:[^'\\]|\\.)*'/))){ out+='<span class="t-str">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(KW))){ out+='<span class="t-kw">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(/^\b\d+\b/))){ out+='<span class="t-num">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    out+=esc(line[i]); i++;
+  }
+  return out;
+}
+function code(lines){
+  let h='<div class="code">';
+  for(const l of lines){
+    const cls=l.mark?" "+l.mark:"";
+    const tag=l.tag?'<span class="tagline'+(l.mark==="add"?" add":"")+'">'+l.tag+'</span>':"";
+    h+='<div class="ln'+cls+'"><span class="gut">'+(l.n||"")+'</span><span class="src">'+pyHi(l.t)+tag+'</span></div>';
+  }
+  return h+'</div>';
+}
+function P(arr){ return arr.map((t,i)=>({n:i+1,t:t.s!==undefined?t.s:t,mark:t.m,tag:t.g})); }
+function reveal(id,btn){
+  const el=$(id); el.classList.toggle("open");
+  const c=btn.querySelector(".chev"); if(c) c.style.transform=el.classList.contains("open")?"rotate(90deg)":"none";
+}
+
+let cur=0; const seen=new Set([0]);
+const drState={}; const openSet=new Set(); const gateSet=new Set();
+let li=-1, playing=null;
+
+const STEPS=[
+ {name:"1 · Agent at all?",  r:sIsAgent},
+ {name:"2 · Who runs it",    r:sPaths},
+ {name:"3 · Wire it",        r:sWire},
+ {name:"4 · The loop",       r:sLoop},
+ {name:"5 · Exit conditions",r:sExit},
+ {name:"6 · HITL",           r:sHitl},
+ {name:"7 · Constraints",    r:sGov},
+ {name:"8 · Recall",         r:sRecall}
+];
+
+/* ---------- 1 ---------- */
+const WA=[
+ {stem:"Every refund follows the same four checks in the same order, and finance needs a step-level audit log of each one.",
+  a:"wf", why:"<b>Workflow.</b> You can enumerate the exact steps in code, the error cost is real so step-level guardrails matter, and standard observability tooling is required. Three signals, all pointing the same way."},
+ {stem:"A failed order could be stuck at the warehouse, the payment processor, or the address validator — and which checks are needed depends on what the earlier ones return.",
+  a:"ag", why:"<b>Agent.</b> You can specify the goal and the tools but <em>not</em> the path — it emerges from what each result reveals. This is the one genuine agent case in the set."},
+ {stem:"Customers paste anything into the box: order numbers, screenshots, long complaints, sometimes three questions at once.",
+  a:"ag", why:"<b>Agent.</b> Inputs vary unpredictably in content and structure, so a predetermined path breaks the moment input deviates from it."},
+ {stem:"Classify each incoming ticket into one of six categories and write the label to a queue.",
+  a:"call", why:"<b>Neither — a single API call.</b> No path to choose and no tools to sequence. Reaching for an agent here adds coordination overhead, context cost, and failure surface, and buys nothing."},
+ {stem:"The team isn't sure which shape fits, so they build an agent because it can always fall back to behaving like a workflow.",
+  a:"wf", why:"<b>Wrong by construction.</b> \"An agent can do anything a workflow can\" is the trap. Choosing an agent where a workflow suffices adds behavioural complexity <em>with no added capability</em> — and you lose the enumerable path and standard observability you never needed to give up."}
+];
+function sIsAgent(){
+ setTimeout(drawWA,20);
+ return `<span class="badge dec">Decision zero</span>
+ <h2>Before any code: is this actually an agent?</h2>
+ <div class="loc">D1 · the most expensive mistake in agent development is made before the first line</div>
+ <p class="lead">ShipRight's support assistant can answer questions. What it can't do is <em>resolve</em> a broken order — a customer charged for something the warehouse never shipped. That case is going to become an agent. First, let's establish why it earns one, because most things don't.</p>
+
+ <h3>The progression — agents are the last step, not the default</h3>
+ <div class="prog">
+  <div class="pstep"><b>Single API call</b><small>One request, one answer. No path, no tools.</small></div>
+  <div class="parrow">&#8594;</div>
+  <div class="pstep"><b>Workflow</b><small>Steps you can enumerate in code, with branching you wrote.</small></div>
+  <div class="parrow">&#8594;</div>
+  <div class="pstep last"><b>Agent</b><small>Goal + tools; the path emerges from the model's reasoning.</small></div>
+ </div>
+ <div class="callout warn"><b>Move up only when the simpler pattern can't handle the variability.</b> An agent costs you coordination overhead, expanded context, more failure surface — and <em>observability now requires transcript-level tooling</em> rather than standard operational logging. That last one surprises teams in production.</div>
+
+ <h3>Five stems &mdash; single call, workflow, or agent?</h3>
+ <div id="waDrills"></div>
+
+ <div class="callout note"><b>The symmetry worth memorising:</b> use an <em>agent where a workflow suffices</em> and you add behavioural complexity with no added capability. Use a <em>workflow where an agent is needed</em> and the system breaks the moment input deviates from the predetermined path. Both directions are failures; the exam tests both.</div>`;
+}
+function drawWA(){
+ const el=$("waDrills"); if(!el) return;
+ el.innerHTML=WA.map((d,i)=>{
+  const s=drState["wa"+i];
+  const cls=x=>s?(x===d.a?"right":(s===x?"wrong":"")):"";
+  return `<div class="drill"><div class="stem">${i+1}. ${d.stem}</div>
+   <div class="opts">
+    <button class="${cls('call')}" onclick="waPick(${i},'call')">Single API call</button>
+    <button class="${cls('wf')}" onclick="waPick(${i},'wf')">Workflow</button>
+    <button class="${cls('ag')}" onclick="waPick(${i},'ag')">Agent</button>
+   </div>
+   <div class="why ${s?"open":""}">${d.why}</div></div>`;
+ }).join("");
+}
+function waPick(i,v){ drState["wa"+i]=v; drawWA(); }
+
+/* ---------- 2 ---------- */
+const PATHS=[
+ {t:"Raw Messages API loop", who:"your code runs every iteration",
+  p:"Send the request, read <code class='inl'>tool_use</code> blocks, execute the tools, append the results — you write all of it.",
+  more:"<b>You own the full loop:</b> tool execution, context management, retries, exit conditions. Nothing is provided.<br><br><b>Choose it when</b> you need control over every step, have a constraint a library can't accommodate, or you're learning the loop before adding abstraction. <b>The cost:</b> everything the SDK gives free becomes code you write, test, and maintain."},
+ {t:"Agent SDK", who:"the same loop, inside your process",
+  p:"The SDK supplies tool-execution structure, context management, and the iteration itself — running on your infrastructure.",
+  more:"<b>You own</b> the agent definition (code-level + filesystem config) and tool execution — <em>your code still executes the tools</em>.<br><br><b>Choose it when</b> you want the loop's structure built for you but still want it running <b>in-process</b>, on your own infrastructure and credentials. That last clause is usually what decides it."},
+ {t:"Claude Managed Agents", who:"Anthropic runs the loop and the sandbox",
+  p:"Define the agent once, refer to it by ID, send user events, stream results back over SSE. <em>Public beta.</em>",
+  more:"<b>You stop owning</b> the iteration loop, the execution sandbox, in-loop retries, and the tool-execution runtime.<br><br><b>You take on</b> an agent defined as a <b>versioned API resource</b>, an app layer that sends events and consumes streamed results, and <b>server-side session state</b>.<br><br><b>Choose it when</b> the task runs minutes-to-hours (awkward to hold open in your own process) or you'd rather not build and secure a sandbox at all. <b>But see step 7</b> — one constraint rules this path out entirely, regardless of fit."}
+];
+function sPaths(){
+ setTimeout(drawPaths,20);
+ return `<span class="badge wire">Path</span>
+ <h2>The pattern is fixed. Only <em>who runs it</em> changes.</h2>
+ <div class="loc">Once you've decided it's an agent, you've decided on a loop that calls tools and runs until a goal is met. What's left is how much of that loop you write.</div>
+ <div class="specbar">
+  <div style="background:#c98bdb">Raw loop</div>
+  <div style="background:#d97748">Agent SDK</div>
+  <div style="background:#4fa877">Managed Agents</div>
+ </div>
+ <div class="specends"><span>&#9664; you own all the infrastructure</span><span>Anthropic owns it &#9654;</span></div>
+ <div class="paths" id="pathBox"></div>
+
+ <div class="callout warn"><b>The decision rule, and it is examinable verbatim:</b> choose based on <em>deployment and compliance constraints</em> — <b>not</b> on whichever path is fastest to prototype. An option that picks a path because it "gets a demo running quickest" is wrong even when everything else about it reads well.</div>
+
+ <div class="revwrap">
+  <button class="revbtn" onclick="reveal('r2',this)"><span class="chev">&#9654;</span> Prototype on the SDK, ship on Managed Agents?</button>
+  <div class="reveal" id="r2">
+   <div class="oneliner">Common progression — but expect a re-expression step, not a direct export.</div>
+   <p>The core agent definition carries over <em>conceptually</em>, but the <b>format changes</b>: the Agent SDK uses code-level and filesystem config, while Managed Agents defines the agent as a <b>versioned API resource</b>. A distractor describing this as a straight migration or export is wrong.</p>
+  </div>
+ </div>`;
+}
+function drawPaths(){
+ const el=$("pathBox"); if(!el) return;
+ el.innerHTML=PATHS.map((p,i)=>
+  `<div class="path ${openSet.has(i)?"open":""}" onclick="pathTog(${i})">
+    <b>${p.t}</b><span class="who">${p.who}</span><p>${p.p}</p>
+    <div class="more">${p.more}</div><div class="hint">click for what you own</div>
+  </div>`).join("");
+}
+function pathTog(i){ if(openSet.has(i)) openSet.delete(i); else openSet.add(i); drawPaths(); }
+
+/* ---------- 3 ---------- */
+function sWire(){
+ return `<span class="badge wire">Wiring</span>
+ <h2>Four steps that hold on every path</h2>
+ <div class="loc">On a raw loop you implement all four. With the Agent SDK it structures 1–2 and iterates — and <b>your code still executes the tools in step 3</b>.</div>
+ ${code(P([
+ {s:'# 1 — REGISTER TOOLS. Registration is what tells Claude the tool exists.'},
+ {s:'tools = [lookup_order, check_warehouse, check_payment, issue_refund]'},
+ {s:''},
+ {s:'# 2 — SCOPE THE SYSTEM PROMPT to this task and these tools.'},
+ {s:'system = ("You reconcile failed ShipRight orders. Use lookup_order first, "'},
+ {s:'          "then check_warehouse and check_payment to locate the failure. "'},
+ {s:'          "Propose issue_refund only when payment captured and nothing shipped.")', m:"ctx", g:"named task + named tools"},
+ {s:''},
+ {s:'# 3 — HANDLE THE TOOL-USE LOOP. Claude selects; your code executes.'},
+ {s:'while True:'},
+ {s:'    msg = client.messages.create(model=MODEL, system=system, tools=tools,'},
+ {s:'                                 messages=history, max_tokens=2048)'},
+ {s:'    history.append({"role": "assistant", "content": msg.content})'},
+ {s:''},
+ {s:'    # 4 — EXIT CONDITIONS. Only tool_use continues the loop.'},
+ {s:'    if msg.stop_reason != "tool_use":'},
+ {s:'        break', m:"add", g:"the loop has a way out"},
+ {s:''},
+ {s:'    results = [run_tool(b) for b in msg.content if b.type == "tool_use"]'},
+ {s:'    history.append({"role": "user", "content": results})', m:"add", g:"ALL blocks, one turn"},
+ ]))}
+
+ <h3>The checklist — verify these regardless of path</h3>
+ <table>
+  <tr><th>#</th><th>Item</th><th>What to verify</th></tr>
+  <tr><td>1</td><td><b>Tools registered</b></td><td>Every tool the agent may need is registered, and <em>no unregistered tool is named in the system prompt</em>.</td></tr>
+  <tr><td>2</td><td><b>System prompt scoped</b></td><td>Names the task and the available tools. A <b>broad</b> prompt produces broader, less reliable routing.</td></tr>
+  <tr><td>3</td><td><b>Loop implemented</b></td><td>Every <code class="inl">tool_use</code> block gets a <code class="inl">tool_result</code> <em>before the next assistant turn</em>, and all blocks from one turn are resolved <b>together</b>.</td></tr>
+  <tr><td>4</td><td><b>HITL point defined</b></td><td>At least one point in the loop routes to a human — step 6.</td></tr>
+  <tr><td>5</td><td><b>Exit conditions defined</b></td><td>A stopping criterion that <b>doesn't depend on Claude volunteering to stop</b> — step 5.</td></tr>
+ </table>
+
+ <h3>Sizing the tool surface (checklist item 1, where it goes wrong)</h3>
+ <div class="tools">
+  <div class="tbox few"><span class="cnt">too few</span><b>Under-tooled</b><p>The agent <em>hallucinates a path</em> or returns an incomplete result — it has no way to get the fact it needs.</p></div>
+  <div class="tbox right"><span class="cnt">minimum viable set</span><b>Right-sized</b><p>Start here. Add a tool only when a <b>specific capability gap is confirmed</b>.</p></div>
+  <div class="tbox many"><span class="cnt">too many, overlapping</span><b>Over-tooled</b><p><b>The more common production problem.</b> Teams register tools "just in case" and <em>selection quality degrades as the surface grows</em> — routing turns erratic.</p></div>
+ </div>
+ <div class="callout"><b>Count is this skill's lever; wording is D8's.</b> Here the question is how many tools are registered. Description quality — "when to use / when NOT to use", exclusion conditions, merging near-duplicates behind a <code class="inl">type</code> parameter — is Tool Implementation.</div>`;
+}
+
+/* ---------- 4 ---------- */
+const LOOP=[
+ {node:0, who:"you", title:"Send the request",
+  what:"Tools, the scoped system prompt, and the customer's problem. Nothing has run yet.",
+  must:null, stop:null,
+  add:[{role:"user", blocks:[["tx",'text: "Order #4471 — customer charged $89.90, nothing shipped."']]}]},
+
+ {node:1, who:"claude", title:"Assistant turn 1",
+  what:"Claude answers with a text block and one <code class='inl'>tool_use</code> block. It has <em>selected</em> a tool. Nothing has been executed.",
+  must:null, stop:"tool_use",
+  add:[{role:"assistant", blocks:[["tx",'text: "Let me establish the order state first."'],["tu",'tool_use: lookup_order(order_id="4471")  id=toolu_01A']]}]},
+
+ {node:2, who:"you", title:"Read the stop_reason",
+  what:"<code class='inl'>\"tool_use\"</code> — so the loop continues. This is the branch point: any other value takes a different path out of the loop entirely.",
+  must:"Check <b>before</b> you act, not after. Branching on the presence of tool_use blocks instead of on stop_reason is the same bug wearing a disguise.", stop:"tool_use", add:[]},
+
+ {node:3, who:"you", title:"Execute the tool",
+  what:"<b>Your code</b> calls the order service. Claude never touched it — it emitted a request, and your process decides whether and how to honour it.",
+  must:"This is the split that the whole skill turns on: <b>Claude selects, your code executes.</b> On the Agent SDK this is still true.", stop:null, add:[]},
+
+ {node:4, who:"you", title:"Append the tool_result",
+  what:"The result goes back as a <b>user</b> turn — and the full history is re-sent on the next call, because the API is stateless.",
+  must:null, stop:null,
+  add:[{role:"user", blocks:[["tr",'tool_result → toolu_01A: {payment:"captured", shipment:"none"}']]}]},
+
+ {node:1, who:"claude", title:"Assistant turn 2 — two tools at once",
+  what:"Claude now wants <b>two</b> lookups, and emits <b>two <code class='inl'>tool_use</code> blocks in a single turn</b>. This is normal and it is where pairing bugs are born.",
+  must:null, stop:"tool_use",
+  add:[{role:"assistant", blocks:[["tu",'tool_use: check_warehouse(order_id="4471")  id=toolu_02B'],["tu",'tool_use: check_payment(order_id="4471")    id=toolu_02C']]}]},
+
+ {node:3, who:"you", title:"Execute both, return both",
+  what:"Both tools run, and both results go back in <b>one</b> user turn.",
+  must:"<b>All <code class='inl'>tool_use</code> blocks from one assistant turn must be resolved together, before the next assistant turn.</b> Returning one and deferring the other breaks the pairing and the next request is rejected.", stop:null,
+  add:[{role:"user", blocks:[["tr",'tool_result → toolu_02B: {stock:"reserved", picked:false}'],["tr",'tool_result → toolu_02C: {charge:"settled", refundable:true}']]}]},
+
+ {node:1, who:"claude", title:"Assistant turn 3 — a destructive call",
+  what:"Claude has located the failure and proposes <code class='inl'>issue_refund</code>. <code class='inl'>stop_reason</code> is still just <code class='inl'>\"tool_use\"</code> — <b>the API gives you no signal that this call is different from a lookup</b>.",
+  must:null, stop:"tool_use", gate:"Your HITL gate fires here — not because the model flagged anything, but because <b>you</b> classified <code class='inl'>issue_refund</code> as irreversible when you wired the loop. Execution pauses and routes to a human.",
+  add:[{role:"assistant", blocks:[["tu",'tool_use: issue_refund(order_id="4471", cents=8990)  id=toolu_03D']]}]},
+
+ {node:3, who:"human", title:"A human approves — then your code executes",
+  what:"The reviewer sees the proposed call and its arguments, approves, and the loop resumes.",
+  must:"Had they rejected it, you'd return a <code class='inl'>tool_result</code> saying so — <em>never</em> silently drop the block, which would leave the turn unpaired.", stop:null,
+  add:[{role:"user", blocks:[["tr",'tool_result → toolu_03D: {refunded:8990, ref:"rf_9931"}']]}]},
+
+ {node:1, who:"claude", title:"Assistant turn 4 — done",
+  what:"A text block, no tool calls. <code class='inl'>stop_reason</code> is <code class='inl'>\"end_turn\"</code>.",
+  must:null, stop:"end_turn",
+  add:[{role:"assistant", blocks:[["tx",'text: "Payment was captured but the item was never picked. Refunded $89.90 (ref rf_9931)."']]}]},
+
+ {node:2, who:"you", title:"Read the stop_reason — and exit",
+  what:"<code class='inl'>\"end_turn\"</code> is not <code class='inl'>\"tool_use\"</code>, so the loop breaks. Four assistant turns, four tool calls, one human gate.",
+  must:"Note what ended it: <b>your</b> condition, evaluated on <b>your</b> side. Step 5 is what happens when that condition isn't there.", stop:"end_turn", add:[]}
+];
+const NODES=[
+ {ico:"&#128228;", b:"Send", s:"full history + tools"},
+ {ico:"&#129504;", b:"Claude turn", s:"selects tools"},
+ {ico:"&#128269;", b:"Read stop_reason", s:"continue or exit"},
+ {ico:"&#9881;&#65039;", b:"Execute", s:"your code runs it"},
+ {ico:"&#128206;", b:"Append tool_result", s:"as a user turn"}
+];
+function sLoop(){
+ setTimeout(drawLoop,20);
+ return `<span class="badge loop">The centrepiece</span>
+ <h2>One reconciliation, eleven moves</h2>
+ <div class="loc">Step it. Left = the move. Right = the conversation history you are accumulating and re-sending.</div>
+ <div id="loopDiag"></div>
+ <div class="loopback">&#8630; after step 5 the loop returns to <b>Claude turn</b> with the grown history &mdash; that return is the whole agent</div>
+ <div class="evctl">
+   <button class="primary" id="lNext" onclick="lStep(1)">Next move &#8594;</button>
+   <button id="lPlay" onclick="lPlay()">&#9654; Play</button>
+   <button onclick="lReset()">&#8635; Reset</button>
+   <span style="align-self:center; color:var(--dim); font-size:.78rem;" id="lCount"></span>
+ </div>
+ <div class="tape">
+  <div class="tapecol"><h4>What happens</h4><div id="lAct"></div></div>
+  <div class="tapecol"><h4>Conversation history</h4><div id="lHist"></div></div>
+ </div>`;
+}
+function drawLoop(){
+ const d=$("loopDiag"); if(!d) return;
+ const active = li<0 ? -1 : LOOP[li].node;
+ d.innerHTML='<div class="loopd">'+NODES.map((n,i)=>
+   `<div class="lnode ${i===active?"on":""}"><span class="ico">${n.ico}</span><b>${n.b}</b><small>${n.s}</small></div>`
+   + (i<NODES.length-1?`<div class="larrow ${i<active?"on":""}">&#8594;</div>`:"")
+ ).join("")+'</div>';
+
+ $("lCount").textContent = li<0 ? "not started" : `move ${li+1} of ${LOOP.length}`;
+ $("lNext").disabled = li>=LOOP.length-1;
+
+ const a=$("lAct");
+ if(li<0){ a.innerHTML=`<div class="actbox"><p style="color:var(--dim)">Press <b>Next move</b> or <b>Play</b>. The history on the right is empty — you have registered tools and written a system prompt, and nothing has run.</p></div>`; }
+ else{
+  const s=LOOP[li];
+  const whoLabel = s.who==="claude"?"Claude":(s.who==="human"?"A human":"Your code");
+  a.innerHTML=`<div class="actbox">
+    <span class="who ${s.who}">${whoLabel}</span>
+    <h5>${s.title}</h5><p>${s.what}</p>
+    ${s.must?`<div class="must">${s.must}</div>`:""}
+    ${s.gate?`<div class="gatebox">&#9995; <b>HITL gate.</b> ${s.gate}</div>`:""}
+    ${s.stop?`<div class="stopline ${s.stop==="tool_use"?"cont":"exit"}">stop_reason: "${s.stop}" &nbsp;&rarr;&nbsp; ${s.stop==="tool_use"?"loop continues":"LOOP EXITS"}</div>`:""}
+  </div>`;
+ }
+ drawHist();
+}
+function drawHist(){
+ const box=$("lHist"); if(!box) return;
+ const turns=[]; let calls=0, aTurns=0;
+ for(let i=0;i<=li;i++){
+   for(const t of LOOP[i].add){
+     turns.push(t);
+     if(t.role==="assistant") aTurns++;
+     calls += t.blocks.filter(b=>b[0]==="tu").length;
+   }
+ }
+ if(!turns.length){ box.innerHTML=`<div class="hist"><div class="hd">messages: []</div></div>`; return; }
+ let h=`<div class="hist"><div class="hd">messages[] &mdash; re-sent in full on every call</div>`;
+ for(const t of turns){
+   h+=`<div class="turn ${t.role==="user"?"user":"asst"}"><span class="rl">${t.role}</span>`;
+   for(const b of t.blocks) h+=`<div class="blk ${b[0]}">${b[1]}</div>`;
+   h+=`</div>`;
+ }
+ h+=`<div style="margin-top:10px">
+   <div class="meter"><span>assistant turns</span><span>${aTurns}</span></div>
+   <div class="meter"><span>tool calls issued</span><span>${calls}</span></div>
+   <div class="meter"><span>unpaired tool_use blocks</span><span style="color:#8fd6ac">0</span></div>
+ </div></div>`;
+ box.innerHTML=h;
+}
+function lStep(d){ lGoto(Math.min(LOOP.length-1, Math.max(-1, li+d))); }
+function lGoto(i){ li=i; drawLoop(); }
+function lReset(){ lStopPlay(); li=-1; drawLoop(); }
+function lPlay(){
+ if(playing){ lStopPlay(); return; }
+ if(li>=LOOP.length-1) li=-1;
+ $("lPlay").textContent="⏸ Pause";
+ playing=setInterval(()=>{ if(li>=LOOP.length-1){ lStopPlay(); return; } lStep(1); },1800);
+}
+function lStopPlay(){ if(playing){ clearInterval(playing); playing=null; } const b=$("lPlay"); if(b) b.textContent="▶ Play"; }
+
+/* ---------- 5 ---------- */
+function sExit(){
+ return `<span class="badge fail">Failure</span>
+ <h2>Now delete the exit condition</h2>
+ <div class="loc">The single most common way a wired loop misbehaves.</div>
+ ${code(P([
+ {s:'while True:'},
+ {s:'    msg = client.messages.create(..., messages=history)'},
+ {s:'    history.append({"role": "assistant", "content": msg.content})'},
+ {s:'    results = [run_tool(b) for b in msg.content if b.type == "tool_use"]'},
+ {s:'    history.append({"role": "user", "content": results})', m:"bug", g:"NO WAY OUT"},
+ ]))}
+ <p>Nothing here errors. The agent reconciles the order at turn 4 — and then keeps going: re-checking the warehouse, re-reading the payment, looking up the order again "to confirm". <b>Without explicit exit conditions the agent keeps requesting tool calls beyond what the task requires.</b></p>
+ <div class="callout warn"><b>Don't depend on Claude volunteering to stop.</b> That is the sentence to carry. A model may emit <code class="inl">end_turn</code> — or it may find one more plausible thing to check, every time, while your context and your bill grow. <em>Done</em> is a condition you define and evaluate on your side.</div>
+
+ <h3>What a real stopping criterion looks like</h3>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--green)">Primary</div><h5>stop_reason ≠ tool_use</h5><p>The natural exit. Claude produced an answer instead of a call. Necessary, and on its own not sufficient.</p></div>
+  <div class="card"><div class="n" style="color:var(--accent)">Bound</div><h5>Max iterations</h5><p>A hard turn cap. Not a nicety — it is the backstop for every failure mode you did not anticipate.</p></div>
+  <div class="card"><div class="n" style="color:var(--blue)">Goal</div><h5>Success condition met</h5><p>The reconciliation produced a resolution. You can check that in code; the model does not have to announce it.</p></div>
+  <div class="card"><div class="n" style="color:var(--red)">Give up</div><h5>Repeated / failing calls</h5><p>The same tool with the same arguments twice, or a run of <code class="inl">is_error</code> results. Escalate rather than loop.</p></div>
+ </div>
+ <div class="callout note"><b>Where this shows up on the exam:</b> a stem describing an agent that "runs much longer than expected" or "makes far more tool calls than the task needs" is pointing at a missing exit condition — not at a prompt that needs rewording, and not at a model that needs upgrading.</div>`;
+}
+
+/* ---------- 6 ---------- */
+const GATES=[
+ {t:"Before a destructive tool call", trig:"The agent is about to execute a <b>write, delete, or send</b>.", k:"high", r:"High",
+  worst:"<b>Worst case: an irreversible action a wrong call can't undo.</b> In our loop that's <code class='inl'>issue_refund</code> — money leaves, and no retry logic reverses it. Note that the API gave no signal this call differed from a lookup; <em>you</em> classified it as destructive at wiring time. This is the gate to place first."},
+ {t:"After a planning step", trig:"The agent has produced a plan and is about to execute it.", k:"med", r:"Medium",
+  worst:"<b>Worst case: an incorrect plan produces the wrong outcome even when every step executes perfectly.</b> Per-step checks cannot catch this, because no individual step is wrong — the sequence is. Cheap to review, and it catches errors before any of them run."},
+ {t:"On unexpected output", trig:"A tool result carries an <b>error flag, an empty result, or an out-of-bounds value</b>.", k:"var", r:"Variable",
+  worst:"<b>Worst case varies with what produced it — which is the point.</b> This gate catches failure modes that <em>retry logic alone won't resolve</em>: an empty result that reads as a legitimate 'nothing found', a value outside the range your tool contract promised. Retrying reproduces it; a human reclassifies it."}
+];
+function sHitl(){
+ setTimeout(drawGates,20);
+ return `<span class="badge loop">Gate</span>
+ <h2>Where does the human go?</h2>
+ <div class="loc">Checklist item 4. A HITL checkpoint <em>pauses execution and routes to a human</em> before proceeding.</div>
+ <div class="callout"><b>The question that decides placement:</b> <em>what is the worst possible outcome if this step runs without a human check?</em> Not "is this step important" — worst-case cost. Click each point to check yourself.</div>
+ <div class="gates" id="gateBox"></div>
+ <div class="callout good"><b>Placement follows irreversibility, not visibility.</b> The showiest step is rarely the costliest one. In the loop you just stepped through, the gate belongs on <code class="inl">issue_refund</code> — one call among five, the only one that can't be undone.</div>
+ <div class="callout warn"><b>The over-correction distractor:</b> a gate on <em>every</em> tool call. It converts an agent back into a manual process, destroys the reason you built it, and trains reviewers to approve without reading — which is worse than no gate, because now the approval is on record.</div>`;
+}
+function drawGates(){
+ const el=$("gateBox"); if(!el) return;
+ el.innerHTML=GATES.map((g,i)=>
+  `<div class="gt ${g.k} ${gateSet.has(i)?"open":""}" onclick="gateTog(${i})">
+    <b>${g.t}</b><div class="trig">${g.trig}</div>
+    <div class="worst">${g.worst}<br><span class="risk">${g.r} risk</span></div>
+    <div class="hint">click for the worst case</div>
+  </div>`).join("");
+}
+function gateTog(i){ if(gateSet.has(i)) gateSet.delete(i); else gateSet.add(i); drawGates(); }
+
+/* ---------- 7 ---------- */
+function sGov(){
+ return `<span class="badge gov">Governing constraint</span>
+ <h2>The constraint decides the path before you wire anything</h2>
+ <div class="loc">If the data carries a constraint, it picks <b>endpoint, credentials, region, and logging</b> — before prompts, tools, or memory.</div>
+ <p class="lead">Suppose ShipRight's parent runs a pharmacy line and the same agent has to reconcile orders containing PHI. Every operational argument for Managed Agents still holds. It is still ruled out.</p>
+
+ <div class="callout warn"><b>Managed Agent sessions are stateful and stored server-side.</b> That storage is <em>why</em> those sessions are <b>not currently eligible for Zero Data Retention or a HIPAA BAA</b>. PHI or a ZDR requirement rules the path out no matter how well it fits — route to the <b>Agent SDK or a raw loop on a covered configuration</b>. The governing constraint picks the path before convenience gets a say.</div>
+
+ <table>
+  <tr><th>Constraint</th><th>What it rules out in code</th><th>What usually survives review</th></tr>
+  <tr><td><b>HIPAA (PHI)</b></td><td>Any endpoint or route <em>not covered by a BAA</em> for the exact configuration in use — including any logging path not scoped under the same BAA.</td><td>Direct API/SDK on a BAA-covered configuration, <b>or</b> Bedrock / Vertex on a HIPAA-eligible cloud account. <b>BAA does not cover Console, Workbench, beta features, or consumer plans.</b></td></tr>
+  <tr><td><b>Attorney–client privilege</b></td><td>Consumer surfaces the firm can't audit end to end; any endpoint not approved for privileged material.</td><td>Direct API/SDK from the firm's own app, SSO-authenticated, through an approved gateway with full logging. Note: on direct API traffic <em>Anthropic does not capture conversation content by default</em> — the org logs at the <b>application layer</b>.</td></tr>
+  <tr><td><b>GDPR / residency</b></td><td>Routes where the region of model execution <em>can't be pinned in code</em>. Defaulting to a global endpoint without a region is the common break.</td><td>Bedrock / Vertex with the <b>region pinned</b> in client config. The direct Anthropic API does not currently provide EU data residency.</td></tr>
+  <tr><td><b>FedRAMP / gov</b></td><td>Any endpoint not on an authorised cloud at the required impact level — <em>including dev/test hitting the commercial endpoint while prod hits the authorised one</em>.</td><td>Claude for Government (FedRAMP High via Palantir PFCS-SS), Bedrock GovCloud (FedRAMP High + DoD IL4/5), or Vertex AI Assured Workloads. <b>Claude Enterprise on AWS Marketplace is not FedRAMP authorised.</b></td></tr>
+ </table>
+
+ <div class="callout note"><b>SOC 2 is not on this list</b>, and that omission is testable. It governs how your systems are built and operated — not which endpoint your code calls. It belongs to D7, not to this decision.</div>
+ <div class="callout"><b>Why it comes before wiring:</b> you don't usually choose the surface, but you write the code that targets an endpoint, attaches credentials, pins a region, and emits logs. <em>The wrong client configuration is far more expensive to undo after the agent is built.</em> Get the governing constraint named at the start.</div>
+ <p style="color:var(--dim); font-size:.8rem"><b>Version-sensitive.</b> Covered configurations, BAA feature eligibility, and FedRAMP status all change — verify at trust.anthropic.com and the Implementation Guide before configuring. Recorded 2026-07-18.</p>`;
+}
+
+/* ---------- 8 ---------- */
+function sRecall(){
+ return `<span class="badge plain">Recap &amp; recall</span>
+ <h2>From decision to running loop</h2>
+ <table>
+  <tr><th>Step</th><th>The single sentence</th></tr>
+  <tr><td><b>Is it an agent?</b></td><td>Single call → workflow → agent. Move up only when the simpler pattern can't absorb the variability; both wrong directions are failures.</td></tr>
+  <tr><td><b>Who runs the loop</b></td><td>Raw loop → Agent SDK → Managed Agents, ordered by how much you hand off. Choose on <em>deployment and compliance constraints</em>, never on prototyping speed.</td></tr>
+  <tr><td><b>Wiring</b></td><td>Register tools · scope the system prompt · handle the tool-use loop · define exit conditions. Claude selects, <b>your code executes</b> — on every path.</td></tr>
+  <tr><td><b>Pairing</b></td><td>Every <code class="inl">tool_use</code> gets a <code class="inl">tool_result</code>, and all blocks from one assistant turn are resolved together before the next.</td></tr>
+  <tr><td><b>Exit</b></td><td>Only <code class="inl">stop_reason: "tool_use"</code> continues. Add an iteration cap — don't depend on Claude volunteering to stop.</td></tr>
+  <tr><td><b>HITL</b></td><td>Place by worst-case cost: before destructive calls (high), after a plan (medium), on unexpected output (variable).</td></tr>
+  <tr><td><b>Tool surface</b></td><td>Start minimal, add on a confirmed gap. Over-tooling degrades selection and is the more common production problem.</td></tr>
+  <tr><td><b>Constraint first</b></td><td>Regulated data picks endpoint, credentials, region, and logging before any of the above. Managed Agents: no ZDR, no BAA.</td></tr>
+ </table>
+
+ <h3>Blueprint-style item &mdash; D1 · Agent Construction with Claude</h3>
+ <p class="lead">A healthcare team is building an agent that reconciles patient billing records containing PHI. Each case takes 20–40 minutes of tool calls. They prototyped on the Agent SDK and now want Claude Managed Agents in production, since holding a 40-minute loop open in their own process is awkward. How should they proceed? <b>Select ONE.</b></p>
+
+ <button class="choice" onclick="q('A',false)"><span class="tag">A</span>Move to Managed Agents as planned — long-running sessions are the case it exists for — and re-express the agent definition as a versioned API resource rather than exporting it.</button>
+ <div class="fb wrong" id="qfbA"><b>Incorrect.</b> Every operational claim here is true, and the re-expression detail is right — which is what makes it the strongest distractor. It ignores the governing constraint, and operational fit never overrides that.</div>
+
+ <button class="choice" onclick="q('B',true)"><span class="tag">B</span>Keep the workload on the Agent SDK or a raw loop on a BAA-covered configuration, because Managed Agent sessions are stored server-side and aren't eligible for a BAA or ZDR.</button>
+ <div class="fb right" id="qfbB"><b>Correct.</b> Managed Agent sessions are stateful and stored by Anthropic, and that storage is exactly why they're not currently BAA- or ZDR-eligible. PHI rules the path out regardless of how well it fits, so the workload stays on a covered configuration.</div>
+
+ <button class="choice" onclick="q('C',false)"><span class="tag">C</span>Move to Managed Agents but strip direct identifiers from each record before sending, so that no protected health information reaches the stored server-side session state.</button>
+ <div class="fb wrong" id="qfbC"><b>Incorrect.</b> De-identification is a substantial compliance undertaking in its own right, not a checkbox — and an agent reconciling <em>billing records</em> needs the identifiers to do the reconciliation. It changes the product to preserve an infrastructure preference.</div>
+
+ <button class="choice" onclick="q('D',false)"><span class="tag">D</span>Move to Managed Agents and add application-layer logging of every session to an approved destination, so the retention and auditability requirements are satisfied.</button>
+ <div class="fb wrong" id="qfbD"><b>Incorrect.</b> Application-layer logging is the right answer to a different question (the privilege row of the constraint table). It does nothing about where the <em>session state</em> is stored, which is what makes the path ineligible.</div>
+
+ <h3>Cold-recall check</h3>
+ <ul class="ck">
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>three</b> wiring paths in order of how much you hand off, and the rule that chooses between them.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> List the <b>four</b> wiring steps and say which one your code owns on every path.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> State the pairing rule for an assistant turn carrying two <code class="inl">tool_use</code> blocks.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Give <b>three</b> HITL insertion points and the risk level each addresses.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Say what rules Managed Agents out, and what you route to instead.</li>
+ </ul>
+ <div class="callout good"><b>Where this connects:</b> <code class="inl">stop_reason</code> and the request contract &rarr; the <b>API Mechanics</b> walkthrough · tool description quality and pairing &rarr; <b>D8</b> · what state outlives the loop &rarr; D1 agent memory · IAM, injection defence, and runtime guardrails &rarr; <b>D7</b>.</div>`;
+}
+function q(k,ok){
+ ["A","B","C","D"].forEach(x=>$("qfb"+x).classList.remove("open"));
+ $("qfb"+k).classList.add("open");
+ document.querySelectorAll(".choice").forEach(b=>b.classList.remove("right","wrong"));
+ event.currentTarget.classList.add(ok?"right":"wrong");
+}
+
+/* ---------- driver ---------- */
+function render(){
+ lStopPlay();
+ const s=STEPS[cur];
+ $("view").innerHTML=s.r();
+ $("view").scrollIntoView({behavior:"smooth",block:"nearest"});
+ $("stepNo").textContent=cur+1;
+ $("stepName").textContent=s.name;
+ $("prev").disabled=cur===0;
+ $("next").disabled=cur===STEPS.length-1;
+ $("next").textContent = cur===STEPS.length-2 ? "Recall →" : "Next →";
+ renderRail();
+}
+function renderRail(){
+ const r=$("rail"); r.innerHTML="";
+ STEPS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.textContent=s.name;
+  if(i===cur) b.className="active"; else if(seen.has(i)) b.className="done";
+  b.onclick=()=>goto(i);
+  r.appendChild(b);
+ });
+}
+function goto(i){ cur=Math.max(0,Math.min(STEPS.length-1,i)); seen.add(cur); render(); }
+function go(d){ goto(cur+d); }
+$("prev").onclick=()=>go(-1);
+$("next").onclick=()=>go(1);
+document.addEventListener("keydown",e=>{
+ if(e.target.tagName==="INPUT") return;
+ if(e.key==="ArrowRight") go(1); else if(e.key==="ArrowLeft") go(-1);
+});
+$("stepTot").textContent=STEPS.length;
+$("foot").innerHTML='Grounded in <a href="https://docs.claude.com/en/docs/agents-and-tools/tool-use/overview">tool use</a>, <a href="https://docs.claude.com/en/api/agent-sdk/overview">Agent SDK</a> and <a href="https://trust.anthropic.com">trust.anthropic.com</a> · wiring paths and compliance routing recorded 2026-07-18 — Managed Agents is a public beta and covered-configuration lists change, so verify before configuring. Practice item is original, written to blueprint objectives — not live exam content.';
+render();
+</script>
+</body>
+</html>

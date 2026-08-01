@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCDV-F · D8 Which Mechanism? — Built-in vs Custom vs Skill vs MCP</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --panel2:#232736; --code:#0b0d13;
+    --text:#e8eaf0; --dim:#9aa0b4; --accent:#d97748; --green:#4fa877; --red:#c95b5b;
+    --purple:#c98bdb; --blue:#5b9bd9; --yellow:#d9b45b; --teal:#4fb3a8; --border:#2e3345;
+  }
+  *{box-sizing:border-box; margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+       min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:22px 16px 60px;}
+  a{color:var(--accent);}
+  header{text-align:center; margin-bottom:16px;}
+  h1{font-size:1.15rem; font-weight:600; letter-spacing:.03em;}
+  h1 span{color:var(--accent);}
+  .sub{color:var(--dim); font-size:.8rem; margin-top:4px;}
+
+  .rail{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:960px; margin:10px auto 4px;}
+  .rail button{background:var(--panel); color:var(--dim); border:1px solid var(--border); border-radius:999px;
+       padding:5px 12px; font-size:.72rem; cursor:pointer; transition:all .15s; white-space:nowrap;}
+  .rail button:hover{border-color:var(--accent); color:var(--text);}
+  .rail button.active{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .rail button.done{color:var(--text); border-color:#3c4256;}
+  .rail button.done::before{content:"\2713 "; color:var(--green);}
+
+  main{width:100%; max-width:940px;}
+  .view{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:26px 28px; margin-top:12px;}
+  .badge{display:inline-block; font-size:.68rem; letter-spacing:.09em; text-transform:uppercase;
+         padding:4px 10px; border-radius:6px; margin-bottom:12px; font-weight:600;}
+  .badge.ask{background:rgba(91,155,217,.16); color:var(--blue); border:1px solid rgba(91,155,217,.35);}
+  .badge.mat{background:rgba(217,119,72,.16); color:var(--accent); border:1px solid rgba(217,119,72,.35);}
+  .badge.skill{background:rgba(79,179,168,.16); color:var(--teal); border:1px solid rgba(79,179,168,.35);}
+  .badge.route{background:rgba(201,139,219,.16); color:var(--purple); border:1px solid rgba(201,139,219,.35);}
+  .badge.cost{background:rgba(79,168,119,.16); color:var(--green); border:1px solid rgba(79,168,119,.35);}
+  .badge.plain{background:var(--panel2); color:var(--dim); border:1px solid var(--border);}
+  h2{font-size:1.35rem; font-weight:650; margin-bottom:4px; line-height:1.25;}
+  h3{font-size:.96rem; font-weight:650; margin:22px 0 8px; color:var(--text);}
+  h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; color:var(--dim); font-weight:600;}
+  .loc{color:var(--dim); font-size:.82rem; margin-bottom:14px;}
+  p{line-height:1.62; margin:9px 0; color:#d4d8e4; font-size:.92rem;}
+  p.lead{font-size:1rem; color:var(--text);}
+  strong{color:#fff;}
+  em{color:var(--accent); font-style:normal;}
+  code.inl{background:var(--code); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+        font-family:'Cascadia Code','Consolas',monospace; font-size:.82em; color:#cdd3e6;}
+  ul{margin:8px 0 8px 2px; padding-left:18px; line-height:1.6; color:#d4d8e4; font-size:.92rem;}
+  li{margin:5px 0;}
+
+  .code{background:var(--code); border:1px solid var(--border); border-radius:10px; overflow-x:auto;
+        font-family:'Cascadia Code','Consolas','Courier New',monospace; font-size:.8rem; line-height:1.62; margin:10px 0;}
+  .ln{display:flex; white-space:pre; min-width:max-content;}
+  .ln .gut{width:2.6em; text-align:right; padding:0 12px 0 10px; color:#454b62; user-select:none; flex:none;}
+  .ln .src{padding-right:16px; flex:1;}
+  .ln.bug{background:rgba(201,91,91,.14);}  .ln.bug .gut{color:var(--red); font-weight:700;}
+  .ln.add{background:rgba(79,168,119,.13);} .ln.add .gut{color:var(--green);}
+  .ln.ctx{background:rgba(217,119,72,.07);}
+  .t-kw{color:var(--purple);} .t-str{color:#8fbf87;} .t-com{color:#5c6478; font-style:italic;}
+  .t-num{color:#d99a5b;} .t-key{color:#7fb3e0;} .t-lit{color:var(--purple);}
+  .tagline{font-size:.7rem; color:var(--red); margin-left:8px; font-weight:600; letter-spacing:.04em;}
+  .tagline.add{color:var(--green);}
+
+  .revwrap{margin:12px 0;}
+  .revbtn{background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+      padding:9px 16px; font-size:.83rem; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:8px;}
+  .revbtn:hover{border-color:var(--accent);}
+  .revbtn .chev{color:var(--accent); transition:transform .2s;}
+  .reveal{display:none; margin-top:12px; padding:16px 18px; border-radius:10px; border:1px solid var(--border);
+      background:var(--panel2); animation:fade .25s ease;}
+  .reveal.open{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .reveal .oneliner{font-size:.96rem; color:#fff; font-weight:600; line-height:1.5;}
+
+  .callout{border-left:3px solid var(--accent); background:var(--panel2); border-radius:0 8px 8px 0;
+      padding:12px 16px; margin:14px 0; font-size:.88rem; line-height:1.6;}
+  .callout.warn{border-left-color:var(--red);}
+  .callout.good{border-left-color:var(--green);}
+  .callout.note{border-left-color:var(--blue);}
+  .callout b{color:#fff;}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:.83rem;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; line-height:1.5;}
+  th{background:var(--panel2); color:var(--text); font-weight:600;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px; margin:14px 0;}
+  .card{border:1px solid var(--border); border-radius:10px; padding:12px 14px; background:var(--panel2);}
+  .card .n{font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; font-weight:700;}
+  .card h5{font-size:.9rem; margin:5px 0 4px;}
+  .card p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+
+  /* asks list */
+  .asks{display:grid; grid-template-columns:repeat(auto-fit,minmax(255px,1fr)); gap:9px; margin:14px 0;}
+  .ask{border:1px solid var(--border); border-radius:10px; padding:11px 13px; background:var(--panel2);}
+  .ask .q{font-size:.83rem; line-height:1.5;}
+  .ask .num{font-family:'Cascadia Code',monospace; font-size:.68rem; color:var(--accent); font-weight:700; display:block; margin-bottom:4px;}
+
+  /* matrix */
+  .mtx{display:grid; grid-template-columns:repeat(auto-fit,minmax(265px,1fr)); gap:10px; margin:14px 0;}
+  .lane{border:1px solid var(--border); border-radius:12px; padding:13px 15px; background:var(--panel2);
+    cursor:pointer; transition:all .15s;}
+  .lane:hover{border-color:var(--accent);}
+  .lane b{font-size:.9rem; display:block; margin-bottom:6px;}
+  .lane .axes{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;}
+  .lane .ax{font-size:.66rem; font-weight:700; letter-spacing:.04em; padding:3px 8px; border-radius:999px;
+    border:1px solid var(--border); background:var(--code); color:var(--dim); white-space:nowrap;}
+  .lane .ax.anth{color:var(--purple); border-color:rgba(201,139,219,.4);}
+  .lane .ax.you{color:var(--blue); border-color:rgba(91,155,217,.4);}
+  .lane .ax.third{color:var(--yellow); border-color:rgba(217,180,91,.4);}
+  .lane p{font-size:.78rem; color:var(--dim); margin:0; line-height:1.5;}
+  .lane .more{display:none; margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); font-size:.79rem; line-height:1.55;}
+  .lane.open .more{display:block;}
+  .lane.open{border-color:var(--accent); background:rgba(217,119,72,.07);}
+  .lane .hint{font-size:.7rem; color:#5b6178; margin-top:8px;} .lane.open .hint{display:none;}
+  .lane .ex{font-family:'Cascadia Code',monospace; font-size:.72rem; color:#f0b48c; display:block; margin-top:6px;}
+
+  /* drill */
+  .drill{border:1px solid var(--border); border-radius:11px; padding:14px 16px; margin:10px 0; background:var(--panel2);}
+  .drill .stem{font-size:.88rem; line-height:1.55; margin-bottom:10px;}
+  .drill .opts{display:flex; gap:7px; flex-wrap:wrap;}
+  .drill .opts button{background:var(--code); color:var(--text); border:1px solid var(--border); border-radius:8px;
+      padding:7px 11px; font-size:.74rem; cursor:pointer; transition:all .15s;}
+  .drill .opts button:hover{border-color:var(--accent);}
+  .drill .opts button.right{border-color:var(--green); background:rgba(79,168,119,.15); color:#a7dcbf;}
+  .drill .opts button.wrong{border-color:var(--red); background:rgba(201,91,91,.12); color:#f0b9b9;}
+  .drill .why{display:none; margin-top:10px; font-size:.82rem; line-height:1.55; color:#d4d8e4;
+      border-left:3px solid var(--purple); padding-left:12px;}
+  .drill .why.open{display:block;} .drill .why b{color:#fff;}
+
+  /* routing demo */
+  .rtog{display:flex; gap:8px; margin:12px 0;}
+  .rtog button{flex:1; background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:9px;
+    padding:9px 12px; font-size:.8rem; cursor:pointer;}
+  .rtog button.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .tooldef{border:1px solid var(--border); border-radius:10px; padding:11px 13px; margin:8px 0; background:var(--code);}
+  .tooldef .tn{font-family:'Cascadia Code',monospace; font-size:.82rem; color:#7fb3e0; font-weight:700;}
+  .tooldef .td{font-size:.79rem; color:#c6cbdb; line-height:1.55; margin-top:5px;}
+  .tooldef .td .exc{color:#8fd6ac; font-weight:600;}
+  .query{background:rgba(91,155,217,.1); border:1px solid rgba(91,155,217,.35); border-radius:9px;
+    padding:10px 13px; font-size:.84rem; margin:12px 0;}
+  .query b{color:#a8cdf0;}
+  .outcome{border-radius:9px; padding:11px 14px; font-size:.84rem; line-height:1.55; margin-top:10px;}
+  .outcome.bad{background:rgba(201,91,91,.11); border:1px solid rgba(201,91,91,.38); color:#f0b9b9;}
+  .outcome.good{background:rgba(79,168,119,.1); border:1px solid rgba(79,168,119,.35); color:#a7dcbf;}
+
+  /* context cost bar */
+  .ctxrow{display:flex; align-items:center; gap:10px; margin:7px 0;}
+  .ctxlab{width:190px; flex:none; font-size:.79rem; color:var(--dim); text-align:right;}
+  .ctxtrack{flex:1; height:24px; background:var(--code); border:1px solid var(--border); border-radius:6px; overflow:hidden;}
+  .ctxfill{height:100%; display:flex; align-items:center; padding-left:9px; font-size:.71rem; font-weight:700; color:#0b0d13;}
+  .srvtog{display:grid; grid-template-columns:repeat(auto-fit,minmax(175px,1fr)); gap:8px; margin:12px 0;}
+  .st{border:1px solid var(--border); border-radius:9px; padding:9px 12px; background:var(--panel2); cursor:pointer; font-size:.8rem;}
+  .st:hover{border-color:var(--accent);}
+  .st.on{border-color:var(--accent); background:rgba(217,119,72,.1);}
+  .st .tk{font-family:'Cascadia Code',monospace; font-size:.73rem; color:#f0b48c; float:right;}
+  .st .box{display:inline-block; width:11px; height:11px; border:1px solid var(--border); border-radius:3px; margin-right:6px;}
+  .st.on .box{background:var(--accent); border-color:var(--accent);}
+  .ctxtot{font-size:.82rem; color:var(--dim); margin-top:8px;} .ctxtot b{color:var(--accent);}
+
+  .choice{display:block; width:100%; text-align:left; background:var(--panel2); color:var(--text);
+      border:1px solid var(--border); border-radius:10px; padding:12px 15px; margin:8px 0; font-size:.87rem;
+      cursor:pointer; line-height:1.55; transition:all .15s;}
+  .choice:hover{border-color:var(--accent);}
+  .choice.right{border-color:var(--green); background:rgba(79,168,119,.12);}
+  .choice.wrong{border-color:var(--red); background:rgba(201,91,91,.1);}
+  .choice .tag{font-weight:700; margin-right:8px; color:var(--dim);}
+  .fb{display:none; margin:6px 0 14px; padding:12px 15px; border-radius:10px; font-size:.85rem; line-height:1.6;}
+  .fb.open{display:block;}
+  .fb.right{background:rgba(79,168,119,.1); border-left:3px solid var(--green);}
+  .fb.wrong{background:rgba(201,91,91,.09); border-left:3px solid var(--red);}
+  .fb b{color:#fff;}
+
+  .nav{display:flex; justify-content:space-between; align-items:center; max-width:940px; width:100%; margin-top:16px; gap:10px;}
+  .nav button{background:var(--panel); color:var(--text); border:1px solid var(--border); border-radius:10px;
+      padding:11px 22px; font-size:.88rem; cursor:pointer; transition:all .15s; font-weight:500;}
+  .nav button:hover:not(:disabled){border-color:var(--accent);}
+  .nav button:disabled{opacity:.3; cursor:not-allowed;}
+  .nav button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .progress{color:var(--dim); font-size:.78rem; text-align:center;} .progress b{color:var(--text);}
+  .keys{margin-top:22px; color:var(--dim); font-size:.7rem; text-align:center; line-height:1.9;}
+  kbd{background:var(--panel2); border:1px solid var(--border); border-radius:4px; padding:1px 6px; font-size:.68rem;}
+  .foot{margin-top:8px; color:#5c6478; font-size:.72rem; text-align:center; line-height:1.7; max-width:700px;}
+  .foot a{color:var(--dim);}
+  .ck{list-style:none; padding-left:0;}
+  .ck li{display:flex; align-items:flex-start; gap:9px; margin:8px 0; cursor:pointer;}
+  .ck input{margin-top:3px; accent-color:var(--green); flex:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>Which Mechanism? — <span>Visual Walkthrough</span></h1>
+  <div class="sub">CCDV-F · Domain 8 · Agentic Customization (4.1%) + Tool Implementation (4.4%) · built-in vs custom vs Skill vs MCP</div>
+</header>
+
+<div class="rail" id="rail"></div>
+<main><div class="view" id="view"></div></main>
+
+<div class="nav">
+  <button id="prev">&#8592; Back</button>
+  <div class="progress">Step <b id="stepNo">1</b> / <b id="stepTot">8</b><br><span id="stepName"></span></div>
+  <button id="next" class="primary">Next &#8594;</button>
+</div>
+
+<div class="keys"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> navigate &nbsp;·&nbsp; commit to an answer <em>before</em> you click to reveal</div>
+<div class="foot" id="foot"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+const KW=/^\b(?:def|return|if|elif|else|for|while|in|with|as|not|and|or|is|True|False|None|raise|import|from|class|lambda|try|except|break|continue)\b/;
+function pyHi(line){
+  let i=0,out="";
+  while(i<line.length){
+    const rest=line.slice(i); let m;
+    if(rest[0]==="#"){ out+='<span class="t-com">'+esc(rest)+'</span>'; break; }
+    if((m=rest.match(/^"(?:[^"\\]|\\.)*"|^'(?:[^'\\]|\\.)*'/))){ out+='<span class="t-str">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(KW))){ out+='<span class="t-kw">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    if((m=rest.match(/^\b\d+\b/))){ out+='<span class="t-num">'+esc(m[0])+'</span>'; i+=m[0].length; continue; }
+    out+=esc(line[i]); i++;
+  }
+  return out;
+}
+function code(lines){
+  let h='<div class="code">';
+  for(const l of lines){
+    const cls=l.mark?" "+l.mark:"";
+    const tag=l.tag?'<span class="tagline'+(l.mark==="add"?" add":"")+'">'+l.tag+'</span>':"";
+    h+='<div class="ln'+cls+'"><span class="gut">'+(l.n||"")+'</span><span class="src">'+pyHi(l.t)+tag+'</span></div>';
+  }
+  return h+'</div>';
+}
+function P(arr){ return arr.map((t,i)=>({n:i+1,t:t.s!==undefined?t.s:t,mark:t.m,tag:t.g})); }
+function reveal(id,btn){
+  const el=$(id); el.classList.toggle("open");
+  const c=btn.querySelector(".chev"); if(c) c.style.transform=el.classList.contains("open")?"rotate(90deg)":"none";
+}
+const fmt=n=>n.toLocaleString("en-US");
+
+let cur=0; const seen=new Set([0]);
+const drState={}; const laneOpen=new Set();
+let routeFixed=false;
+const srvOn=new Set([0]);
+
+const STEPS=[
+ {name:"1 · Six asks",     r:sAsks},
+ {name:"2 · Five lanes",   r:sLanes},
+ {name:"3 · Not a tool",   r:sSkills},
+ {name:"4 · Sort them",    r:sDrill},
+ {name:"5 · Loop unchanged",r:sLoop},
+ {name:"6 · Routing",      r:sRouting},
+ {name:"7 · Context cost", r:sCost},
+ {name:"8 · Recall",       r:sRecall}
+];
+
+/* ---------- 1 ---------- */
+function sAsks(){
+ return `<span class="badge ask">The question</span>
+ <h2>Six asks land in one sprint</h2>
+ <div class="loc">D8 · Agentic Customization &nbsp;·&nbsp; ShipRight's assistant needs six new capabilities. Each wants a different mechanism.</div>
+ <div class="asks">
+  <div class="ask"><span class="num">ASK 1</span><div class="q">"Look up an order in our internal Postgres."</div></div>
+  <div class="ask"><span class="num">ASK 2</span><div class="q">"Check the carrier's public status page for regional delays."</div></div>
+  <div class="ask"><span class="num">ASK 3</span><div class="q">"Reconcile a 4,000-row shipment CSV and give me the mismatches."</div></div>
+  <div class="ask"><span class="num">ASK 4</span><div class="q">"Wire up the engineering team's whole GitHub — issues, PRs, projects."</div></div>
+  <div class="ask"><span class="num">ASK 5</span><div class="q">"Always format refund decisions using our claims template."</div></div>
+  <div class="ask"><span class="num">ASK 6</span><div class="q">"Let it edit files in the repo during next month's migration."</div></div>
+ </div>
+
+ <div class="callout"><b>Two questions sort all six, and neither is "is this hard?"</b>
+ <ul>
+  <li><b>Who writes the schema?</b> You · Anthropic · a third party.</li>
+  <li><b>Who executes the call?</b> Your code · Anthropic's infrastructure.</li>
+ </ul>
+ Those two axes produce four <em>tool</em> lanes. The fifth thing on the list isn't a tool at all — which is the single most useful distinction in this skill.</div>
+
+ <div class="callout warn"><b>"Built-in" is not one category — and this is exactly where items are set.</b> <code class="inl">web_search</code> runs on Anthropic's infrastructure and returns results directly. <code class="inl">bash</code> and <code class="inl">text_editor</code> are <em>also</em> Anthropic-defined, and <b>your application still executes them</b> and returns a <code class="inl">tool_result</code>. Same "built-in" label, opposite execution model.</div>
+ <p style="color:var(--dim); font-size:.8rem">Next step lays out the five lanes. Try to place the six asks before you open them.</p>`;
+}
+
+/* ---------- 2 ---------- */
+const LANES=[
+ {t:"Server tools", schema:"Anthropic writes", exec:"Anthropic executes", axS:"anth", axE:"anth",
+  p:"Run on Anthropic's infrastructure. <b>No handler code in your application</b> — you see the results directly.",
+  ex:"web_search · web_fetch · code_execution · advisor · tool_search",
+  more:"<b>Declared by a versioned <code class='inl'>type</code>, not a schema you write:</b><br><code class='inl'>{\"type\": \"web_search_20260209\", \"name\": \"web_search\"}</code> — no <code class='inl'>input_schema</code>, because Anthropic already published it.<br><br><b>Covers asks 2 and 3.</b> Checking a public status page is <code class='inl'>web_fetch</code>/<code class='inl'>web_search</code>; reconciling a CSV is <code class='inl'>code_execution</code> in a sandboxed container.<br><br><b>Pricing differs too:</b> server tools can add <em>usage-based charges on top of tokens</em> — web search charges per search performed.<br><br>⚠️ One exception to \"no handler code\": if Claude calls a server tool in the <em>same group of parallel calls</em> as one of your client tools, you're back in the handling path."},
+
+ {t:"Anthropic-schema client tools", schema:"Anthropic writes", exec:"YOU execute", axS:"anth", axE:"you",
+  p:"Anthropic publishes the schema and <b>trains Claude on it</b> — but your application runs the call and returns the <code class='inl'>tool_result</code>.",
+  ex:"memory · bash · text_editor · computer_use",
+  more:"<b>The lane people forget exists.</b> They look built-in and behave like custom tools at runtime: <code class='inl'>stop_reason: \"tool_use\"</code>, your code executes, you return a <code class='inl'>tool_result</code>.<br><br><b>Covers ask 6.</b> Editing repo files during a migration is <code class='inl'>text_editor</code> — you get a schema Claude already understands without authoring one, and you keep execution on your own machine, under your own permissions.<br><br>That last part is the reason the lane exists: these tools touch <em>your</em> filesystem, <em>your</em> shell, <em>your</em> desktop. Execution could not be anywhere else."},
+
+ {t:"Custom tools", schema:"YOU write", exec:"YOU execute", axS:"you", axE:"you",
+  p:"You author <code class='inl'>name</code>, <code class='inl'>description</code>, and <code class='inl'>input_schema</code>; your code executes each call.",
+  ex:"lookup_order · issue_refund · check_warehouse",
+  more:"<b>Covers ask 1.</b> Nobody else can write a schema for <em>your</em> Postgres.<br><br><b>What you get that no other lane gives you: description quality.</b> You control the exact wording Claude routes on — step 6 is entirely about this lever.<br><br>Add <code class='inl'>strict: true</code> to guarantee tool calls match your schema exactly. And the SDK's <b>Tool Runner</b> will execute your tools and send results back automatically if you'd rather not write the round trip.<br><br><b>Cost:</b> you own the schema forever — including every time the underlying service changes."},
+
+ {t:"MCP servers", schema:"A third party writes", exec:"Your client / the connector", axS:"third", axE:"you",
+  p:"Tool definitions <b>and</b> execution move out of your app into a dedicated server. Your client sends a <code class='inl'>ListToolsRequest</code> and passes the returned definitions to Claude.",
+  ex:"GitHub · Slack · Sentry · Postgres · filesystem",
+  more:"<b>Covers ask 4.</b> Hand-authoring a schema for every GitHub operation — and maintaining them as GitHub's API evolves — is work someone has already done.<br><br><b>From Claude's view, MCP tools are indistinguishable from hand-authored ones.</b> Same description-based routing, same block pairing. Only <em>setup</em> differs.<br><br><b>Transports:</b> <code class='inl'>stdio</code> for local servers (your app spawns a subprocess); <b>Streamable HTTP</b> for remote. An older SSE-only transport is <b>deprecated</b>. The API MCP Connector supports <b>remote servers only</b> — stdio needs Claude Desktop / Claude Code as the client.<br><br><b>The tradeoff in one line: MCP buys coverage, manual authoring buys precision.</b> They aren't exclusive — connect for breadth, then allowlist and tune descriptions for the few tools you actually route to."},
+
+ {t:"Skills", schema:"— not a tool —", exec:"— not a tool —", axS:"", axE:"",
+  p:"A <code class='inl'>SKILL.md</code> file that teaches Claude <b>how to do a kind of task</b>. It grants no new capability and executes nothing.",
+  ex:"claims-decision-format · code-review-checklist",
+  more:"<b>Covers ask 5.</b> \"Always format refund decisions using our template\" is not a capability — it's an <em>instruction</em>. No tool call would help.<br><br>Frontmatter carries <code class='inl'>name</code> + <code class='inl'>description</code>; the body carries the instructions. <b>The description is the matching criterion</b> — Claude compares it against your message and loads the full body <em>only on a match</em>.<br><br>Step 3 is entirely about this lane, because confusing it with a tool is the most common error in the whole comparison."}
+];
+function sLanes(){
+ setTimeout(drawLanes,20);
+ return `<span class="badge mat">The matrix</span>
+ <h2>Two axes, five lanes</h2>
+ <div class="loc">Click each for the declaration form, what it covers, and its cost. <em>(Tool inventory verified against platform.claude.com, 2026-07-31.)</em></div>
+ <div class="mtx" id="laneBox"></div>
+ <div class="callout note"><b>Read the two chips on each card first.</b> They are the whole taxonomy: who wrote the schema, and whose machine runs the call. Every other difference — pricing, declaration syntax, maintenance burden — follows from those two.</div>
+ <h3>Declaration, side by side</h3>
+ ${code(P([
+ {s:'# Server tool / Anthropic-schema tool — a versioned type, no schema from you'},
+ {s:'{"type": "web_search_20260209", "name": "web_search"}', m:"ctx"},
+ {s:''},
+ {s:'# Custom tool — you supply all three parts'},
+ {s:'{"name": "lookup_order",'},
+ {s:' "description": "Retrieve the current status of one order by ID. Do not…",'},
+ {s:' "input_schema": {"type": "object", "properties": {…}, "required": ["order_id"]}}', m:"add"},
+ ]))}
+ <div class="callout"><b>The presence of <code class="inl">input_schema</code> is the tell.</b> If you wrote one, you own the routing wording and the execution. If you passed a <code class="inl">type</code> string instead, Anthropic wrote both.</div>`;
+}
+function drawLanes(){
+ const el=$("laneBox"); if(!el) return;
+ el.innerHTML=LANES.map((l,i)=>
+  `<div class="lane ${laneOpen.has(i)?"open":""}" onclick="laneTog(${i})">
+    <b>${l.t}</b>
+    <div class="axes">${l.axS?`<span class="ax ${l.axS}">schema: ${l.schema}</span><span class="ax ${l.axE}">exec: ${l.exec}</span>`
+      :`<span class="ax">instructions, not capability</span>`}</div>
+    <p>${l.p}</p><span class="ex">${l.ex}</span>
+    <div class="more">${l.more}</div><div class="hint">click for detail</div>
+  </div>`).join("");
+}
+function laneTog(i){ if(laneOpen.has(i)) laneOpen.delete(i); else laneOpen.add(i); drawLanes(); }
+
+/* ---------- 3 ---------- */
+function sSkills(){
+ return `<span class="badge skill">The distinction that matters most</span>
+ <h2>A Skill is not a tool</h2>
+ <div class="loc">It adds no capability, calls nothing, and returns nothing. It changes <em>how</em> Claude does something it could already do.</div>
+ <div class="grid">
+  <div class="card" style="border-left:3px solid var(--accent)"><div class="n" style="color:var(--accent)">A tool</div><h5>Grants a capability</h5><p>Claude emits a <code class="inl">tool_use</code> block, something executes, a <code class="inl">tool_result</code> comes back. Without it, Claude <em>cannot</em> reach your database.</p></div>
+  <div class="card" style="border-left:3px solid var(--teal)"><div class="n" style="color:var(--teal)">A Skill</div><h5>Supplies instructions</h5><p>No block, no execution, no result. Without it Claude still writes the refund decision — just not in your house format.</p></div>
+ </div>
+ <div class="callout warn"><b>The test:</b> ask whether the thing Claude is missing is <em>access</em> or <em>knowledge</em>. Missing access &rarr; a tool. Missing knowledge of how you want it done &rarr; a Skill. A stem describing "the output is correct but not in our format" is never solved by registering a tool.</div>
+
+ <h3>Where instructions can live — and what each costs</h3>
+ <table>
+  <tr><th>Pattern</th><th>When it loads</th><th>Context cost</th><th>Best for</th></tr>
+  <tr><td><b>Skill (<code class="inl">SKILL.md</code>)</b></td><td>On demand, when a request matches its <b>description</b></td><td><b>Low</b> — only name + description load at startup; the body loads on a match</td><td>Task-specific expertise that shouldn't inflate sessions where it's unused.</td></tr>
+  <tr><td><b><code class="inl">CLAUDE.md</code></b></td><td>Every session unconditionally <em>(Claude Code CLI)</em>; per <code class="inl">settingSources</code> <em>(Agent SDK)</em></td><td>Fixed overhead per session, regardless of task</td><td>Always-on standards that apply to everything.</td></tr>
+  <tr><td><b>In-context instructions</b></td><td>Every turn within that session</td><td>Grows with session length; doesn't survive session end</td><td>Short one-off work that fits the window.</td></tr>
+ </table>
+ <div class="callout note"><b><code class="inl">CLAUDE.md</code> is environment-dependent — don't assume it always loads.</b> In the CLI it loads every session; in the Agent SDK that's governed by <code class="inl">settingSources</code>. Set it explicitly rather than relying on a default. A Skill, by contrast, loads on a match in <em>both</em> environments.</div>
+
+ <div class="revwrap">
+  <button class="revbtn" onclick="reveal('r3',this)"><span class="chev">&#9654;</span> Two things that surprise people about Skills</button>
+  <div class="reveal" id="r3">
+   <div class="oneliner">Subagents don't inherit Skills — but they do inherit permissions.</div>
+   <p>Delegate to a subagent and it starts with a <b>clean context</b>: Skills <em>and</em> conversation history do not carry over. If the subagent needs a Skill, <b>list it explicitly in the subagent's configuration</b>.</p>
+   <p><b>But permission context is not reset at delegation.</b> Don't read "clean context" as "clean permissions" — that misreading is the item.</p>
+   <p style="color:var(--dim)">⚠️ Version-sensitive: on the Messages API, Skills are <b>beta</b> and need two headers — <code class="inl">code-execution-2025-08-25</code> and <code class="inl">skills-2025-10-02</code> — and run <em>inside the code-execution container</em>, not your application's environment, which constrains the filesystem access a Skill can rely on. Noted 2026-07-18; confirm before building on it.</p>
+  </div>
+ </div>`;
+}
+
+/* ---------- 4 ---------- */
+const SORT=[
+ {stem:"Query the internal Postgres for an order's current status.", a:"custom",
+  why:"<b>Custom tool.</b> Nobody else can write a schema for your database — and you want control of the description, since this tool will sit next to several other lookups."},
+ {stem:"Run Python over a 4,000-row CSV to find shipment mismatches.", a:"server",
+  why:"<b>Server tool — <code class='inl'>code_execution</code>.</b> Runs in a sandboxed container on Anthropic's infrastructure with no handler code from you. Writing a custom \"run some Python\" tool means building and securing a sandbox that already exists."},
+ {stem:"Let Claude edit files in your repository during a migration.", a:"anthclient",
+  why:"<b>Anthropic-schema client tool — <code class='inl'>text_editor</code>.</b> Anthropic wrote the schema and trained Claude on it, but the files are on <em>your</em> machine, so <b>your code executes</b> and returns the <code class='inl'>tool_result</code>. This is the lane people miss."},
+ {stem:"Add the whole GitHub surface — issues, PRs, projects — maintained as GitHub's API changes.", a:"mcp",
+  why:"<b>MCP server.</b> Breadth you don't want to author or maintain. Connect for coverage, then allowlist down to the operations you actually route to."},
+ {stem:"Every refund decision must follow the firm's claims template and cite the policy clause.", a:"skill",
+  why:"<b>Skill.</b> Nothing needs to be fetched or executed — Claude already knows how to write the decision. What's missing is <em>how you want it done</em>, and it should only load when a refund decision is actually being written."},
+ {stem:"Answer questions about carrier delays announced this week, with sources.", a:"server",
+  why:"<b>Server tool — <code class='inl'>web_search</code>.</b> Beyond the knowledge cutoff, executed on Anthropic's infrastructure, returned with citations. Note it bills <em>per search</em> on top of tokens."}
+];
+function sDrill(){
+ setTimeout(drawSort,20);
+ return `<span class="badge mat">Sort</span>
+ <h2>Place all six</h2>
+ <div class="loc">Ask the two questions: who writes the schema, and who executes? Then ask whether it's a capability at all.</div>
+ <div id="sortDrills"></div>
+ <div class="callout good"><b>Pattern in the answers:</b> reach for a mechanism someone else maintains when the capability is <em>generic</em> (search the web, run Python, talk to GitHub). Author it yourself when the capability is <em>yours</em> (your database, your business rules) — or when routing precision matters more than saved effort.</div>`;
+}
+function drawSort(){
+ const el=$("sortDrills"); if(!el) return;
+ const opts=[["custom","Custom tool"],["anthclient","Anthropic-schema client"],["server","Server tool"],["mcp","MCP server"],["skill","Skill"]];
+ el.innerHTML=SORT.map((d,i)=>{
+  const s=drState["s"+i];
+  const cls=x=>s?(x===d.a?"right":(s===x?"wrong":"")):"";
+  return `<div class="drill"><div class="stem">${i+1}. ${d.stem}</div>
+   <div class="opts">${opts.map(o=>`<button class="${cls(o[0])}" onclick="sortPick(${i},'${o[0]}')">${o[1]}</button>`).join("")}</div>
+   <div class="why ${s?"open":""}">${d.why}</div></div>`;
+ }).join("");
+}
+function sortPick(i,v){ drState["s"+i]=v; drawSort(); }
+
+/* ---------- 5 ---------- */
+function sLoop(){
+ return `<span class="badge route">Invariant</span>
+ <h2>Whichever lane you pick, the loop is the same</h2>
+ <div class="loc">From Claude's side there is one mechanism. Only <em>setup</em> differs.</div>
+ <table>
+  <tr><th>Step</th><th>Action</th><th style="text-align:center">Owner</th></tr>
+  <tr><td>1</td><td>Define the schema — <em>or</em> receive it from a server, <em>or</em> pass a <code class="inl">type</code> string</td><td style="text-align:center">You</td></tr>
+  <tr><td>2</td><td>Send the message</td><td style="text-align:center">You</td></tr>
+  <tr><td>3</td><td>Claude returns a <code class="inl">tool_use</code> block — which tool, which inputs</td><td style="text-align:center"><b>Claude</b></td></tr>
+  <tr><td>4</td><td>Execute the tool <em>(server tools: Anthropic already did)</em></td><td style="text-align:center">You</td></tr>
+  <tr><td>5</td><td>Return a <code class="inl">tool_result</code> block with the matching ID</td><td style="text-align:center">You</td></tr>
+  <tr><td>6</td><td>Claude continues — another call, or a final answer</td><td style="text-align:center"><b>Claude</b></td></tr>
+ </table>
+ <div class="callout warn"><b>Claude owns <em>selection</em>. Your code owns <em>execution and returning results</em>.</b> That boundary is where most tool-use bugs live — and when the miss is <em>systematic</em> (Claude keeps picking the wrong tool), the fix is upstream at step 1, in the schema, not in your runtime code.</div>
+
+ <h3>The pairing invariant — structural, not a prompting problem</h3>
+ <table>
+  <tr><th>Block</th><th>The rule</th></tr>
+  <tr><td><code class="inl">text</code></td><td>Claude may return text <em>alongside</em> a <code class="inl">tool_use</code> block. <b>Preserve the full content array</b> when appending the turn — dropping the text block corrupts the context Claude relies on for follow-ups.</td></tr>
+  <tr><td><code class="inl">tool_use</code></td><td>Every one must be answered by a <code class="inl">tool_result</code> in the <b>immediately following</b> user turn, carrying the <b>same ID</b>.</td></tr>
+  <tr><td><code class="inl">tool_result</code></td><td><code class="inl">tool_use_id</code> must match <b>exactly</b> — this is how results are connected to calls when one turn issues several and they return out of order. <code class="inl">is_error: true</code> when the call failed.</td></tr>
+  <tr><td><code class="inl">thinking</code></td><td>Pass back <b>unchanged</b>. A signature verifies it wasn't modified; any edit or summary breaks it and the API rejects the message. <b>Redacted</b> thinking follows the same rule.</td></tr>
+ </table>
+ <div class="callout"><b>You cannot fix a block-pairing error by rewording the prompt.</b> Missing results, mismatched IDs, or results appearing in a <em>later</em> turn are all validation errors. Your code has to produce the correct sequence on every request.</div>
+ <div class="callout note"><b>Dependency shapes the schema.</b> If one tool's output feeds the next, model it as <b>separate turns</b> — the second call can't be built until the first returns. If the subtasks are independent, let Claude issue <b>several <code class="inl">tool_use</code> blocks in one turn</b>; current models default to parallel. Force one per turn with <code class="inl">disable_parallel_tool_use</code>.</div>`;
+}
+
+/* ---------- 6 ---------- */
+function sRouting(){
+ setTimeout(drawRoute,20);
+ return `<span class="badge route">The lever</span>
+ <h2>Claude routes on the description</h2>
+ <div class="loc">Two tools, distinct names, and Claude keeps picking wrong. The names were never the problem.</div>
+ <div class="rtog">
+   <button class="${routeFixed?"":"on"}" onclick="routeFixed=false;drawRoute()">Original descriptions</button>
+   <button class="${routeFixed?"on":""}" onclick="routeFixed=true;drawRoute()">With exclusion conditions</button>
+ </div>
+ <div id="routeBox"></div>
+ <div class="callout"><b>Routing priority: <code class="inl">name</code> + <code class="inl">description</code>, with parameter types as a <em>secondary</em> signal.</b> When two tools have identical signatures, routing collapses to the description alone — which is why <b>overlapping parameter types are the most common source of wrong-tool calls</b>.</div>
+
+ <h3>How to write one</h3>
+ <table>
+  <tr><th>Decision</th><th>How to handle it</th></tr>
+  <tr><td><b>Length</b></td><td>About <b>3–4 sentences</b>: what it does, when to reach for it, what it returns. Too short and Claude guesses; too long and the trigger conditions get buried under detail it won't reference at decision time.</td></tr>
+  <tr><td><b>Two halves</b></td><td>Write <b>when to use <em>and</em> when NOT to use</b>. The exclusion condition is what turns two lookalike options into a decision rule.</td></tr>
+  <tr><td><b>Required fields</b></td><td>Only fields the call can't work without. <b>Marking everything required forces Claude to fabricate values</b> for fields it has no basis to fill.</td></tr>
+  <tr><td><b>Overlapping types</b></td><td>Add disambiguating language naming the domain or trigger each tool is for.</td></tr>
+ </table>
+ <div class="callout warn"><b>Know when to stop disambiguating.</b> Every extra tool grows the surface Claude reasons over. If two tools need <em>ever-longer</em> descriptions to stay apart, <b>merge them into one tool with a <code class="inl">type</code> parameter</b> instead of writing a third paragraph.</div>
+ <div class="callout note"><b>A dependency worth noticing:</b> exclusion conditions like "only if X was called earlier in this conversation" rely on the <b>complete history being passed each request</b>. Truncate or drop prior turns and Claude can't evaluate them — the exclusion logic <em>silently fails</em>, and routing degrades with no error anywhere.</div>`;
+}
+function drawRoute(){
+ const el=$("routeBox"); if(!el) return;
+ const a=routeFixed
+  ? `Use this to search the knowledge base when the user asks a question requiring current information. <span class="exc">Do not use this if the result of a prior search in this session already covers the question.</span>`
+  : `Use this to find information.`;
+ const b=routeFixed
+  ? `Use this to retrieve a result already fetched during this session. <span class="exc">Only use this if <code class="inl">search_knowledge_base</code> was called earlier in this conversation for the same query.</span>`
+  : `Use this to find information that was looked up.`;
+ el.innerHTML=`
+  <div class="tooldef"><span class="tn">search_knowledge_base</span><div class="td">${a}</div></div>
+  <div class="tooldef"><span class="tn">get_cached_result</span><div class="td">${b}</div></div>
+  <div class="query"><b>User, second time in the session:</b> "What's the delay policy for the north-east region again?"</div>
+  ${routeFixed
+   ? `<div class="outcome good"><b>&#10003; Routes to <code class="inl">get_cached_result</code>.</b> Each description now carries a rule Claude can <em>evaluate</em>: one says don't search if a prior search covers it, the other says only use the cache if a search already happened. Two options became a decision.</div>`
+   : `<div class="outcome bad"><b>&#10007; Picks either one, unpredictably.</b> Both descriptions say "find information". The names are distinct, but at the decision point the two tools look identical — so there is nothing to route on.</div>`}`;
+}
+
+/* ---------- 7 ---------- */
+const SRV=[
+ {n:"Your 4 custom tools", t:1850},
+ {n:"GitHub MCP server", t:9400},
+ {n:"Slack MCP server", t:6100},
+ {n:"Sentry MCP server", t:4300},
+ {n:"Filesystem MCP server", t:3200}
+];
+function sCost(){
+ setTimeout(drawCost,20);
+ return `<span class="badge cost">The bill</span>
+ <h2>Every definition is spent before the first message</h2>
+ <div class="loc">Tool definitions occupy the context window whether or not a tool is ever called.</div>
+ <div class="srvtog" id="srvBox"></div>
+ <div class="ctxrow"><div class="ctxlab">Spent before turn 1</div><div class="ctxtrack"><div class="ctxfill" id="ctxFill"></div></div></div>
+ <div class="ctxtot" id="ctxTot"></div>
+
+ <div class="callout warn"><b>MCP servers add their tool definitions to the window even when the tools aren't used in the current turn.</b> Connect several and the definitions spend budget before you say anything. Register only the servers you're actively using, and check the cost against your window when connecting more than one.</div>
+
+ <h3>Two levers on the API MCP Connector</h3>
+ <p>The <code class="inl">mcp_toolset</code> object in the <code class="inl">tools</code> array carries a <code class="inl">default_config</code> applied to every tool on the server, with per-tool overrides via <code class="inl">configs</code> keyed by tool name:</p>
+ <div class="grid">
+  <div class="card"><div class="n" style="color:var(--green)">defer_loading</div><h5>Load on demand</h5><p>Delays loading a tool definition until the model needs it — much less upfront context when a server exposes a large tool list.</p></div>
+  <div class="card"><div class="n" style="color:var(--blue)">enabled</div><h5>Expose a subset</h5><p>Turn individual tools on or off, so you can register a server but show Claude only the tools you want it choosing between.</p></div>
+ </div>
+ <div class="callout note"><b>Two separate levers, and you want both.</b> Allowlisting shrinks the surface Claude reasons over; sharpening descriptions improves precision within that surface. Narrowing is not a substitute for good wording — <em>and this is why "I need scope control" alone isn't a reason to hand-author schemas.</em> Description quality still is.<br><br>⚠️ Version-sensitive: <code class="inl">mcp_toolset</code> behaviour as described requires the <code class="inl">mcp-client-2025-11-20</code> beta header. Noted 2026-07-18 — verify before relying on it.</div>
+
+ <h3>Two more costs that don't show up as tool definitions</h3>
+ <ul>
+  <li><b>The tool-use system prompt.</b> Supplying <em>any</em> tools makes the API insert a system prompt that enables tool use — on Claude Opus 5 that's <b>286 tokens</b> for <code class="inl">tool_choice: auto</code> or <code class="inl">none</code>, and <b>406</b> for <code class="inl">any</code> or <code class="inl">tool</code>. Counts differ per model. <em>(Verified 2026-07-31.)</em></li>
+  <li><b>Server-tool usage charges.</b> Client-side tools price like any other request; server tools may add usage-based charges on top of tokens — web search bills per search performed.</li>
+ </ul>
+ <div class="callout good"><b>When the tool list is genuinely huge</b>, there is a server tool for that: <code class="inl">tool_search</code> lets Claude work with thousands of tools by <b>discovering and loading them on demand</b> rather than holding every definition in context.</div>`;
+}
+function drawCost(){
+ const el=$("srvBox"); if(!el) return;
+ el.innerHTML=SRV.map((s,i)=>
+  `<div class="st ${srvOn.has(i)?"on":""}" onclick="srvTog(${i})"><span class="tk">${fmt(s.t)}</span><span class="box"></span>${s.n}</div>`).join("");
+ const total=[...srvOn].reduce((a,i)=>a+SRV[i].t,0);
+ const pct=Math.min(100,total/25000*100);
+ const f=$("ctxFill");
+ f.style.width=pct+"%";
+ f.style.background = total>15000 ? "linear-gradient(90deg,#c95b5b,#a94848)"
+   : total>8000 ? "linear-gradient(90deg,#d9b45b,#c99f45)" : "linear-gradient(90deg,#4fa877,#3f8a61)";
+ f.textContent = total>2000 ? fmt(total)+" tokens" : "";
+ $("ctxTot").innerHTML = `<b>${fmt(total)}</b> tokens of definitions loaded before the conversation starts` +
+   (srvOn.size>2 ? ` &nbsp;·&nbsp; <span style="color:#f0a5a5">four servers registered, and today's task probably needs one</span>` : "");
+}
+function srvTog(i){ if(srvOn.has(i)) srvOn.delete(i); else srvOn.add(i); drawCost(); }
+
+/* ---------- 8 ---------- */
+function sRecall(){
+ return `<span class="badge plain">Recap &amp; recall</span>
+ <h2>Five lanes, two questions</h2>
+ <table>
+  <tr><th>Lane</th><th>Schema by</th><th>Executed by</th><th>Reach for it when</th></tr>
+  <tr><td><b>Server tools</b><br><span style="color:var(--dim)">web_search · web_fetch · code_execution · advisor · tool_search</span></td><td>Anthropic</td><td><b>Anthropic</b></td><td>The capability is generic infrastructure you'd otherwise build and secure.</td></tr>
+  <tr><td><b>Anthropic-schema client tools</b><br><span style="color:var(--dim)">memory · bash · text_editor · computer_use</span></td><td>Anthropic</td><td><b>You</b></td><td>The tool touches your machine, so execution can't be elsewhere — but the schema is already written and trained on.</td></tr>
+  <tr><td><b>Custom tools</b></td><td>You</td><td>You</td><td>The capability is yours, or routing precision matters more than saved effort.</td></tr>
+  <tr><td><b>MCP servers</b></td><td>A third party</td><td>Your client / connector</td><td>A maintained server already covers the service. Coverage over precision — then allowlist and tune.</td></tr>
+  <tr><td><b>Skills</b></td><td colspan="2" style="text-align:center; color:var(--teal)"><b>not a tool at all</b></td><td>The gap is <em>how you want it done</em>, not access. Loads only on a description match.</td></tr>
+ </table>
+
+ <h3>Blueprint-style item &mdash; D8 · Agentic Customization</h3>
+ <p class="lead">A team is adding two capabilities. First, Claude must be able to edit source files in the team's own repository during a refactor. Second, its code-review output must always follow the team's internal review template. Which pairing is correct? <b>Select ONE.</b></p>
+
+ <button class="choice" onclick="q('A',false)"><span class="tag">A</span>A server tool for the file edits, since Anthropic publishes a text-editor schema, and a custom tool for the template so the format is enforced on every review.</button>
+ <div class="fb wrong" id="qfbA"><b>Incorrect on both halves.</b> The text editor is Anthropic-schema but <em>client</em>-executed — the files are on the team's machine, so their code runs the call. And a formatting convention isn't a capability, so no tool call delivers it.</div>
+
+ <button class="choice" onclick="q('B',true)"><span class="tag">B</span>The Anthropic-schema <code class="inl">text_editor</code> tool, executed by the team's own code, plus a Skill whose description matches code-review requests and loads the template only then.</button>
+ <div class="fb right" id="qfbB"><b>Correct.</b> <code class="inl">text_editor</code> gives a schema Claude is already trained on while execution stays on the team's machine under their permissions. The template is instructions, not access — a Skill supplies it and stays out of the window on unrelated tasks.</div>
+
+ <button class="choice" onclick="q('C',false)"><span class="tag">C</span>An MCP filesystem server for the edits, plus the review template added to <code class="inl">CLAUDE.md</code> so the standard is present and enforced in every session.</button>
+ <div class="fb wrong" id="qfbC"><b>Workable but wrong on both counts.</b> An MCP server adds a dependency and its definitions to context when a trained-on schema already exists. And <code class="inl">CLAUDE.md</code> pays its cost in <em>every</em> session, including the many that never review code — the case a Skill exists for.</div>
+
+ <button class="choice" onclick="q('D',false)"><span class="tag">D</span>Custom tools for both — one wrapping the file-edit operations and one that returns the template — so the team controls the descriptions and the execution path end to end.</button>
+ <div class="fb wrong" id="qfbD"><b>Incorrect.</b> It re-authors a schema Anthropic already publishes and trains Claude on, for no gain. The second half is worse: wrapping instructions in a tool means Claude must <em>choose to call</em> the template before it can follow it, when a Skill loads it automatically on a match.</div>
+
+ <h3>Cold-recall check</h3>
+ <ul class="ck">
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Name the <b>two</b> categories hiding inside the word "built-in", and which one you execute.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Say how a server tool is declared versus a custom tool, and what the tell is.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Give the one-line test that separates a Skill from a tool.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> State what MCP buys, what manual authoring buys, and why they aren't exclusive.</li>
+  <li onclick="this.querySelector('input').click()"><input type="checkbox"> Explain why an unused MCP server still costs you, and the two levers that reduce it.</li>
+ </ul>
+ <div class="callout good"><b>Where this connects:</b> the loop your code runs around any of these &rarr; the <b>Agent Construction</b> walkthrough · tool-surface sizing and over-tooling &rarr; <b>D1</b> · block pairing on the wire &rarr; the <b>API Mechanics</b> walkthrough · definitions as context spend &rarr; the <b>Tokens &amp; Context</b> walkthrough · MCP auth and enterprise deployment &rarr; D8's own Enterprise Integration section.</div>`;
+}
+function q(k,ok){
+ ["A","B","C","D"].forEach(x=>$("qfb"+x).classList.remove("open"));
+ $("qfb"+k).classList.add("open");
+ document.querySelectorAll(".choice").forEach(b=>b.classList.remove("right","wrong"));
+ event.currentTarget.classList.add(ok?"right":"wrong");
+}
+
+/* ---------- driver ---------- */
+function render(){
+ const s=STEPS[cur];
+ $("view").innerHTML=s.r();
+ $("view").scrollIntoView({behavior:"smooth",block:"nearest"});
+ $("stepNo").textContent=cur+1;
+ $("stepName").textContent=s.name;
+ $("prev").disabled=cur===0;
+ $("next").disabled=cur===STEPS.length-1;
+ $("next").textContent = cur===STEPS.length-2 ? "Recall →" : "Next →";
+ renderRail();
+}
+function renderRail(){
+ const r=$("rail"); r.innerHTML="";
+ STEPS.forEach((s,i)=>{
+  const b=document.createElement("button");
+  b.textContent=s.name;
+  if(i===cur) b.className="active"; else if(seen.has(i)) b.className="done";
+  b.onclick=()=>goto(i);
+  r.appendChild(b);
+ });
+}
+function goto(i){ cur=Math.max(0,Math.min(STEPS.length-1,i)); seen.add(cur); render(); }
+function go(d){ goto(cur+d); }
+$("prev").onclick=()=>go(-1);
+$("next").onclick=()=>go(1);
+document.addEventListener("keydown",e=>{
+ if(e.target.tagName==="INPUT") return;
+ if(e.key==="ArrowRight") go(1); else if(e.key==="ArrowLeft") go(-1);
+});
+$("stepTot").textContent=STEPS.length;
+$("foot").innerHTML='Tool inventory, declaration syntax, execution model and tool-use system-prompt token counts verified against <a href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview">platform.claude.com</a> on 2026-07-31; MCP connector and Skills beta headers noted 2026-07-18 — all version-sensitive, re-verify at build time. MCP-server token figures in step 7 are illustrative. Practice item is original, written to blueprint objectives — not live exam content.';
+render();
+</script>
+</body>
+</html>

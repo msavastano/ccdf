@@ -406,3 +406,97 @@ D. Parameter names must be unique across all tools, and renaming one resolves it
 - B — Marking parameters required changes validation, not which tool is chosen. ✗
 - C — Two tools can share a signature; the descriptions then have to do all the work. ✗
 - D — Parameter names need not be globally unique; the overlap matters only because it removes a routing signal. ✗
+
+---
+
+## Supplement — Mechanism selection (built-in vs. custom vs. Skills vs. MCPs)
+
+_Added 2026-07-31 to cover the selection tradeoff added to `notes.md` the same day. Tool inventory and execution models verified against platform.claude.com._
+
+**Q27 · D8 · Agentic Customization** (select ONE)
+A team needs Claude to edit source files in their own repository during a refactor. They want to avoid authoring and maintaining a schema if one already exists. Which mechanism fits, and who executes the call?
+
+A. A server tool, executed on Anthropic's infrastructure with no handler code required.
+B. A custom tool they author, executed by their application against the local filesystem.
+C. The Anthropic-schema `text_editor` tool, executed by their own application.
+D. An MCP filesystem server, executed by the server process on their behalf.
+
+**Q28 · D8 · Agentic Customization** (select ONE)
+An assistant produces factually correct code reviews, but they never follow the team's required review template. Reviews are one of about twenty task types the assistant handles. What is the appropriate mechanism?
+
+A. A custom tool that returns the template when Claude calls it.
+B. An MCP server exposing the team's documentation, including the template.
+C. The template appended to `CLAUDE.md` so it is present in every session.
+D. A Skill whose description matches review requests, loading the template only then.
+
+**Q29 · D8 · Tool Implementation** (select ONE)
+Reviewing a request body, you see one entry in `tools` with `name`, `description`, and `input_schema`, and another with only a versioned `type` and a `name`. What does this difference tell you?
+
+A. The second entry is malformed and will be rejected at validation.
+B. Anthropic authored the second tool's schema, so you own neither its wording nor its execution model.
+C. Both are custom tools; the second simply omits optional fields.
+D. The second entry is deprecated syntax retained for backward compatibility.
+
+**Q30 · D8 · Agentic Customization** (select ONE)
+A team connects four MCP servers so the assistant can reach every system it might need. Response quality drops and input costs rise, even on turns where no tool is called. What best explains this?
+
+A. MCP servers hold an open connection that consumes tokens while idle.
+B. Each server re-sends its tool list on every turn, duplicating definitions.
+C. Tool definitions occupy the context window whether or not they are used.
+D. Connecting several servers forces the model into a larger context tier.
+
+**Q31 · D8 · Agentic Customization** (select ONE)
+A developer argues for hand-authoring schemas rather than using a well-maintained MCP server, because the team needs Claude to see only six of the server's forty tools. How should this reasoning be assessed?
+
+A. Sound — hand-authoring is the only way to limit which tools are exposed.
+B. Sound — a server's schemas cannot be filtered once its tool list is received.
+C. Unsound — tool count alone never justifies a mechanism change either way.
+D. Unsound for that reason — the connector allowlists per server, though description quality could still justify it.
+
+**Q32 · D8 · Tool Implementation** (select ONE)
+An application uses `web_search` and expects no handler code for it. Intermittently, a turn arrives that the application fails to process, and each failure coincides with Claude also calling one of the team's custom tools. What is happening?
+
+A. Server tools fall back to client execution whenever the search index is unavailable.
+B. A server tool called in the same group of parallel calls as a client tool returns the application to the handling path.
+C. The custom tool's schema is shadowing the server tool's reserved name.
+D. Parallel tool use is unsupported when server and client tools are mixed.
+
+---
+
+## Answer Key & Rationale — Mechanism selection supplement
+
+**Q27: C.**
+- A — Server tools run on Anthropic's infrastructure, which cannot reach files on the team's own machine. ✗
+- B — Authoring a schema is the work they wanted to avoid, and one already exists. ✗
+- C — `text_editor` is Anthropic-schema but client-executed: the schema is published and Claude is trained on it, while the team's code runs the call against their own filesystem under their own permissions. ✓
+- D — An MCP server adds a dependency and its definitions to context when a trained-on schema already covers the need. ✗
+
+**Q28: D.**
+- A — Wrapping instructions in a tool means Claude must choose to call the template before it can follow it. ✗
+- B — A server adds an integration for something that needs no execution. ✗
+- C — `CLAUDE.md` pays its cost in every session, including the nineteen task types that never review code. ✗
+- D — The gap is knowledge of a convention, not access, so it is a Skill. Its description is the matching criterion, so the body loads only on review requests and stays out of the window otherwise. ✓
+
+**Q29: B.**
+- A — A versioned `type` with a `name` is the correct declaration for an Anthropic-provided tool. ✗
+- B — A `type` string means Anthropic published the schema and trained Claude on it, so the routing wording is not yours to tune. Whether *you* execute it depends on which kind it is — server tools run on Anthropic's infrastructure, Anthropic-schema client tools run in your app. ✓
+- C — `input_schema` is not optional on a custom tool; its absence marks a different kind of tool. ✗
+- D — It is the current form for Anthropic-provided tools, not a legacy one. ✗
+
+**Q30: C.**
+- A — There is no idle connection cost; the API is stateless and definitions travel with each request. ✗
+- B — Definitions being sent each turn is how a stateless API works, and is not duplication. ✗
+- C — Every registered definition occupies the window regardless of use, so four servers spend budget before the first message — raising input cost and crowding the window, which degrades recall. Register only servers in active use, or reduce the load with `defer_loading` and `enabled`. ✓
+- D — Context tier is a property of the model chosen, not of how many servers are connected. ✗
+
+**Q31: D.**
+- A — The API MCP Connector allowlists tools per server, so exposure can be limited without hand-authoring. ✗
+- B — Filtering is exactly what the connector's per-tool configuration provides. ✗
+- C — Tool count is a real consideration; the flaw is the specific claim that only hand-authoring can limit exposure. ✗
+- D — Scope control alone does not justify re-authoring schemas, because the connector already allowlists. Description quality remains a legitimate reason, and narrowing the set and tuning descriptions are two separate levers worth using together. ✓
+
+**Q32: B.**
+- A — Server tools do not fall back to client execution. ✗
+- B — Server tools normally need no handler code, but when one is called in the same group of parallel calls as a client tool, the application is back in the handling path and must process that turn. ✓
+- C — Names are not reserved across the two kinds, and a collision would not be intermittent. ✗
+- D — Mixing server and client tools in one turn is supported; handling it is the part being missed. ✗

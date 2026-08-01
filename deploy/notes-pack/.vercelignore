@@ -1,4 +1,7 @@
-# Allowlist: upload only the built page and its config.
+# Allowlist: upload only the built page, its config, and the sibling pages the
+# page links to. Anything staged but not matched here is silently left out of
+# the upload and 404s in production — deploy.py fails the stage if that happens.
 /*
 !index.html
 !vercel.json
+!*-walkthrough.html
